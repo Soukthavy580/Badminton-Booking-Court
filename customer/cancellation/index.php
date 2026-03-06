@@ -1,0 +1,160 @@
+<?php
+session_start();
+require_once '../../config/db.php';
+
+if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'customer') {
+    header('Location: /Badminton_court_Booking/auth/login.php');
+    exit;
+}
+
+$c_id    = $_SESSION['c_id'];
+$book_id = intval($_GET['id'] ?? 0);
+
+if (!$book_id) {
+    header('Location: /Badminton_court_Booking/customer/booking_court/my_booking.php');
+    exit;
+}
+
+// Verify booking belongs to this customer and is cancellable
+try {
+    $stmt = $pdo->prepare("
+        SELECT b.*, bd.Start_time, v.VN_Name
+        FROM booking b
+        INNER JOIN booking_detail bd ON b.Book_ID = bd.Book_ID
+        INNER JOIN Court_data c ON bd.COURT_ID = c.COURT_ID
+        INNER JOIN Venue_data v ON c.VN_ID = v.VN_ID
+        WHERE b.Book_ID = ? AND b.C_ID = ?
+        LIMIT 1
+    ");
+    $stmt->execute([$book_id, $c_id]);
+    $booking = $stmt->fetch();
+} catch (PDOException $e) {
+    $booking = null;
+}
+
+if (!$booking) {
+    header('Location: /Badminton_court_Booking/customer/booking_court/my_booking.php');
+    exit;
+}
+
+if ($booking['Status_booking'] === 'Cancelled') {
+    header('Location: /Badminton_court_Booking/customer/booking_court/my_booking.php');
+    exit;
+}
+
+if (strtotime($booking['Start_time']) < time()) {
+    $_SESSION['booking_error'] = 'Cannot cancel a past booking.';
+    header('Location: /Badminton_court_Booking/customer/booking_court/my_booking.php');
+    exit;
+}
+
+$error   = '';
+$success = false;
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $comment = trim($_POST['comment'] ?? '');
+    if (empty($comment)) {
+        $error = 'Please provide a reason for cancellation.';
+    } else {
+        try {
+            $pdo->beginTransaction();
+
+            // Update booking status
+            $stmt = $pdo->prepare("UPDATE booking SET Status_booking = 'Cancelled' WHERE Book_ID = ? AND C_ID = ?");
+            $stmt->execute([$book_id, $c_id]);
+
+            // Insert cancel record
+            $stmt = $pdo->prepare("INSERT INTO cancel_booking (Comment, Book_ID) VALUES (?, ?)");
+            $stmt->execute([$comment, $book_id]);
+
+            $pdo->commit();
+            $success = true;
+        } catch (PDOException $e) {
+            $pdo->rollBack();
+            error_log("Cancellation error: " . $e->getMessage());
+            $error = 'Cancellation failed. Please try again.';
+        }
+    }
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cancel Booking - CourtBook</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-50">
+    <?php include '../includes/header.php'; ?>
+
+    <div class="max-w-lg mx-auto px-4 py-8">
+
+        <a href="/Badminton_court_Booking/customer/booking_court/my_booking.php"
+           class="inline-flex items-center gap-2 text-gray-600 hover:text-blue-600 mb-6 font-medium transition">
+            <i class="fas fa-arrow-left"></i> Back to My Bookings
+        </a>
+
+        <?php if ($success): ?>
+            <div class="bg-white rounded-2xl shadow-sm p-10 text-center">
+                <div class="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-times-circle text-red-500 text-4xl"></i>
+                </div>
+                <h2 class="text-2xl font-extrabold text-gray-800 mb-2">Booking Cancelled</h2>
+                <p class="text-gray-500 mb-6">Your booking #<?= $book_id ?> has been successfully cancelled.</p>
+                <a href="/Badminton_court_Booking/customer/booking_court/my_booking.php"
+                   class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-3 rounded-xl transition">
+                    Back to My Bookings
+                </a>
+            </div>
+
+        <?php else: ?>
+            <div class="bg-white rounded-2xl shadow-sm p-8">
+                <div class="text-center mb-6">
+                    <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <i class="fas fa-exclamation-triangle text-red-500 text-2xl"></i>
+                    </div>
+                    <h2 class="text-2xl font-extrabold text-gray-800">Cancel Booking</h2>
+                    <p class="text-gray-500 text-sm mt-1">Booking #<?= $book_id ?> · <?= htmlspecialchars($booking['VN_Name']) ?></p>
+                </div>
+
+                <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6 text-sm text-yellow-700">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    Once cancelled, this booking cannot be undone. Your slot will be released.
+                </div>
+
+                <?php if ($error): ?>
+                    <div class="mb-4 p-4 bg-red-50 border border-red-300 text-red-700 rounded-xl text-sm">
+                        <i class="fas fa-exclamation-circle mr-2"></i><?= htmlspecialchars($error) ?>
+                    </div>
+                <?php endif; ?>
+
+                <form method="POST">
+                    <div class="mb-6">
+                        <label class="block text-gray-700 font-bold mb-2 text-sm">
+                            Reason for Cancellation <span class="text-red-500">*</span>
+                        </label>
+                        <textarea name="comment" rows="4" required
+                                  placeholder="Please tell us why you're cancelling..."
+                                  class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-gray-700 focus:outline-none focus:border-red-400 transition resize-none"></textarea>
+                    </div>
+
+                    <div class="flex gap-3">
+                        <button type="submit"
+                                class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl transition">
+                            <i class="fas fa-times-circle mr-2"></i>Confirm Cancellation
+                        </button>
+                        <a href="/Badminton_court_Booking/customer/booking_court/my_booking.php"
+                           class="flex-1 text-center bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 rounded-xl transition">
+                            Keep Booking
+                        </a>
+                    </div>
+                </form>
+            </div>
+        <?php endif; ?>
+    </div>
+
+    <?php include '../includes/footer.php'; ?>
+</body>
+</html>
