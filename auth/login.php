@@ -92,6 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -108,53 +109,66 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             width: 50%;
             height: 100vh;
         }
+
         .password-toggle {
             cursor: pointer;
             transition: color 0.3s ease;
         }
+
         .password-toggle:hover {
             color: #2563eb;
         }
+
         @media (max-width: 768px) {
-            .hero-image { display: none; }
+            .hero-image {
+                display: none;
+            }
         }
+
         .logo-text {
             background: linear-gradient(135deg, #10b981 0%, #2563eb 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
+
         .role-card {
             cursor: pointer;
             transition: all 0.3s ease;
             border: 2px solid #e5e7eb;
             background: white;
         }
+
         .role-card:hover {
             transform: translateY(-4px);
             box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
             border-color: #22c55e;
         }
+
         .role-card.selected {
             border-color: #16a34a;
             background: #f0fdf4;
             box-shadow: 0 4px 12px rgba(34, 197, 94, 0.25);
         }
+
         .role-card .role-icon {
             color: #22c55e;
             font-size: 2rem;
             margin-bottom: 0.5rem;
         }
+
         .role-card .role-name {
             color: #14532d;
             font-weight: 600;
             font-size: 1rem;
         }
+
         .role-card.error {
             border-color: #ef4444 !important;
         }
     </style>
 </head>
+
 <body class="min-h-screen bg-gray-50">
     <div class="flex min-h-screen overflow-hidden">
 
@@ -171,25 +185,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
 
                 <!-- Logo -->
-            <div class="flex items-center">
-                <a href="/Badminton_court_Booking/customer/index.php" class="flex items-center gap-2">
+                <div class="mb-8">
                     <img src="/Badminton_court_Booking/assets/images/logo/Logo.png"
-                         alt="Badminton Booking Court"
-                         class="h-14 w-auto object-contain"
-                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
-                    <span style="display:none" class="items-center gap-2">
-                        <i class="fas fa-table-tennis text-green-600 text-2xl"></i>
-                    </span>
-                    <span class="text-sm font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent leading-tight">
-                        Badminton<br>Booking Court
-                    </span>
-                </a>
-            </div>
-
-                <div class="mb-4">
-                    <h2 class="text-3xl font-bold text-gray-800 mb-2">
-                        Welcome to <span class="text-green-600">CourtBook</span>
-                    </h2>
+                        class="h-20 w-auto object-contain"
+                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+                        <span style="display:none"> <!-- fallback icon if image fails -->
+                            <i class="fas fa-table-tennis text-green-600 text-2xl"></i>
+                        </span>
+                        <p class="text-4xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent leading-tight">Badminton Booking Court</p>
                 </div>
                 <h3 class="text-2xl font-bold text-gray-800 mb-8">Login</h3>
 
@@ -361,11 +364,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     c.classList.add('error');
                 });
                 document.getElementById('roleError').classList.remove('hidden');
-                document.getElementById('roleError').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                document.getElementById('roleError').scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center'
+                });
                 return false;
             }
             return true;
         }
     </script>
 </body>
+
 </html>

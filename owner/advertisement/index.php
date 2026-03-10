@@ -30,11 +30,19 @@ try {
     $rates = $stmt->fetchAll();
 } catch (PDOException $e) { $rates = []; }
 
+// Currently running: already started
 try {
-    $stmt = $pdo->prepare("SELECT ad.*, r.Duration, r.Price FROM advertisement ad INNER JOIN advertisement_rate r ON ad.AD_Rate_ID = r.AD_Rate_ID WHERE ad.VN_ID = ? AND ad.Status_AD IN ('Active','Approved') AND ad.End_time > NOW() ORDER BY ad.End_time DESC");
+    $stmt = $pdo->prepare("SELECT ad.*, r.Duration, r.Price FROM advertisement ad INNER JOIN advertisement_rate r ON ad.AD_Rate_ID = r.AD_Rate_ID WHERE ad.VN_ID = ? AND ad.Status_AD IN ('Active','Approved') AND ad.Start_time <= NOW() AND ad.End_time > NOW() ORDER BY ad.End_time ASC");
     $stmt->execute([$vn_id]);
     $active_ads = $stmt->fetchAll();
 } catch (PDOException $e) { $active_ads = []; }
+
+// Queued: approved but not started yet
+try {
+    $stmt = $pdo->prepare("SELECT ad.*, r.Duration, r.Price FROM advertisement ad INNER JOIN advertisement_rate r ON ad.AD_Rate_ID = r.AD_Rate_ID WHERE ad.VN_ID = ? AND ad.Status_AD IN ('Active','Approved') AND ad.Start_time > NOW() ORDER BY ad.Start_time ASC");
+    $stmt->execute([$vn_id]);
+    $queued_ads = $stmt->fetchAll();
+} catch (PDOException $e) { $queued_ads = []; }
 
 try {
     $stmt = $pdo->prepare("SELECT ad.*, r.Duration, r.Price FROM advertisement ad INNER JOIN advertisement_rate r ON ad.AD_Rate_ID = r.AD_Rate_ID WHERE ad.VN_ID = ? AND ad.Status_AD = 'Pending' ORDER BY ad.AD_date DESC");
@@ -84,10 +92,10 @@ try {
                     <h1 class="text-xl font-bold text-gray-800">Advertisement</h1>
                     <p class="text-sm text-gray-500">Promote your venue on the home page</p>
                 </div>
-                <?php if (!empty($active_ads)): ?>
+                <?php if (!empty($active_ads) || !empty($queued_ads)): ?>
                     <div class="flex items-center gap-2 bg-green-50 border border-green-200 px-4 py-2 rounded-xl text-sm">
                         <i class="fas fa-bullhorn text-green-500"></i>
-                        <span class="text-green-700 font-semibold"><?= count($active_ads) ?> active ad<?= count($active_ads) > 1 ? 's' : '' ?></span>
+                        <span class="text-green-700 font-semibold"><?= count($active_ads) ?> running<?= !empty($queued_ads) ? ', ' . count($queued_ads) . ' queued' : '' ?></span>
                     </div>
                 <?php endif; ?>
             </div>
@@ -137,7 +145,7 @@ try {
                 </div>
             <?php endif; ?>
 
-            <!-- Active ads -->
+            <!-- Currently Running -->
             <?php if (!empty($active_ads)): ?>
                 <div class="bg-white rounded-2xl shadow-sm p-6 mb-6">
                     <h2 class="text-lg font-bold text-gray-800 mb-4"><i class="fas fa-circle text-green-500 mr-2 text-xs"></i>Currently Running</h2>
@@ -163,6 +171,38 @@ try {
                                         <div class="bg-blue-500 h-2 rounded-full" style="width:<?= $pct ?>%"></div>
                                     </div>
                                     <span class="font-bold <?= $days_left <= 3 ? 'text-orange-500' : 'text-blue-600' ?>"><?= $days_left ?> days left</span>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            <?php endif; ?>
+
+            <!-- Queued Ads -->
+            <?php if (!empty($queued_ads)): ?>
+                <div class="bg-white rounded-2xl shadow-sm p-6 mb-6">
+                    <h2 class="text-lg font-bold text-gray-800 mb-4">
+                        <i class="fas fa-hourglass-half text-purple-500 mr-2 text-xs"></i>Queued — Starts After Current Ad Ends
+                    </h2>
+                    <div class="space-y-3">
+                        <?php foreach ($queued_ads as $ad):
+                            $days_until = ceil((strtotime($ad['Start_time']) - time()) / 86400);
+                        ?>
+                            <div class="bg-purple-50 border border-purple-200 rounded-xl p-4">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="font-bold text-gray-800"><?= htmlspecialchars($ad['Duration']) ?> Ad</p>
+                                        <p class="text-xs text-gray-500">
+                                            Starts: <?= date('M d, Y', strtotime($ad['Start_time'])) ?> → <?= date('M d, Y', strtotime($ad['End_time'])) ?>
+                                        </p>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="bg-purple-100 text-purple-700 text-xs font-bold px-3 py-1 rounded-full">
+                                            <i class="fas fa-hourglass-half mr-1"></i>Queued
+                                        </span>
+                                        <p class="text-xs text-purple-600 mt-1 font-semibold">starts in <?= $days_until ?> day<?= $days_until != 1 ? 's' : '' ?></p>
+                                        <p class="text-xs text-gray-400">₭<?= number_format($ad['Price']) ?></p>
+                                    </div>
                                 </div>
                             </div>
                         <?php endforeach; ?>

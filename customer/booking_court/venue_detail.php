@@ -230,9 +230,10 @@ $venue_img    = !empty($venue['VN_Image'])
 
                         <?php foreach ($courts as $court):
                             // Use court's own hours — skip if owner hasn't set them yet
-                            $court_open  = $court['Open_time']  ?? null;
-                            $court_close = $court['Close_time'] ?? null;
-                            if (empty($court_open) || empty($court_close)) continue; // not scheduled yet
+                            // Use court's own hours; fall back to venue hours if not set
+                            $court_open  = !empty($court['Open_time'])  ? $court['Open_time']  : ($venue['Open_time']  ?? null);
+                            $court_close = !empty($court['Close_time']) ? $court['Close_time'] : ($venue['Close_time'] ?? null);
+                            if (empty($court_open) || empty($court_close)) continue;
                             $court_slots = generate_time_slots($court_open, $court_close);
                         ?>
                             <div class="mb-6 last:mb-0">
@@ -241,7 +242,11 @@ $venue_img    = !empty($venue['VN_Image'])
                                         <?= htmlspecialchars($court['COURT_Name']) ?>
                                     </span>
                                     <span class="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-lg">
-                                        <i class="fas fa-clock mr-1"></i><?= date('g:i A', strtotime($court_open)) ?> – <?= date('g:i A', strtotime($court_close)) ?>
+                                        <i class="fas fa-clock mr-1"></i>
+                                            <?= date('g:i A', strtotime($court_open)) ?> – <?= date('g:i A', strtotime($court_close)) ?>
+                                        <?php if (empty($court['Open_time'])): ?>
+                                            <span class="text-gray-300 ml-1">(venue hours)</span>
+                                        <?php endif; ?>
                                     </span>
                                 </h3>
                                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
@@ -343,6 +348,33 @@ $venue_img    = !empty($venue['VN_Image'])
         </div>
     </div>
 
+    <!-- Login Required Modal (guests only) -->
+    <?php if (!isset($_SESSION['user_id'])): ?>
+    <div id="loginModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onclick="if(event.target===this)closeLoginModal()">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center animate-fade-in-up">
+            <div class="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-lock text-blue-600 text-2xl"></i>
+            </div>
+            <h3 class="text-xl font-extrabold text-gray-800 mb-2">Login Required</h3>
+            <p class="text-gray-500 text-sm mb-6">You need to be logged in to book a court. Please sign in or create a free account to continue.</p>
+            <div class="flex flex-col gap-3">
+                <a id="loginRedirectBtn"
+                   href="/Badminton_court_Booking/auth/login.php?redirect=<?= urlencode($_SERVER['REQUEST_URI']) ?>"
+                   class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition shadow">
+                    <i class="fas fa-sign-in-alt mr-2"></i>Login
+                </a>
+                <a href="/Badminton_court_Booking/auth/register.php"
+                   class="w-full bg-white border-2 border-gray-200 hover:border-blue-400 text-gray-700 hover:text-blue-600 font-bold py-3 rounded-xl transition">
+                    <i class="fas fa-user-plus mr-2"></i>Create Account
+                </a>
+                <button onclick="closeLoginModal()" class="text-sm text-gray-400 hover:text-gray-600 transition mt-1">
+                    Maybe later
+                </button>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <form id="bookingForm" method="POST" action="/Badminton_court_Booking/customer/booking_court/process_booking.php" class="hidden">
         <input type="hidden" name="venue_id"   value="<?= $venue_id ?>">
         <input type="hidden" name="date"       value="<?= $search_date ?>">
@@ -352,10 +384,17 @@ $venue_img    = !empty($venue['VN_Image'])
     <?php include '../includes/footer.php'; ?>
 
     <script>
+        const isLoggedIn = <?= isset($_SESSION['user_id']) ? 'true' : 'false' ?>;
         let selectedSlots = [];
 
         function toggleSlot(btn) {
             if (btn.disabled || btn.classList.contains('booked') || btn.classList.contains('past')) return;
+
+            // Guard: must be logged in
+            if (!isLoggedIn) {
+                document.getElementById('loginModal').classList.remove('hidden');
+                return;
+            }
 
             const courtId   = btn.dataset.courtId;
             const courtName = btn.dataset.courtName;
@@ -376,6 +415,12 @@ $venue_img    = !empty($venue['VN_Image'])
             }
             updateSummary();
         }
+
+        function closeLoginModal() {
+            document.getElementById('loginModal')?.classList.add('hidden');
+        }
+
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLoginModal(); });
 
         function updateSummary() {
             const empty   = document.getElementById('summaryEmpty');

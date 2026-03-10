@@ -81,9 +81,15 @@ function sidebar_class($path) {
     <!-- Logo -->
     <div class="p-6 border-b border-gray-100">
         <a href="/Badminton_court_Booking/owner/index.php" class="flex items-center gap-2">
-            <i class="fas fa-table-tennis text-green-600 text-2xl"></i>
-            <span class="text-xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
-                CourtBook
+            <img src="/Badminton_court_Booking/assets/images/logo/Logo.png"
+                 alt="Badminton Booking Court"
+                 class="h-14 w-auto object-contain"
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+            <span style="display:none" class="items-center gap-2">
+                <i class="fas fa-table-tennis text-green-600 text-2xl"></i>
+            </span>
+            <span class="text-sm font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent leading-tight">
+                Badminton<br>Booking Court
             </span>
         </a>
         <p class="text-xs text-gray-400 mt-1">Owner Panel</p>
@@ -110,13 +116,6 @@ function sidebar_class($path) {
                 <span class="ml-auto bg-orange-500 text-white text-xs font-bold rounded-full px-2 py-0.5">⚠</span>
             <?php endif; ?>
         </a>
-         <a href="/Badminton_court_Booking/owner/advertisement/index.php"
-               class="<?= sidebar_class('/advertisement/') ?>">
-                <i class="fas fa-bullhorn w-5"></i> Advertisement
-                <?php if ($ad_expiring): ?>
-                    <span class="ml-auto bg-orange-500 text-white text-xs rounded-full px-2 py-0.5">⚠</span>
-                <?php endif; ?>
-            </a>
 
         <!-- ── VENUE (locked if no active package) ── -->
         <div class="pt-3 pb-1">
@@ -141,7 +140,13 @@ function sidebar_class($path) {
                class="<?= sidebar_class('/facilities/') ?>">
                 <i class="fas fa-concierge-bell w-5"></i> Facilities
             </a>
-           
+            <a href="/Badminton_court_Booking/owner/advertisement/index.php"
+               class="<?= sidebar_class('/advertisement/') ?>">
+                <i class="fas fa-bullhorn w-5"></i> Advertisement
+                <?php if ($ad_expiring): ?>
+                    <span class="ml-auto bg-orange-500 text-white text-xs rounded-full px-2 py-0.5">⚠</span>
+                <?php endif; ?>
+            </a>
             <a href="/Badminton_court_Booking/owner/reports/index.php"
                class="<?= sidebar_class('/reports/') ?>">
                 <i class="fas fa-chart-bar w-5"></i> Reports

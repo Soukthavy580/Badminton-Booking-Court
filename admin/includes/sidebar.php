@@ -17,7 +17,6 @@ if (isset($pdo)) {
 
 $total_pending = $pending_venues + $pending_packages + $pending_ads;
 
-// Check if any approvals sub-page is active
 $approvals_active = str_contains($current, '/admin/venues/')
                  || str_contains($current, '/admin/packages/')
                  || str_contains($current, '/admin/advertisements/');
@@ -34,9 +33,15 @@ function admin_sidebar_class($path) {
     <!-- Logo -->
     <div class="p-6 border-b border-gray-100">
         <a href="/Badminton_court_Booking/admin/index.php" class="flex items-center gap-2">
-            <i class="fas fa-table-tennis text-blue-600 text-2xl"></i>
-            <span class="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                CourtBook
+            <img src="/Badminton_court_Booking/assets/images/logo/Logo.png"
+                 alt="Badminton Booking Court"
+                 class="h-14 w-auto object-contain"
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+            <span style="display:none" class="items-center gap-2">
+                <i class="fas fa-table-tennis text-blue-600 text-2xl"></i>
+            </span>
+            <span class="text-sm font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent leading-tight">
+                Badminton<br>Booking Court
             </span>
         </a>
         <p class="text-xs text-gray-400 mt-1">Admin Panel</p>
@@ -69,7 +74,6 @@ function admin_sidebar_class($path) {
                 <i class="fas fa-chevron-down ml-auto text-xs transition-transform duration-200" id="approvalsChevron"></i>
             </button>
 
-            <!-- Sub-items -->
             <div id="approvalsMenu"
                  class="ml-4 mt-1 space-y-1 overflow-hidden transition-all duration-300"
                  style="<?= $approvals_active ? '' : 'display:none' ?>">
@@ -109,7 +113,6 @@ function admin_sidebar_class($path) {
                         </span>
                     <?php endif; ?>
                 </a>
-
             </div>
         </div>
 
@@ -156,7 +159,6 @@ function admin_sidebar_class($path) {
 </aside>
 
 <script>
-    // Keep open if on an approvals page
     const approvalsOpen = <?= $approvals_active ? 'true' : 'false' ?>;
     const menu    = document.getElementById('approvalsMenu');
     const chevron = document.getElementById('approvalsChevron');
@@ -167,7 +169,7 @@ function admin_sidebar_class($path) {
 
     function toggleApprovals() {
         const isHidden = menu.style.display === 'none' || menu.style.display === '';
-        menu.style.display   = isHidden ? 'block' : 'none';
+        menu.style.display      = isHidden ? 'block' : 'none';
         chevron.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
     }
 </script>

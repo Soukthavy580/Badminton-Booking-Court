@@ -16,11 +16,19 @@ try {
     $vn_id = $venue['VN_ID'] ?? null;
 } catch (PDOException $e) { $vn_id = null; }
 
+// Currently running package (already started)
 try {
-    $stmt = $pdo->prepare("SELECT bp.*, pr.Package_duration, pr.Price FROM package bp INNER JOIN package_rate pr ON bp.Package_rate_ID = pr.Package_rate_ID WHERE bp.CA_ID = ? AND bp.Status_Package = 'Active' AND bp.End_time > NOW() ORDER BY bp.End_time DESC LIMIT 1");
+    $stmt = $pdo->prepare("SELECT bp.*, pr.Package_duration, pr.Price FROM package bp INNER JOIN package_rate pr ON bp.Package_rate_ID = pr.Package_rate_ID WHERE bp.CA_ID = ? AND bp.Status_Package = 'Active' AND bp.Start_time <= NOW() AND bp.End_time > NOW() ORDER BY bp.End_time ASC LIMIT 1");
     $stmt->execute([$ca_id]);
     $active_package = $stmt->fetch();
 } catch (PDOException $e) { $active_package = null; }
+
+// Queued packages (approved but not started yet)
+try {
+    $stmt = $pdo->prepare("SELECT bp.*, pr.Package_duration, pr.Price FROM package bp INNER JOIN package_rate pr ON bp.Package_rate_ID = pr.Package_rate_ID WHERE bp.CA_ID = ? AND bp.Status_Package = 'Active' AND bp.Start_time > NOW() ORDER BY bp.Start_time ASC");
+    $stmt->execute([$ca_id]);
+    $queued_packages = $stmt->fetchAll();
+} catch (PDOException $e) { $queued_packages = []; }
 
 try {
     $stmt = $pdo->prepare("SELECT bp.*, pr.Package_duration, pr.Price FROM package bp INNER JOIN package_rate pr ON bp.Package_rate_ID = pr.Package_rate_ID WHERE bp.CA_ID = ? AND bp.Status_Package = 'Pending' ORDER BY bp.Package_date DESC LIMIT 1");
@@ -29,7 +37,7 @@ try {
 } catch (PDOException $e) { $pending_package = null; }
 
 try {
-    $stmt = $pdo->prepare("SELECT bp.*, pr.Package_duration, pr.Price FROM package bp INNER JOIN package_rate pr ON bp.Package_rate_ID = pr.Package_rate_ID WHERE bp.CA_ID = ? AND bp.Status_Package = 'Active' AND bp.End_time > NOW() AND bp.End_time <= DATE_ADD(NOW(), INTERVAL 3 DAY) LIMIT 1");
+    $stmt = $pdo->prepare("SELECT bp.*, pr.Package_duration, pr.Price FROM package bp INNER JOIN package_rate pr ON bp.Package_rate_ID = pr.Package_rate_ID WHERE bp.CA_ID = ? AND bp.Status_Package = 'Active' AND bp.Start_time <= NOW() AND bp.End_time > NOW() AND bp.End_time <= DATE_ADD(NOW(), INTERVAL 3 DAY) LIMIT 1");
     $stmt->execute([$ca_id]);
     $expiring_package = $stmt->fetch();
 } catch (PDOException $e) { $expiring_package = null; }
@@ -82,7 +90,7 @@ $days_left = $active_package ? ceil((strtotime($active_package['End_time']) - ti
                 <?php if ($active_package): ?>
                     <div class="flex items-center gap-2 bg-green-50 border border-green-200 px-4 py-2 rounded-xl text-sm">
                         <i class="fas fa-check-circle text-green-500"></i>
-                        <span class="text-green-700 font-medium">Active · <?= $days_left ?> days left</span>
+                        <span class="text-green-700 font-medium">Active · <?= $days_left ?> days left<?= !empty($queued_packages) ? ' · ' . count($queued_packages) . ' queued' : '' ?></span>
                     </div>
                 <?php endif; ?>
             </div>
@@ -162,6 +170,38 @@ $days_left = $active_package ? ceil((strtotime($active_package['End_time']) - ti
                         </div>
                     </div>
                 <?php endif; ?>
+            <?php endif; ?>
+
+            <!-- Queued Packages -->
+            <?php if (!empty($queued_packages)): ?>
+                <div class="bg-white rounded-2xl shadow-sm p-6 mb-6">
+                    <h2 class="text-lg font-bold text-gray-800 mb-4">
+                        <i class="fas fa-hourglass-half text-purple-500 mr-2 text-xs"></i>Queued — Starts After Current Package Ends
+                    </h2>
+                    <div class="space-y-3">
+                        <?php foreach ($queued_packages as $qpkg):
+                            $days_until = ceil((strtotime($qpkg['Start_time']) - time()) / 86400);
+                        ?>
+                            <div class="bg-purple-50 border border-purple-200 rounded-xl p-4">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="font-bold text-gray-800"><?= htmlspecialchars($qpkg['Package_duration']) ?></p>
+                                        <p class="text-xs text-gray-500">
+                                            Starts: <?= date('M d, Y', strtotime($qpkg['Start_time'])) ?> → <?= date('M d, Y', strtotime($qpkg['End_time'])) ?>
+                                        </p>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="bg-purple-100 text-purple-700 text-xs font-bold px-3 py-1 rounded-full">
+                                            <i class="fas fa-hourglass-half mr-1"></i>Queued
+                                        </span>
+                                        <p class="text-xs text-purple-600 mt-1 font-semibold">starts in <?= $days_until ?> day<?= $days_until != 1 ? 's' : '' ?></p>
+                                        <p class="text-xs text-gray-400">₭<?= number_format($qpkg['Price']) ?></p>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
             <?php endif; ?>
 
             <!-- Pending -->
