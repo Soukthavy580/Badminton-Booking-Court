@@ -11,7 +11,9 @@ if (isset($pdo) && isset($ca_id)) {
         ");
         $s->execute([$ca_id]);
         $is_active = $s->fetchColumn() > 0;
-    } catch (PDOException $e) { $is_active = false; }
+    } catch (PDOException $e) {
+        $is_active = false;
+    }
 }
 
 // Pending bookings count
@@ -27,10 +29,12 @@ if (isset($pdo) && isset($ca_id) && $is_active) {
         ");
         $s->execute([$ca_id]);
         $pending_count = (int)$s->fetchColumn();
-    } catch (PDOException $e) { $pending_count = 0; }
+    } catch (PDOException $e) {
+        $pending_count = 0;
+    }
 }
 
-// Package expiring within 3 days
+// Package expiring within 3 days — only alert if NO queued package exists
 $pkg_expiring = false;
 if (isset($pdo) && isset($ca_id) && $is_active) {
     try {
@@ -40,14 +44,26 @@ if (isset($pdo) && isset($ca_id) && $is_active) {
             AND End_time > NOW() AND End_time <= DATE_ADD(NOW(), INTERVAL 3 DAY)
         ");
         $s->execute([$ca_id]);
-        $pkg_expiring = $s->fetchColumn() > 0;
-    } catch (PDOException $e) {}
+        $has_pkg_expiring = $s->fetchColumn() > 0;
+
+        if ($has_pkg_expiring) {
+            $s2 = $pdo->prepare("
+                SELECT COUNT(*) FROM package
+                WHERE CA_ID = ? AND Status_Package = 'Active'
+                AND Start_time > NOW()
+            ");
+            $s2->execute([$ca_id]);
+            $pkg_expiring = $s2->fetchColumn() == 0;
+        }
+    } catch (PDOException $e) {
+    }
 }
 
-// Ad expiring within 3 days
+// Ad expiring within 3 days — only alert if NO queued ad exists
 $ad_expiring = false;
 if (isset($pdo) && isset($ca_id) && $is_active) {
     try {
+        // Check if any ad is expiring soon
         $s = $pdo->prepare("
             SELECT COUNT(*) FROM advertisement ad
             INNER JOIN Venue_data v ON ad.VN_ID = v.VN_ID
@@ -55,8 +71,22 @@ if (isset($pdo) && isset($ca_id) && $is_active) {
             AND ad.End_time > NOW() AND ad.End_time <= DATE_ADD(NOW(), INTERVAL 3 DAY)
         ");
         $s->execute([$ca_id]);
-        $ad_expiring = $s->fetchColumn() > 0;
-    } catch (PDOException $e) {}
+        $has_expiring = $s->fetchColumn() > 0;
+
+        if ($has_expiring) {
+            // Only show alert if there's no queued ad waiting
+            $s2 = $pdo->prepare("
+                SELECT COUNT(*) FROM advertisement ad
+                INNER JOIN Venue_data v ON ad.VN_ID = v.VN_ID
+                WHERE v.CA_ID = ? AND ad.Status_AD IN ('Approved','Active')
+                AND ad.Start_time > NOW()
+            ");
+            $s2->execute([$ca_id]);
+            $has_queued = $s2->fetchColumn() > 0;
+            $ad_expiring = !$has_queued;
+        }
+    } catch (PDOException $e) {
+    }
 }
 
 // Unread owner notifications count
@@ -66,10 +96,13 @@ if (isset($pdo) && isset($ca_id)) {
         $s = $pdo->prepare("SELECT COUNT(*) FROM owner_notification WHERE CA_ID = ?");
         $s->execute([$ca_id]);
         $notif_count = (int)$s->fetchColumn();
-    } catch (PDOException $e) { $notif_count = 0; }
+    } catch (PDOException $e) {
+        $notif_count = 0;
+    }
 }
 
-function sidebar_class($path) {
+function sidebar_class($path)
+{
     global $current;
     return str_contains($current, $path)
         ? 'flex items-center gap-3 px-4 py-3 rounded-xl bg-green-50 text-green-700 font-semibold border-l-4 border-green-600'
@@ -82,9 +115,9 @@ function sidebar_class($path) {
     <div class="p-6 border-b border-gray-100">
         <a href="/Badminton_court_Booking/owner/index.php" class="flex items-center gap-2">
             <img src="/Badminton_court_Booking/assets/images/logo/Logo.png"
-                 alt="Badminton Booking Court"
-                 class="h-14 w-auto object-contain"
-                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+                alt="Badminton Booking Court"
+                class="h-14 w-auto object-contain"
+                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
             <span style="display:none" class="items-center gap-2">
                 <i class="fas fa-table-tennis text-green-600 text-2xl"></i>
             </span>
@@ -96,10 +129,13 @@ function sidebar_class($path) {
     </div>
 
     <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
-
+ <!-- ── MANAGEMENT ── -->
+        <div class="pt-3 pb-1">
+            <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">Management</p>
+        </div>
         <!-- Dashboard -->
         <a href="/Badminton_court_Booking/owner/index.php"
-           class="<?= sidebar_class('/owner/index.php') ?>">
+            class="<?= sidebar_class('/owner/index.php') ?>">
             <i class="fas fa-home w-5"></i> Dashboard
         </a>
 
@@ -108,7 +144,7 @@ function sidebar_class($path) {
             <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">Subscription</p>
         </div>
         <a href="/Badminton_court_Booking/owner/package_rental/index.php"
-           class="<?= sidebar_class('/package_rental/') ?>">
+            class="<?= sidebar_class('/package_rental/') ?>">
             <i class="fas fa-box w-5"></i> Packages
             <?php if (!$is_active): ?>
                 <span class="ml-auto bg-yellow-400 text-yellow-900 text-xs font-bold rounded-full px-2 py-0.5">!</span>
@@ -124,11 +160,11 @@ function sidebar_class($path) {
 
         <?php if ($is_active): ?>
             <a href="/Badminton_court_Booking/owner/manage_court/index.php"
-               class="<?= sidebar_class('/manage_court/') ?>">
+                class="<?= sidebar_class('/manage_court/') ?>">
                 <i class="fas fa-store w-5"></i> My Venue
             </a>
             <a href="/Badminton_court_Booking/owner/booking_management/index.php"
-               class="<?= sidebar_class('/booking_management/') ?>">
+                class="<?= sidebar_class('/booking_management/') ?>">
                 <i class="fas fa-calendar-check w-5"></i> Bookings
                 <?php if ($pending_count > 0): ?>
                     <span class="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5">
@@ -137,40 +173,47 @@ function sidebar_class($path) {
                 <?php endif; ?>
             </a>
             <a href="/Badminton_court_Booking/owner/facilities/index.php"
-               class="<?= sidebar_class('/facilities/') ?>">
+                class="<?= sidebar_class('/facilities/') ?>">
                 <i class="fas fa-concierge-bell w-5"></i> Facilities
             </a>
             <a href="/Badminton_court_Booking/owner/advertisement/index.php"
-               class="<?= sidebar_class('/advertisement/') ?>">
+                class="<?= sidebar_class('/advertisement/') ?>">
                 <i class="fas fa-bullhorn w-5"></i> Advertisement
                 <?php if ($ad_expiring): ?>
                     <span class="ml-auto bg-orange-500 text-white text-xs rounded-full px-2 py-0.5">⚠</span>
                 <?php endif; ?>
             </a>
-            <a href="/Badminton_court_Booking/owner/reports/index.php"
-               class="<?= sidebar_class('/reports/') ?>">
-                <i class="fas fa-chart-bar w-5"></i> Reports
-            </a>
+
         <?php else: ?>
-            <?php foreach ([
-                ['icon' => 'fa-store',          'label' => 'My Venue'],
-                ['icon' => 'fa-calendar-check', 'label' => 'Bookings'],
-                ['icon' => 'fa-concierge-bell', 'label' => 'Facilities'],
-                ['icon' => 'fa-bullhorn',       'label' => 'Advertisement'],
-                ['icon' => 'fa-chart-bar',      'label' => 'Reports'],
-            ] as $item): ?>
+            <?php foreach (
+                [
+                    ['icon' => 'fa-store',          'label' => 'My Venue'],
+                    ['icon' => 'fa-calendar-check', 'label' => 'Bookings'],
+                    ['icon' => 'fa-concierge-bell', 'label' => 'Facilities'],
+                    ['icon' => 'fa-bullhorn',       'label' => 'Advertisement'],
+                    ['icon' => 'fa-chart-bar',      'label' => 'Reports'],
+                ] as $item
+            ): ?>
                 <div class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-300 cursor-not-allowed select-none">
                     <i class="fas fa-lock w-5 text-xs"></i> <?= $item['label'] ?>
                 </div>
             <?php endforeach; ?>
         <?php endif; ?>
+        <!-- ── REPORTS ── -->
+        <div class="pt-3 pb-1">
+            <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">Reports</p>
+        </div>
+        <a href="/Badminton_court_Booking/owner/reports/index.php"
+            class="<?= sidebar_class('/reports/') ?>">
+            <i class="fas fa-chart-bar w-5"></i> Report
+        </a>
 
         <!-- ── NOTIFICATIONS (always visible) ── -->
         <div class="pt-3 pb-1">
             <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">Notifications</p>
         </div>
         <a href="/Badminton_court_Booking/owner/notification/index.php"
-           class="<?= sidebar_class('/notification/') ?>">
+            class="<?= sidebar_class('/notification/') ?>">
             <i class="fas fa-bell w-5"></i> Notifications
             <?php if ($notif_count > 0): ?>
                 <span class="ml-auto bg-red-500 text-white text-xs font-bold rounded-full px-2 py-0.5">
@@ -184,7 +227,7 @@ function sidebar_class($path) {
             <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">Account</p>
         </div>
         <a href="/Badminton_court_Booking/owner/profile/index.php"
-           class="<?= sidebar_class('/owner/profile/') ?>">
+            class="<?= sidebar_class('/owner/profile/') ?>">
             <i class="fas fa-user w-5"></i> Profile
         </a>
 
@@ -202,7 +245,7 @@ function sidebar_class($path) {
             </div>
         </div>
         <a href="/Badminton_court_Booking/auth/logout.php"
-           class="w-full flex items-center gap-2 text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg text-sm transition">
+            class="w-full flex items-center gap-2 text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg text-sm transition">
             <i class="fas fa-sign-out-alt"></i> Logout
         </a>
     </div>

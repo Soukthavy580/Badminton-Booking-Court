@@ -7,6 +7,6 @@ session_destroy();
 setcookie('remember_user', '', time() - 3600, '/');
 setcookie('remember_role', '', time() - 3600, '/');
 
-header('Location: /Badminton_court_Booking/auth/login.php?logout=success');
+header('Location: /Badminton_court_Booking/auth/login?logout=success');
 exit;
 ?>

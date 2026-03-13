@@ -1,0 +1,11 @@
+RewriteEngine On
+
+# ຖ້າເປັນ folder (ແລະຂ້າງໃນມີ index.php) ໃຫ້ເຂົ້າໄປ index.php ໃນນັ້ນໂດຍອັດຕະໂນມັດ
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteCond %{REQUEST_FILENAME}/index.php -f
+RewriteRule ^(.+?)/?$ $1/index.php [L]
+
+# ເຮັດ rewrite .php ອັດຕະໂນມັດສໍາລັບໄຟລ໌ທີ່ບໍ່ມີ .php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME}.php -f
+RewriteRule ^([^\.]+)$ $1.php [NC,L]

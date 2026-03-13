@@ -17,22 +17,24 @@ if (isset($pdo)) {
 
 $total_pending = $pending_venues + $pending_packages + $pending_ads;
 
-$approvals_active = str_contains($current, '/admin/venues/')
-                 || str_contains($current, '/admin/packages/')
-                 || str_contains($current, '/admin/advertisements/');
-
 function admin_sidebar_class($path) {
     global $current;
-    $active = str_contains($current, $path);
-    return $active
+    return str_contains($current, $path)
         ? 'flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-50 text-blue-700 font-semibold border-l-4 border-blue-600'
         : 'flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-blue-50 hover:text-blue-700 font-medium transition';
 }
+function admin_sub_class($path) {
+    global $current;
+    return str_contains($current, $path)
+        ? 'flex items-center gap-3 px-4 py-2.5 rounded-xl bg-blue-50 text-blue-700 font-semibold text-sm border-l-4 border-blue-400'
+        : 'flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-500 hover:bg-blue-50 hover:text-blue-700 text-sm transition';
+}
 ?>
 <aside class="w-64 bg-white shadow-md flex-shrink-0 hidden md:flex flex-col sticky top-0 h-screen">
+
     <!-- Logo -->
     <div class="p-6 border-b border-gray-100">
-        <a href="/Badminton_court_Booking/admin/index.php" class="flex items-center gap-2">
+        <a href="/Badminton_court_Booking/admin/" class="flex items-center gap-2">
             <img src="/Badminton_court_Booking/assets/images/logo/Logo.png"
                  alt="Badminton Booking Court"
                  class="h-14 w-auto object-contain"
@@ -48,9 +50,15 @@ function admin_sidebar_class($path) {
     </div>
 
     <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
-        <!-- Dashboard -->
-        <a href="/Badminton_court_Booking/admin/index.php"
-           class="<?= admin_sidebar_class('/admin/index.php') ?>">
+
+        <!-- ── MANAGEMENT ── -->
+        <div class="pt-1 pb-1">
+            <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">Management</p>
+        </div>
+
+        <!-- 1. Dashboard -->
+        <a href="/Badminton_court_Booking/admin/"
+           class="<?= admin_sidebar_class('/admin/') ?>">
             <i class="fas fa-home w-5"></i> Dashboard
             <?php if ($total_pending > 0): ?>
                 <span class="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5">
@@ -59,85 +67,61 @@ function admin_sidebar_class($path) {
             <?php endif; ?>
         </a>
 
-        <!-- Approvals Dropdown -->
-        <div>
-            <button onclick="toggleApprovals()"
-                    class="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition
-                           <?= $approvals_active ? 'bg-blue-50 text-blue-700 font-semibold border-l-4 border-blue-600' : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700' ?>">
-                <i class="fas fa-clipboard-check w-5"></i>
-                <span>Approvals</span>
-                <?php if ($total_pending > 0): ?>
-                    <span class="bg-red-500 text-white text-xs rounded-full px-2 py-0.5">
-                        <?= $total_pending ?>
-                    </span>
-                <?php endif; ?>
-                <i class="fas fa-chevron-down ml-auto text-xs transition-transform duration-200" id="approvalsChevron"></i>
-            </button>
-
-            <div id="approvalsMenu"
-                 class="ml-4 mt-1 space-y-1 overflow-hidden transition-all duration-300"
-                 style="<?= $approvals_active ? '' : 'display:none' ?>">
-
-                <a href="/Badminton_court_Booking/admin/venues/index.php"
-                   class="<?= str_contains($current, '/admin/venues/')
-                       ? 'flex items-center gap-3 px-4 py-2.5 rounded-xl bg-blue-50 text-blue-700 font-semibold text-sm border-l-4 border-blue-400'
-                       : 'flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-500 hover:bg-blue-50 hover:text-blue-700 text-sm transition' ?>">
-                    <i class="fas fa-store w-4 text-sm"></i> Venues
-                    <?php if ($pending_venues > 0): ?>
-                        <span class="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5">
-                            <?= $pending_venues ?>
-                        </span>
-                    <?php endif; ?>
-                </a>
-
-                <a href="/Badminton_court_Booking/admin/packages/index.php"
-                   class="<?= str_contains($current, '/admin/packages/')
-                       ? 'flex items-center gap-3 px-4 py-2.5 rounded-xl bg-blue-50 text-blue-700 font-semibold text-sm border-l-4 border-blue-400'
-                       : 'flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-500 hover:bg-blue-50 hover:text-blue-700 text-sm transition' ?>">
-                    <i class="fas fa-box w-4 text-sm"></i> Packages
-                    <?php if ($pending_packages > 0): ?>
-                        <span class="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5">
-                            <?= $pending_packages ?>
-                        </span>
-                    <?php endif; ?>
-                </a>
-
-                <a href="/Badminton_court_Booking/admin/advertisements/index.php"
-                   class="<?= str_contains($current, '/admin/advertisements/')
-                       ? 'flex items-center gap-3 px-4 py-2.5 rounded-xl bg-blue-50 text-blue-700 font-semibold text-sm border-l-4 border-blue-400'
-                       : 'flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-500 hover:bg-blue-50 hover:text-blue-700 text-sm transition' ?>">
-                    <i class="fas fa-bullhorn w-4 text-sm"></i> Advertisements
-                    <?php if ($pending_ads > 0): ?>
-                        <span class="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5">
-                            <?= $pending_ads ?>
-                        </span>
-                    <?php endif; ?>
-                </a>
-            </div>
-        </div>
-
-        <div class="pt-2 pb-1">
+        <!-- 2. Users -->
+        <div class="pt-1 pb-1">
             <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">Users</p>
         </div>
-
-        <a href="/Badminton_court_Booking/admin/owners/index.php"
-           class="<?= admin_sidebar_class('/admin/owners/') ?>">
+        <a href="/Badminton_court_Booking/admin/owners/" class="<?= admin_sidebar_class('/admin/owners/') ?>">
             <i class="fas fa-user-tie w-5"></i> Owners
         </a>
-
-        <a href="/Badminton_court_Booking/admin/customers/index.php"
-           class="<?= admin_sidebar_class('/admin/customers/') ?>">
+        <a href="/Badminton_court_Booking/admin/customers/" class="<?= admin_sidebar_class('/admin/customers/') ?>">
             <i class="fas fa-users w-5"></i> Customers
         </a>
 
-        <div class="pt-2 pb-1">
-            <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">Analytics</p>
+        <!-- 3. Approvals -->
+        <div class="pt-3 pb-1">
+            <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">Approvals</p>
+        </div>
+        <a href="/Badminton_court_Booking/admin/venues/" class="<?= admin_sidebar_class('/admin/venues/') ?>">
+            <i class="fas fa-store w-5"></i> Venues
+            <?php if ($pending_venues > 0): ?>
+                <span class="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5"><?= $pending_venues ?></span>
+            <?php endif; ?>
+        </a>
+        <a href="/Badminton_court_Booking/admin/packages/" class="<?= admin_sidebar_class('/admin/packages/') ?>">
+            <i class="fas fa-box w-5"></i> Packages
+            <?php if ($pending_packages > 0): ?>
+                <span class="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5"><?= $pending_packages ?></span>
+            <?php endif; ?>
+        </a>
+        <a href="/Badminton_court_Booking/admin/advertisements/" class="<?= admin_sidebar_class('/admin/advertisements/') ?>">
+            <i class="fas fa-bullhorn w-5"></i> Advertisements
+            <?php if ($pending_ads > 0): ?>
+                <span class="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5"><?= $pending_ads ?></span>
+            <?php endif; ?>
+        </a>
+
+        <!-- Reports -->
+        <div class="pt-3 pb-1">
+            <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">Reports</p>
+        </div>
+        
+        <a href="/Badminton_court_Booking/admin/reports/"
+           class="<?= admin_sidebar_class('/admin/reports/') ?>">
+            <i class="fas fa-chart-bar w-5"></i> Report
+        </a>
+
+        <!-- ── ACCOUNT ── -->
+        <div class="pt-3 pb-1">
+            <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">Account</p>
         </div>
 
-        <a href="/Badminton_court_Booking/admin/reports/index.php"
-           class="<?= admin_sidebar_class('/admin/reports/') ?>">
-            <i class="fas fa-chart-bar w-5"></i> Reports
+        <a href="/Badminton_court_Booking/admin/profile/"
+           class="<?= admin_sidebar_class('/admin/profile/') ?>">
+            <i class="fas fa-user w-5"></i> Profile
         </a>
+        
+
     </nav>
 
     <!-- Admin Info -->
@@ -156,20 +140,5 @@ function admin_sidebar_class($path) {
             <i class="fas fa-sign-out-alt"></i> Logout
         </a>
     </div>
+
 </aside>
-
-<script>
-    const approvalsOpen = <?= $approvals_active ? 'true' : 'false' ?>;
-    const menu    = document.getElementById('approvalsMenu');
-    const chevron = document.getElementById('approvalsChevron');
-
-    if (approvalsOpen) {
-        chevron.style.transform = 'rotate(180deg)';
-    }
-
-    function toggleApprovals() {
-        const isHidden = menu.style.display === 'none' || menu.style.display === '';
-        menu.style.display      = isHidden ? 'block' : 'none';
-        chevron.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
-    }
-</script>

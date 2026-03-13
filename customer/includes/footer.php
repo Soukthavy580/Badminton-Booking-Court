@@ -15,10 +15,10 @@
             <div>
                 <h4 class="font-bold text-white mb-3">Quick Links</h4>
                 <ul class="space-y-2 text-sm text-gray-400">
-                    <li><a href="/Badminton_court_Booking/customer/index.php" class="hover:text-green-400 transition">Home</a></li>
-                    <li><a href="/Badminton_court_Booking/customer/booking_court/index.php" class="hover:text-green-400 transition">Browse Courts</a></li>
+                    <li><a href="/Badminton_court_Booking/customer/" class="hover:text-green-400 transition">Home</a></li>
+                    <li><a href="/Badminton_court_Booking/customer/booking_court/" class="hover:text-green-400 transition">Browse Courts</a></li>
                     <li><a href="/Badminton_court_Booking/customer/booking_court/my_booking.php" class="hover:text-green-400 transition">My Bookings</a></li>
-                    <li><a href="/Badminton_court_Booking/customer/profile/index.php" class="hover:text-green-400 transition">My Profile</a></li>
+                    <li><a href="/Badminton_court_Booking/customer/profile/" class="hover:text-green-400 transition">My Profile</a></li>
                 </ul>
             </div>
 
