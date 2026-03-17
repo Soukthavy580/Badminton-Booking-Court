@@ -9,21 +9,17 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'customer') {
 
 $c_id = $_SESSION['c_id'];
 
-// Fetch latest customer data
 try {
     $stmt = $pdo->prepare("SELECT * FROM customer WHERE C_ID = ? LIMIT 1");
     $stmt->execute([$c_id]);
     $customer = $stmt->fetch();
-} catch (PDOException $e) {
-    $customer = [];
-}
+} catch (PDOException $e) { $customer = []; }
 
 if (!$customer) {
     header('Location: /Badminton_court_Booking/auth/logout.php');
     exit;
 }
 
-// Booking stats
 try {
     $stmt = $pdo->prepare("
         SELECT
@@ -39,7 +35,6 @@ try {
     $stats = ['total'=>0,'confirmed'=>0,'pending'=>0,'cancelled'=>0];
 }
 
-// Recent bookings
 try {
     $stmt = $pdo->prepare("
         SELECT b.Book_ID, b.Status_booking, bd.Start_time, bd.End_time,
@@ -54,19 +49,17 @@ try {
     ");
     $stmt->execute([$c_id]);
     $recent = $stmt->fetchAll();
-} catch (PDOException $e) {
-    $recent = [];
-}
+} catch (PDOException $e) { $recent = []; }
 
 $success = $_SESSION['profile_success'] ?? '';
 unset($_SESSION['profile_success']);
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="lo">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Profile - CourtBook</title>
+    <title>ໂປຣໄຟລ໌ຂອງຂ້ອຍ - ລະບົບຈອງເດີ່ນ</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -85,17 +78,14 @@ unset($_SESSION['profile_success']);
         <!-- Profile Header Card -->
         <div class="bg-white rounded-2xl shadow-sm p-6 mb-6">
             <div class="flex flex-col md:flex-row items-center md:items-start gap-6">
-                <!-- Avatar -->
                 <div class="flex-shrink-0">
                     <div class="w-24 h-24 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center text-white text-4xl font-bold shadow-lg">
                         <?= strtoupper(substr($customer['Name'], 0, 1)) ?>
                     </div>
                 </div>
-
-                <!-- Info -->
                 <div class="flex-1 text-center md:text-left">
                     <h1 class="text-2xl font-extrabold text-gray-800">
-                        <?= htmlspecialchars($customer['Name'] . ' ' . $customer['Surname']) ?>
+                        <?= htmlspecialchars($customer['Name']) ?>
                     </h1>
                     <p class="text-gray-500 mt-1">
                         <i class="fas fa-envelope mr-2 text-blue-400"></i><?= htmlspecialchars($customer['Email']) ?>
@@ -108,12 +98,10 @@ unset($_SESSION['profile_success']);
                         <?= htmlspecialchars($customer['Gender']) ?>
                     </p>
                 </div>
-
-                <!-- Edit Button -->
                 <div class="flex-shrink-0">
                     <a href="/Badminton_court_Booking/customer/profile/edit_profile.php"
                        class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-bold px-5 py-2.5 rounded-xl transition shadow">
-                        <i class="fas fa-edit"></i> Edit Profile
+                        <i class="fas fa-edit"></i> ແກ້ໄຂໂປຣໄຟລ໌
                     </a>
                 </div>
             </div>
@@ -123,10 +111,10 @@ unset($_SESSION['profile_success']);
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <?php
             $stat_cards = [
-                ['label'=>'Total Bookings', 'value'=>$stats['total'],     'icon'=>'fa-calendar-alt',  'color'=>'blue'],
-                ['label'=>'Confirmed',      'value'=>$stats['confirmed'], 'icon'=>'fa-check-circle',  'color'=>'green'],
-                ['label'=>'Pending',        'value'=>$stats['pending'],   'icon'=>'fa-clock',         'color'=>'yellow'],
-                ['label'=>'Cancelled',      'value'=>$stats['cancelled'], 'icon'=>'fa-times-circle',  'color'=>'red'],
+                ['label'=>'ການຈອງທັງໝົດ', 'value'=>$stats['total'],     'icon'=>'fa-calendar-alt',  'color'=>'blue'],
+                ['label'=>'ຢືນຢັນແລ້ວ',    'value'=>$stats['confirmed'], 'icon'=>'fa-check-circle',  'color'=>'green'],
+                ['label'=>'ລໍຖ້າ',         'value'=>$stats['pending'],   'icon'=>'fa-clock',         'color'=>'yellow'],
+                ['label'=>'ຍົກເລີກແລ້ວ',   'value'=>$stats['cancelled'], 'icon'=>'fa-times-circle',  'color'=>'red'],
             ];
             foreach ($stat_cards as $card):
             ?>
@@ -146,17 +134,16 @@ unset($_SESSION['profile_success']);
             <!-- Account Details -->
             <div class="bg-white rounded-2xl shadow-sm p-6">
                 <h2 class="text-lg font-bold text-gray-800 mb-4">
-                    <i class="fas fa-id-card text-blue-500 mr-2"></i>Account Details
+                    <i class="fas fa-id-card text-blue-500 mr-2"></i>ລາຍລະອຽດບັນຊີ
                 </h2>
                 <div class="space-y-3 text-sm">
                     <?php
                     $fields = [
-                        ['label'=>'First Name',  'value'=>$customer['Name'],     'icon'=>'fa-user'],
-                        ['label'=>'Surname',     'value'=>$customer['Surname'],  'icon'=>'fa-user'],
-                        ['label'=>'Username',    'value'=>$customer['Username'], 'icon'=>'fa-at'],
-                        ['label'=>'Email',       'value'=>$customer['Email'],    'icon'=>'fa-envelope'],
-                        ['label'=>'Phone',       'value'=>$customer['Phone'],    'icon'=>'fa-phone'],
-                        ['label'=>'Gender',      'value'=>$customer['Gender'],   'icon'=>'fa-venus-mars'],
+                        ['label'=>'ຊື່ເຕັມ',   'value'=>$customer['Name'],     'icon'=>'fa-user'],
+                        ['label'=>'ຊື່ຜູ້ໃຊ້', 'value'=>$customer['Username'], 'icon'=>'fa-at'],
+                        ['label'=>'ອີເມລ໌',    'value'=>$customer['Email'],    'icon'=>'fa-envelope'],
+                        ['label'=>'ເບີໂທ',     'value'=>$customer['Phone'],    'icon'=>'fa-phone'],
+                        ['label'=>'ເພດ',       'value'=>$customer['Gender'],   'icon'=>'fa-venus-mars'],
                     ];
                     foreach ($fields as $f):
                     ?>
@@ -173,10 +160,10 @@ unset($_SESSION['profile_success']);
             <div class="bg-white rounded-2xl shadow-sm p-6">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-lg font-bold text-gray-800">
-                        <i class="fas fa-history text-green-500 mr-2"></i>Recent Bookings
+                        <i class="fas fa-history text-green-500 mr-2"></i>ການຈອງລ່າສຸດ
                     </h2>
                     <a href="/Badminton_court_Booking/customer/booking_court/my_booking.php"
-                       class="text-blue-600 hover:text-blue-700 text-sm font-medium">View all</a>
+                       class="text-blue-600 hover:text-blue-700 text-sm font-medium">ເບິ່ງທັງໝົດ</a>
                 </div>
 
                 <?php if (!empty($recent)): ?>
@@ -194,11 +181,18 @@ unset($_SESSION['profile_success']);
                                     <p class="font-semibold text-gray-800 text-sm"><?= htmlspecialchars($rb['COURT_Name']) ?></p>
                                     <p class="text-xs text-gray-500">
                                         <?= htmlspecialchars($rb['VN_Name']) ?> ·
-                                        <?= date('M d, Y', strtotime($rb['Start_time'])) ?>
+                                        <?= date('d/m/Y', strtotime($rb['Start_time'])) ?>
                                     </p>
                                 </div>
                                 <span class="bg-<?= $color ?>-100 text-<?= $color ?>-700 text-xs font-bold px-2 py-1 rounded-full">
-                                    <?= $rb['Status_booking'] ?>
+                                    <?php
+                                    echo match($rb['Status_booking']) {
+                                        'Confirmed' => 'ຢືນຢັນແລ້ວ',
+                                        'Pending'   => 'ລໍຖ້າ',
+                                        'Cancelled' => 'ຍົກເລີກແລ້ວ',
+                                        default     => $rb['Status_booking']
+                                    };
+                                    ?>
                                 </span>
                             </div>
                         <?php endforeach; ?>
@@ -206,9 +200,9 @@ unset($_SESSION['profile_success']);
                 <?php else: ?>
                     <div class="text-center py-8">
                         <i class="fas fa-calendar-times text-4xl text-gray-200 mb-3 block"></i>
-                        <p class="text-gray-400 text-sm">No bookings yet</p>
+                        <p class="text-gray-400 text-sm">ຍັງບໍ່ມີການຈອງ</p>
                         <a href="/Badminton_court_Booking/customer/booking_court/index.php"
-                           class="text-blue-600 text-sm hover:underline mt-1 inline-block">Browse courts</a>
+                           class="text-blue-600 text-sm hover:underline mt-1 inline-block">ຊອກຫາເດີ່ນ</a>
                     </div>
                 <?php endif; ?>
             </div>

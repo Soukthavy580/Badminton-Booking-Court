@@ -17,7 +17,7 @@ $booking_id  = intval($_POST['booking_id'] ?? 0);
 $customer_id = $_SESSION['c_id'];
 
 if (!$booking_id) {
-    header('Location: /Badminton_court_Booking/customer/bookings/index.php');
+    header('Location: /Badminton_court_Booking/customer/booking_court/index.php');
     exit;
 }
 
@@ -33,14 +33,14 @@ try {
 
     if (!$booking) {
         $_SESSION['booking_error'] = 'Booking not found.';
-        header('Location: /Badminton_court_Booking/customer/bookings/index.php');
+        header('Location: /Badminton_court_Booking/customer/booking_court/index.php');
         exit;
     }
 
     // Only allow cancel if Pending
     if ($booking['Status_booking'] !== 'Pending') {
         $_SESSION['booking_error'] = 'This booking cannot be cancelled at this stage. Please contact the venue owner.';
-        header('Location: /Badminton_court_Booking/customer/bookings/index.php');
+        header('Location: /Badminton_court_Booking/customer/booking_court/index.php');
         exit;
     }
 

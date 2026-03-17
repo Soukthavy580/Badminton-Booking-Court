@@ -78,11 +78,11 @@ $stats           = get_site_stats($pdo);
 $is_logged_in    = isset($_SESSION['user_id']);
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="lo">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Badminton Booking Court - Book Your Court Now</title>
+    <title>ລະບົບຈອງເດີ່ນແບດມິນຕັນ - ຈອງເດີ່ນໄດ້ເລີຍຕອນນີ້</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -118,20 +118,20 @@ $is_logged_in    = isset($_SESSION['user_id']);
         <div class="relative z-10 w-full animate-fade-in-up">
             <div class="max-w-4xl mx-auto px-4 text-center">
                 <h1 class="text-5xl md:text-7xl font-extrabold mb-4 leading-tight drop-shadow-lg">
-                    Get Active,<br>
-                    <span class="text-yellow-400">Book Your Court Now</span>
+                    ອອກກຳລັງກາຍໄປກັບພວກເຮົາ<br>
+                    <span class="text-yellow-400">ຈອງເດີ່ນໄດ້ເລີຍຕອນນີ້</span>
                 </h1>
                 <p class="text-xl text-gray-200 mb-10 max-w-2xl mx-auto">
-                    Find and book the best badminton courts near you
+                    ຄົ້ນຫາ ແລະ ຈອງເດີ່ນທີ່ທ່ານຕ້ອງການໄດ້ງ່າຍໆທີ່ເວັບໄຊ້ຂອງພວກເຮົາ
                 </p>
 
-                <!-- Single Search Box -->
+                <!-- Search Box -->
                 <form action="index.php" method="GET" onsubmit="closeSuggestions('home')">
                     <div class="bg-white rounded-2xl shadow-2xl p-3 max-w-2xl mx-auto flex items-center gap-2">
                         <div class="relative flex-1">
                             <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg z-10 pointer-events-none"></i>
                             <input type="text" name="search" id="searchInput-home"
-                                   placeholder="Search venue name or address..."
+                                   placeholder="ຊອກຫາເດີ່ນ ແລະ ຊື່..."
                                    value="<?= htmlspecialchars($search_query) ?>"
                                    autocomplete="off"
                                    class="w-full pl-12 pr-4 py-3.5 text-gray-800 text-base rounded-xl focus:outline-none focus:ring-2 focus:ring-green-400"
@@ -141,17 +141,10 @@ $is_logged_in    = isset($_SESSION['user_id']);
                         </div>
                         <button type="submit"
                                 class="bg-green-600 hover:bg-green-700 text-white font-bold px-7 py-3.5 rounded-xl transition shadow flex-shrink-0">
-                            <i class="fas fa-search mr-1"></i> Search
+                            <i class="fas fa-search mr-1"></i> ຄົ້ນຫາ
                         </button>
                     </div>
                 </form>
-
-                <?php if ($is_searching): ?>
-                    <p class="mt-4 text-green-200 text-sm">
-                        Showing results for "<strong><?= htmlspecialchars($search_query) ?></strong>"
-                        — <a href="index.php" class="underline hover:text-white">Clear</a>
-                    </p>
-                <?php endif; ?>
             </div>
         </div>
     </section>
@@ -163,11 +156,11 @@ $is_logged_in    = isset($_SESSION['user_id']);
                 <div class="flex items-center justify-between mb-8">
                     <div>
                         <h2 class="text-2xl font-extrabold text-gray-800">
-                            <i class="fas fa-search text-blue-500 mr-2"></i>Search Results
+                            <i class="fas fa-search text-blue-500 mr-2"></i>ຜົນການຄົ້ນຫາ
                         </h2>
-                        <p class="text-gray-500 text-sm mt-1"><?= count($search_results) ?> venue<?= count($search_results)!=1?'s':'' ?> found</p>
+                        <p class="text-gray-500 text-sm mt-1">ພົບ <?= count($search_results) ?> ສະຖານທີ່</p>
                     </div>
-                    <a href="index.php" class="text-sm text-blue-600 hover:underline">Clear search</a>
+                    <a href="index.php" class="text-sm text-blue-600 hover:underline">ລ້າງການຄົ້ນຫາ</a>
                 </div>
 
                 <?php if (!empty($search_results)): ?>
@@ -190,20 +183,20 @@ $is_logged_in    = isset($_SESSION['user_id']);
                                         <i class="fas fa-map-marker-alt text-red-400"></i><?= htmlspecialchars($venue['VN_Address']) ?>
                                     </p>
                                     <div class="flex items-center gap-3 text-xs text-gray-500 mb-4">
-                                        <span><i class="fas fa-table-tennis mr-1 text-green-500"></i><?= $venue['total_courts'] ?> courts</span>
-                                        <span><i class="fas fa-clock mr-1 text-blue-500"></i><?= $venue['Open_time'] ?> - <?= $venue['Close_time'] ?></span>
+                                        <span><i class="fas fa-table-tennis mr-1 text-green-500"></i><?= $venue['total_courts'] ?> ເດີ່ນ</span>
+                                        <span><i class="fas fa-clock mr-1 text-blue-500"></i><?= date('H:i', strtotime($venue['Open_time'])) ?> - <?= date('H:i', strtotime($venue['Close_time'])) ?></span>
                                     </div>
                                     <div class="flex items-center justify-between pt-3 border-t border-gray-100">
-                                        <p class="text-lg font-extrabold text-green-600">₭<?= number_format($price_clean) ?><span class="text-xs text-gray-400 font-normal">/hr</span></p>
+                                        <p class="text-lg font-extrabold text-green-600">₭<?= number_format($price_clean) ?><span class="text-xs text-gray-400 font-normal">/ຊົ່ວໂມງ</span></p>
                                         <?php
-                                            $venue_url   = '/Badminton_court_Booking/customer/booking_court/venue_detail.php?id=' . $venue['VN_ID'];
-                                            $book_href   = $is_logged_in
+                                            $venue_url = '/Badminton_court_Booking/customer/booking_court/venue_detail.php?id=' . $venue['VN_ID'];
+                                            $book_href = $is_logged_in
                                                 ? $venue_url
                                                 : '/Badminton_court_Booking/auth/login.php?redirect=' . urlencode($venue_url);
                                         ?>
                                         <a href="<?= $book_href ?>"
                                            class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl font-semibold text-sm transition">
-                                            <?= $is_logged_in ? 'Book Now' : '<i class="fas fa-sign-in-alt mr-1"></i>Login to Book' ?>
+                                            <?= $is_logged_in ? 'ຈອງດຽວນີ້' : '<i class="fas fa-sign-in-alt mr-1"></i>ເຂົ້າສູ່ລະບົບເພື່ອຈອງ' ?>
                                         </a>
                                     </div>
                                 </div>
@@ -213,9 +206,9 @@ $is_logged_in    = isset($_SESSION['user_id']);
                 <?php else: ?>
                     <div class="text-center py-16 bg-white rounded-2xl border-2 border-dashed border-gray-200">
                         <i class="fas fa-search text-5xl text-gray-200 mb-4 block"></i>
-                        <h3 class="text-xl font-bold text-gray-600 mb-2">No venues found</h3>
-                        <p class="text-gray-400 mb-4">Try a different name or address</p>
-                        <a href="index.php" class="inline-block bg-blue-600 text-white px-6 py-2 rounded-xl hover:bg-blue-700 transition">Browse All Courts</a>
+                        <h3 class="text-xl font-bold text-gray-600 mb-2">ບໍ່ພົບສະຖານທີ່</h3>
+                        <p class="text-gray-400 mb-4">ລອງຊອກຫາດ້ວຍຊື່ ຫຼື ທີ່ຢູ່ອື່ນ</p>
+                        <a href="index.php" class="inline-block bg-blue-600 text-white px-6 py-2 rounded-xl hover:bg-blue-700 transition">ເບິ່ງເດີ່ນທັງໝົດ</a>
                     </div>
                 <?php endif; ?>
             </div>
@@ -229,20 +222,18 @@ $is_logged_in    = isset($_SESSION['user_id']);
                 <div class="flex items-center justify-between mb-8">
                     <div>
                         <h2 class="text-3xl font-extrabold text-gray-800">
-                            <i class="fas fa-star text-yellow-500 mr-2"></i>Featured Courts
+                            <i class="fas fa-star text-yellow-500 mr-2"></i>ເດີ່ນແນະນຳ
                         </h2>
-                        <p class="text-gray-500 mt-1">Premium venues handpicked for you</p>
+                        <p class="text-gray-500 mt-1">ສະຖານທີ່ຊັ້ນນຳທີ່ຄັດສັນມາໃຫ້ທ່ານ</p>
                     </div>
                     <a href="/Badminton_court_Booking/customer/booking_court/index.php"
                        class="text-blue-600 hover:text-blue-700 font-medium text-sm">
-                        View all courts <i class="fas fa-arrow-right ml-1"></i>
+                        ເບິ່ງເດີ່ນທັງໝົດ <i class="fas fa-arrow-right ml-1"></i>
                     </a>
                 </div>
 
                 <?php if (!empty($featured_venues)): ?>
-                    <!-- Carousel Wrapper -->
                     <div class="relative" id="featuredCarousel">
-                        <!-- Slides -->
                         <div class="overflow-hidden rounded-2xl">
                             <div id="carouselTrack" class="flex transition-transform duration-700 ease-in-out">
                                 <?php foreach ($featured_venues as $idx => $venue):
@@ -251,23 +242,18 @@ $is_logged_in    = isset($_SESSION['user_id']);
                                         ? '/Badminton_court_Booking/assets/images/venues/' . basename($venue['VN_Image'])
                                         : '/Badminton_court_Booking/assets/images/BookingBG.png';
                                 ?>
-                                    <!-- Slide -->
                                     <div class="carousel-slide flex-shrink-0 w-full relative h-[480px] md:h-[520px]">
                                         <img src="<?= htmlspecialchars($venue_img) ?>"
                                              alt="<?= htmlspecialchars($venue['VN_Name']) ?>"
                                              class="w-full h-full object-cover"
                                              onerror="this.src='/Badminton_court_Booking/assets/images/BookingBG.png'">
-                                        <!-- Gradient overlay -->
                                         <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent"></div>
-                                        <!-- Featured badge -->
                                         <div class="absolute top-5 left-5 bg-yellow-400 text-white text-sm font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-lg">
-                                            <i class="fas fa-star text-xs"></i> Featured
+                                            <i class="fas fa-star text-xs"></i> ແນະນຳ
                                         </div>
-                                        <!-- Slide number -->
                                         <div class="absolute top-5 right-5 bg-black/40 text-white text-xs font-semibold px-3 py-1.5 rounded-full backdrop-blur-sm">
                                             <?= $idx+1 ?> / <?= count($featured_venues) ?>
                                         </div>
-                                        <!-- Content -->
                                         <div class="absolute bottom-0 left-0 right-0 p-8">
                                             <h3 class="text-3xl md:text-4xl font-extrabold text-white mb-2 drop-shadow-lg">
                                                 <?= htmlspecialchars($venue['VN_Name']) ?>
@@ -279,29 +265,29 @@ $is_logged_in    = isset($_SESSION['user_id']);
                                             <div class="flex items-center gap-4 mb-5 text-sm text-gray-300 flex-wrap">
                                                 <span class="flex items-center gap-1.5 bg-white/10 backdrop-blur px-3 py-1.5 rounded-full">
                                                     <i class="fas fa-table-tennis text-green-400"></i>
-                                                    <?= $venue['total_courts'] ?> courts
+                                                    <?= $venue['total_courts'] ?> ເດີ່ນ
                                                 </span>
                                                 <span class="flex items-center gap-1.5 bg-white/10 backdrop-blur px-3 py-1.5 rounded-full">
                                                     <i class="fas fa-clock text-blue-400"></i>
-                                                    <?= $venue['Open_time'] ?> – <?= $venue['Close_time'] ?>
+                                                    <?= date('H:i', strtotime($venue['Open_time'])) ?> – <?= date('H:i', strtotime($venue['Close_time'])) ?>
                                                 </span>
                                                 <span class="flex items-center gap-1.5 bg-white/10 backdrop-blur px-3 py-1.5 rounded-full">
                                                     <i class="fas fa-tag text-yellow-400"></i>
-                                                    ₭<?= number_format($price_clean) ?>/hr
+                                                    ₭<?= number_format($price_clean) ?>/ຊົ່ວໂມງ
                                                 </span>
                                             </div>
                                             <?php
-                                                $venue_url  = '/Badminton_court_Booking/customer/booking_court/venue_detail.php?id=' . $venue['VN_ID'];
-                                                $book_href  = $is_logged_in
+                                                $venue_url = '/Badminton_court_Booking/customer/booking_court/venue_detail.php?id=' . $venue['VN_ID'];
+                                                $book_href = $is_logged_in
                                                     ? $venue_url
                                                     : '/Badminton_court_Booking/auth/login.php?redirect=' . urlencode($venue_url);
                                             ?>
                                             <a href="<?= $book_href ?>"
                                                class="inline-flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold px-7 py-3 rounded-xl transition shadow-xl text-base">
                                                 <?php if ($is_logged_in): ?>
-                                                    <i class="fas fa-calendar-check"></i> Book Now
+                                                    <i class="fas fa-calendar-check"></i> ຈອງດຽວນີ້
                                                 <?php else: ?>
-                                                    <i class="fas fa-sign-in-alt"></i> Login to Book
+                                                    <i class="fas fa-sign-in-alt"></i> ເຂົ້າສູ່ລະບົບເພື່ອຈອງ
                                                 <?php endif; ?>
                                             </a>
                                         </div>
@@ -310,7 +296,6 @@ $is_logged_in    = isset($_SESSION['user_id']);
                             </div>
                         </div>
 
-                        <!-- Prev / Next arrows -->
                         <button onclick="carouselMove(-1)"
                                 class="absolute left-4 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/70 text-white w-11 h-11 rounded-full flex items-center justify-center transition backdrop-blur-sm z-10">
                             <i class="fas fa-chevron-left"></i>
@@ -320,7 +305,6 @@ $is_logged_in    = isset($_SESSION['user_id']);
                             <i class="fas fa-chevron-right"></i>
                         </button>
 
-                        <!-- Dot indicators -->
                         <div class="flex justify-center gap-2 mt-5" id="carouselDots">
                             <?php foreach ($featured_venues as $idx => $_): ?>
                                 <button onclick="carouselGoTo(<?= $idx ?>)"
@@ -333,23 +317,24 @@ $is_logged_in    = isset($_SESSION['user_id']);
                 <?php else: ?>
                     <div class="text-center py-12 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
                         <i class="fas fa-store text-5xl text-gray-200 mb-4 block"></i>
-                        <p class="text-gray-400 mb-4">No featured venues yet</p>
+                        <p class="text-gray-400 mb-4">ຍັງບໍ່ມີເດີ່ນແນະນຳ</p>
                         <a href="/Badminton_court_Booking/customer/booking_court/index.php"
-                           class="inline-block bg-blue-600 text-white px-6 py-2 rounded-xl hover:bg-blue-700 transition text-sm">Browse All Courts</a>
+                           class="inline-block bg-blue-600 text-white px-6 py-2 rounded-xl hover:bg-blue-700 transition text-sm">ເບິ່ງເດີ່ນທັງໝົດ</a>
                     </div>
                 <?php endif; ?>
             </div>
         </section>
+
         <!-- How It Works -->
         <section class="py-16 px-4 bg-gray-50">
             <div class="max-w-5xl mx-auto text-center">
-                <h2 class="text-3xl font-extrabold text-gray-800 mb-2">How It Works</h2>
-                <p class="text-gray-500 mb-10">Book your court in 3 simple steps</p>
+                <h2 class="text-3xl font-extrabold text-gray-800 mb-2">ວິທີການໃຊ້ງານ</h2>
+                <p class="text-gray-500 mb-10">ຈອງເດີ່ນໄດ້ງ່າຍໆ 3 ຂັ້ນຕອນ</p>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
                     <?php foreach ([
-                        ['fa-search',       'blue',   '1', 'Find a Court',    'Browse available venues and pick your preferred time'],
-                        ['fa-credit-card',  'green',  '2', 'Pay 30% Deposit', 'Secure your slot with a 30% deposit payment via QR code'],
-                        ['fa-table-tennis', 'yellow', '3', 'Play & Pay Rest', 'Show up and pay the remaining 70% directly at the venue'],
+                        ['fa-search',       'blue',   '1', 'ຊອກຫາເດີ່ນ',         'ເບິ່ງສະຖານທີ່ທີ່ມີ ແລະ ເລືອກເວລາທີ່ທ່ານຕ້ອງການ'],
+                        ['fa-credit-card',  'green',  '2', 'ຈ່າຍມັດຈຳ 30%',      'ຈອງສລັອດຂອງທ່ານດ້ວຍການຈ່າຍມັດຈຳ 30% ຜ່ານ QR Code'],
+                        ['fa-table-tennis', 'yellow', '3', 'ຫຼິ້ນ ແລະ ຈ່າຍສ່ວນທີ່ເຫຼືອ', 'ມາຮອດສະຖານທີ່ ແລະ ຈ່າຍສ່ວນທີ່ເຫຼືອ 70% ໂດຍກົງ'],
                     ] as [$icon,$color,$step,$title,$desc]): ?>
                         <div class="bg-white rounded-2xl p-8 shadow-sm hover-scale">
                             <div class="bg-<?= $color ?>-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -443,7 +428,7 @@ $is_logged_in    = isset($_SESSION['user_id']);
         });
     });
 
-    // ── Featured Venues Carousel ──
+    // Carousel
     let carouselIndex = 0;
     let carouselTimer = null;
     const track = document.getElementById('carouselTrack');
@@ -469,14 +454,12 @@ $is_logged_in    = isset($_SESSION['user_id']);
         if (total > 1) carouselTimer = setInterval(() => carouselMove(1), 3000);
     }
 
-    // Pause on hover
     const carousel = document.getElementById('featuredCarousel');
     if (carousel) {
         carousel.addEventListener('mouseenter', () => clearInterval(carouselTimer));
         carousel.addEventListener('mouseleave', resetTimer);
     }
 
-    // Touch/swipe support
     let touchStartX = 0;
     if (track) {
         track.addEventListener('touchstart', e => touchStartX = e.touches[0].clientX, { passive: true });

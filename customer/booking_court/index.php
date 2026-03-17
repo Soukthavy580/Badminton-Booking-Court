@@ -83,11 +83,11 @@ function get_available_slots($pdo, $venue_id) {
 $venues = get_all_active_venues($pdo, $search_query, $sort_by);
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="lo">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Browse Courts - CourtBook</title>
+    <title>ຊອກຫາເດີ່ນ - ລະບົບຈອງເດີ່ນແບດມິນຕັນ</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -127,17 +127,17 @@ $venues = get_all_active_venues($pdo, $search_query, $sort_by);
         <div class="relative z-10 w-full animate-fade-in-up">
             <div class="max-w-3xl mx-auto px-4 text-center">
                 <h1 class="text-4xl md:text-6xl font-extrabold mb-4 leading-tight drop-shadow-lg">
-                    Find Your <span class="text-yellow-400">Court</span>
+                    ຊອກຫາ <span class="text-yellow-400">ເດີ່ນ</span> ຂອງທ່ານ
                 </h1>
-                <p class="text-lg text-gray-200 mb-8">Search by venue name or address</p>
+                <p class="text-lg text-gray-200 mb-8">ຄົ້ນຫາດ້ວຍຊື່ສະຖານທີ່ ຫຼື ທີ່ຢູ່</p>
 
-                <!-- Single Search -->
+                <!-- Search -->
                 <form action="index.php" method="GET" onsubmit="closeSuggestions('booking')">
                     <div class="bg-white rounded-2xl shadow-2xl p-3 flex items-center gap-2">
                         <div class="relative flex-1">
                             <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-base z-10 pointer-events-none"></i>
                             <input type="text" name="search" id="searchInput-booking"
-                                   placeholder="e.g. CourtBook Arena, Vientiane..."
+                                   placeholder="ຊອກຫາເດີ່ນ, ຊື່ສະຖານທີ່..."
                                    value="<?= htmlspecialchars($search_query) ?>"
                                    autocomplete="off"
                                    class="w-full pl-11 pr-4 py-3.5 text-gray-800 text-base rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400"
@@ -147,27 +147,16 @@ $venues = get_all_active_venues($pdo, $search_query, $sort_by);
                         </div>
                         <button type="submit"
                                 class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-7 py-3.5 rounded-xl transition shadow flex-shrink-0">
-                            <i class="fas fa-search mr-1"></i> Search
+                            <i class="fas fa-search mr-1"></i> ຄົ້ນຫາ
                         </button>
                     </div>
 
-                    <!-- Sort (compact, below search) -->
-                    <div class="flex items-center justify-end gap-2 mt-3">
-                        <span class="text-white text-sm opacity-75">Sort:</span>
-                        <select name="sort" onchange="this.form.submit()"
-                                class="bg-white/20 hover:bg-white/30 text-white border border-white/30 rounded-lg px-3 py-1.5 text-sm backdrop-blur focus:outline-none">
-                            <option value="name"       <?= $sort_by==='name'       ?'selected':'' ?> class="text-gray-800">Name (A–Z)</option>
-                            <option value="price_low"  <?= $sort_by==='price_low'  ?'selected':'' ?> class="text-gray-800">Price: Low → High</option>
-                            <option value="price_high" <?= $sort_by==='price_high' ?'selected':'' ?> class="text-gray-800">Price: High → Low</option>
-                            <option value="newest"     <?= $sort_by==='newest'     ?'selected':'' ?> class="text-gray-800">Newest First</option>
-                        </select>
-                    </div>
                 </form>
 
                 <?php if ($is_searching): ?>
                     <p class="mt-3 text-blue-200 text-sm">
-                        Results for "<strong><?= htmlspecialchars($search_query) ?></strong>"
-                        — <a href="index.php" class="underline hover:text-white">Clear</a>
+                        ຜົນການຄົ້ນຫາ "<strong><?= htmlspecialchars($search_query) ?></strong>"
+                        — <a href="index.php" class="underline hover:text-white">ລ້າງ</a>
                     </p>
                 <?php endif; ?>
             </div>
@@ -180,12 +169,12 @@ $venues = get_all_active_venues($pdo, $search_query, $sort_by);
             <div class="flex items-center justify-between mb-8">
                 <div>
                     <h2 class="text-2xl font-extrabold text-gray-800">
-                        <?= $is_searching ? 'Search Results' : 'All Courts' ?>
+                        <?= $is_searching ? 'ຜົນການຄົ້ນຫາ' : 'ເດີ່ນທັງໝົດ' ?>
                     </h2>
-                    <p class="text-gray-500 text-sm mt-1"><?= count($venues) ?> venue<?= count($venues)!=1?'s':'' ?> found</p>
+                    <p class="text-gray-500 text-sm mt-1">ພົບ <?= count($venues) ?> ສະຖານທີ່</p>
                 </div>
                 <?php if ($is_searching): ?>
-                    <a href="index.php" class="text-sm text-blue-600 hover:underline">Show all courts</a>
+                    <a href="index.php" class="text-sm text-blue-600 hover:underline">ເບິ່ງເດີ່ນທັງໝົດ</a>
                 <?php endif; ?>
             </div>
 
@@ -194,7 +183,7 @@ $venues = get_all_active_venues($pdo, $search_query, $sort_by);
                     <?php foreach ($venues as $venue):
                         $is_maintaining = $venue['VN_Status'] === 'Maintaining';
                         $price_clean    = preg_replace('/[^0-9]/', '', $venue['Price_per_hour']);
-                        $price_display  = !empty($price_clean) ? number_format($price_clean) : 'Contact';
+                        $price_display  = !empty($price_clean) ? number_format($price_clean) : 'ສອບຖາມ';
                         $slots          = get_available_slots($pdo, $venue['VN_ID']);
                         $venue_img      = !empty($venue['VN_Image'])
                             ? '../../assets/images/venues/' . basename($venue['VN_Image'])
@@ -202,13 +191,8 @@ $venues = get_all_active_venues($pdo, $search_query, $sort_by);
 
                         $badge_class = $badge_text = $badge_icon = '';
                         if ($is_maintaining) {
-                            $badge_class = 'maintaining'; $badge_text = 'Under Maintenance'; $badge_icon = 'fa-tools';
-                        } elseif ($slots['total'] > 0) {
-                            $pct = ($slots['available'] / $slots['total']) * 100;
-                            if ($slots['available'] == 0)  { $badge_class='unavailable'; $badge_text='Fully Booked';              $badge_icon='fa-times-circle'; }
-                            elseif ($pct > 50)             { $badge_class='available';   $badge_text=$slots['available'].' slots'; $badge_icon='fa-check-circle'; }
-                            else                           { $badge_class='limited';     $badge_text='Only '.$slots['available'].' left'; $badge_icon='fa-exclamation-circle'; }
-                        }
+                            $badge_class = 'maintaining'; $badge_text = 'ກຳລັງປັບປຸງ'; $badge_icon = 'fa-tools';
+                        } 
                     ?>
                         <div class="bg-white rounded-2xl overflow-hidden shadow-lg border <?= $is_maintaining?'border-yellow-300':'border-gray-100' ?> hover-scale">
                             <div class="relative h-52">
@@ -232,33 +216,33 @@ $venues = get_all_active_venues($pdo, $search_query, $sort_by);
                                 <?php if ($is_maintaining): ?>
                                     <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-2.5 mb-3">
                                         <p class="text-yellow-700 text-xs font-semibold">
-                                            <i class="fas fa-tools mr-1"></i>Temporarily unavailable for booking
+                                            <i class="fas fa-tools mr-1"></i>ບໍ່ສາມາດຈອງໄດ້ຊົ່ວຄາວ
                                         </p>
                                     </div>
                                 <?php endif; ?>
 
                                 <div class="flex items-center gap-3 text-xs text-gray-500 mb-4">
-                                    <span><i class="fas fa-table-tennis mr-1 text-green-500"></i><?= $venue['total_courts'] ?> courts</span>
+                                    <span><i class="fas fa-table-tennis mr-1 text-green-500"></i><?= $venue['total_courts'] ?> ເດີ່ນ</span>
                                     <span><i class="fas fa-clock mr-1 text-blue-500"></i><?= $venue['Open_time'] ?> - <?= $venue['Close_time'] ?></span>
                                 </div>
                                 <div class="flex items-center justify-between pt-3 border-t border-gray-100">
                                     <div>
-                                        <p class="text-xs text-gray-400">From</p>
-                                        <p class="text-xl font-extrabold text-green-600">₭<?= $price_display ?><span class="text-xs text-gray-400 font-normal">/hr</span></p>
+                                        <p class="text-xs text-gray-400">ເລີ່ມຕົ້ນ</p>
+                                        <p class="text-xl font-extrabold text-green-600">₭<?= $price_display ?><span class="text-xs text-gray-400 font-normal">/ຊົ່ວໂມງ</span></p>
                                     </div>
                                     <?php if ($is_maintaining): ?>
                                         <span class="bg-yellow-100 text-yellow-700 px-4 py-2 rounded-xl font-semibold text-sm">
-                                            <i class="fas fa-tools mr-1"></i>Maintenance
+                                            <i class="fas fa-tools mr-1"></i>ກຳລັງປັບປຸງ
                                         </span>
                                     <?php elseif (isset($_SESSION['user_id']) && $_SESSION['user_type'] === 'customer'): ?>
                                         <a href="venue_detail.php?id=<?= $venue['VN_ID'] ?>"
                                            class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl font-semibold text-sm transition">
-                                            Book Now
+                                            ຈອງດຽວນີ້
                                         </a>
                                     <?php else: ?>
                                         <a href="/Badminton_court_Booking/auth/login.php?redirect=<?= urlencode('/Badminton_court_Booking/customer/booking_court/venue_detail.php?id='.$venue['VN_ID']) ?>"
                                            class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl font-semibold text-sm transition">
-                                            Book Now
+                                            ຈອງດຽວນີ້
                                         </a>
                                     <?php endif; ?>
                                 </div>
@@ -270,14 +254,14 @@ $venues = get_all_active_venues($pdo, $search_query, $sort_by);
                 <div class="text-center py-20 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
                     <i class="fas fa-search text-7xl text-gray-200 mb-5 block"></i>
                     <h3 class="text-xl font-bold text-gray-600 mb-2">
-                        <?= $is_searching ? 'No courts match your search' : 'No venues available' ?>
+                        <?= $is_searching ? 'ບໍ່ພົບເດີ່ນທີ່ຕົງກັບການຄົ້ນຫາ' : 'ຍັງບໍ່ມີສະຖານທີ່' ?>
                     </h3>
                     <p class="text-gray-400 mb-5">
-                        <?= $is_searching ? 'Try a different name or address' : 'Please check back later' ?>
+                        <?= $is_searching ? 'ລອງຊອກຫາດ້ວຍຊື່ ຫຼື ທີ່ຢູ່ອື່ນ' : 'ກະລຸນາກັບມາກວດສອບໃໝ່ພາຍຫຼັງ' ?>
                     </p>
                     <?php if ($is_searching): ?>
                         <a href="index.php" class="inline-block bg-blue-600 text-white px-6 py-2.5 rounded-xl hover:bg-blue-700 transition font-semibold">
-                            Show All Courts
+                            ເບິ່ງເດີ່ນທັງໝົດ
                         </a>
                     <?php endif; ?>
                 </div>

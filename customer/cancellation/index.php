@@ -15,7 +15,6 @@ if (!$book_id) {
     exit;
 }
 
-// Verify booking belongs to this customer and is cancellable
 try {
     $stmt = $pdo->prepare("
         SELECT b.*, bd.Start_time, v.VN_Name
@@ -28,22 +27,21 @@ try {
     ");
     $stmt->execute([$book_id, $c_id]);
     $booking = $stmt->fetch();
-} catch (PDOException $e) {
-    $booking = null;
-}
+} catch (PDOException $e) { $booking = null; }
 
 if (!$booking) {
     header('Location: /Badminton_court_Booking/customer/booking_court/my_booking.php');
     exit;
 }
 
-if ($booking['Status_booking'] === 'Cancelled') {
+// FIX: Only Unpaid and Pending can be cancelled — not Confirmed or already Cancelled
+if (in_array($booking['Status_booking'], ['Cancelled', 'Confirmed'])) {
     header('Location: /Badminton_court_Booking/customer/booking_court/my_booking.php');
     exit;
 }
 
-if (strtotime($booking['Start_time']) < time()) {
-    $_SESSION['booking_error'] = 'Cannot cancel a past booking.';
+if (strtotime($booking['Start_time']) < time() && $booking['Status_booking'] !== 'Unpaid') {
+    $_SESSION['booking_error'] = 'ບໍ່ສາມາດຍົກເລີກການຈອງທີ່ຜ່ານມາໄດ້.';
     header('Location: /Badminton_court_Booking/customer/booking_court/my_booking.php');
     exit;
 }
@@ -54,35 +52,33 @@ $success = false;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $comment = trim($_POST['comment'] ?? '');
     if (empty($comment)) {
-        $error = 'Please provide a reason for cancellation.';
+        $error = 'ກະລຸນາໃສ່ເຫດຜົນໃນການຍົກເລີກ.';
     } else {
         try {
             $pdo->beginTransaction();
 
-            // Update booking status
-            $stmt = $pdo->prepare("UPDATE booking SET Status_booking = 'Cancelled' WHERE Book_ID = ? AND C_ID = ?");
-            $stmt->execute([$book_id, $c_id]);
+            $pdo->prepare("UPDATE booking SET Status_booking = 'Cancelled' WHERE Book_ID = ? AND C_ID = ?")
+                ->execute([$book_id, $c_id]);
 
-            // Insert cancel record
-            $stmt = $pdo->prepare("INSERT INTO cancel_booking (Comment, Book_ID) VALUES (?, ?)");
-            $stmt->execute([$comment, $book_id]);
+            $pdo->prepare("INSERT INTO cancel_booking (Comment, Book_ID) VALUES (?, ?)")
+                ->execute([$comment, $book_id]);
 
             $pdo->commit();
             $success = true;
         } catch (PDOException $e) {
             $pdo->rollBack();
             error_log("Cancellation error: " . $e->getMessage());
-            $error = 'Cancellation failed. Please try again.';
+            $error = 'ການຍົກເລີກລົ້ມເຫລວ. ກະລຸນາລອງໃໝ່.';
         }
     }
 }
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="lo">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cancel Booking - CourtBook</title>
+    <title>ຍົກເລີກການຈອງ - ລະບົບຈອງເດີ່ນ</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -93,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <a href="/Badminton_court_Booking/customer/booking_court/my_booking.php"
            class="inline-flex items-center gap-2 text-gray-600 hover:text-blue-600 mb-6 font-medium transition">
-            <i class="fas fa-arrow-left"></i> Back to My Bookings
+            <i class="fas fa-arrow-left"></i> ກັບໄປລາຍການຈອງ
         </a>
 
         <?php if ($success): ?>
@@ -101,11 +97,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <i class="fas fa-times-circle text-red-500 text-4xl"></i>
                 </div>
-                <h2 class="text-2xl font-extrabold text-gray-800 mb-2">Booking Cancelled</h2>
-                <p class="text-gray-500 mb-6">Your booking #<?= $book_id ?> has been successfully cancelled.</p>
+                <h2 class="text-2xl font-extrabold text-gray-800 mb-2">ຍົກເລີກການຈອງສຳເລັດ</h2>
+                <p class="text-gray-500 mb-6">ການຈອງ #<?= $book_id ?> ຂອງທ່ານໄດ້ຖືກຍົກເລີກແລ້ວ.</p>
                 <a href="/Badminton_court_Booking/customer/booking_court/my_booking.php"
                    class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-3 rounded-xl transition">
-                    Back to My Bookings
+                    ກັບໄປລາຍການຈອງ
                 </a>
             </div>
 
@@ -115,13 +111,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
                         <i class="fas fa-exclamation-triangle text-red-500 text-2xl"></i>
                     </div>
-                    <h2 class="text-2xl font-extrabold text-gray-800">Cancel Booking</h2>
-                    <p class="text-gray-500 text-sm mt-1">Booking #<?= $book_id ?> · <?= htmlspecialchars($booking['VN_Name']) ?></p>
+                    <h2 class="text-2xl font-extrabold text-gray-800">ຍົກເລີກການຈອງ</h2>
+                    <p class="text-gray-500 text-sm mt-1">ການຈອງ #<?= $book_id ?> · <?= htmlspecialchars($booking['VN_Name']) ?></p>
                 </div>
 
                 <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6 text-sm text-yellow-700">
                     <i class="fas fa-info-circle mr-2"></i>
-                    Once cancelled, this booking cannot be undone. Your slot will be released.
+                    ເມື່ອຍົກເລີກແລ້ວ ບໍ່ສາມາດຍ້ອນກັບໄດ້. ສລັອດຂອງທ່ານຈະຖືກປ່ອຍໃຫ້ຜູ້ອື່ນ.
                 </div>
 
                 <?php if ($error): ?>
@@ -133,21 +129,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <form method="POST">
                     <div class="mb-6">
                         <label class="block text-gray-700 font-bold mb-2 text-sm">
-                            Reason for Cancellation <span class="text-red-500">*</span>
+                            ເຫດຜົນໃນການຍົກເລີກ <span class="text-red-500">*</span>
                         </label>
                         <textarea name="comment" rows="4" required
-                                  placeholder="Please tell us why you're cancelling..."
+                                  placeholder="ກະລຸນາບອກເຫດຜົນທີ່ທ່ານຍົກເລີກ..."
                                   class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-gray-700 focus:outline-none focus:border-red-400 transition resize-none"></textarea>
                     </div>
 
                     <div class="flex gap-3">
                         <button type="submit"
                                 class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl transition">
-                            <i class="fas fa-times-circle mr-2"></i>Confirm Cancellation
+                            <i class="fas fa-times-circle mr-2"></i>ຢືນຢັນການຍົກເລີກ
                         </button>
                         <a href="/Badminton_court_Booking/customer/booking_court/my_booking.php"
                            class="flex-1 text-center bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 rounded-xl transition">
-                            Keep Booking
+                            ຮັກສາການຈອງ
                         </a>
                     </div>
                 </form>

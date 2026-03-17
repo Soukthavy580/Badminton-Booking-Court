@@ -113,7 +113,7 @@ function sidebar_class($path)
 
     <!-- Logo -->
     <div class="p-6 border-b border-gray-100">
-        <a href="/Badminton_court_Booking/owner/index.php" class="flex items-center gap-2">
+        <a href="/Badminton_court_Booking/owner/" class="flex items-center gap-2">
             <img src="/Badminton_court_Booking/assets/images/logo/Logo.png"
                 alt="Badminton Booking Court"
                 class="h-14 w-auto object-contain"
@@ -134,8 +134,8 @@ function sidebar_class($path)
             <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">Management</p>
         </div>
         <!-- Dashboard -->
-        <a href="/Badminton_court_Booking/owner/index.php"
-            class="<?= sidebar_class('/owner/index.php') ?>">
+        <a href="/Badminton_court_Booking/owner/"
+            class="<?= sidebar_class('/owner/') ?>">
             <i class="fas fa-home w-5"></i> Dashboard
         </a>
 
@@ -143,7 +143,7 @@ function sidebar_class($path)
         <div class="pt-3 pb-1">
             <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">Subscription</p>
         </div>
-        <a href="/Badminton_court_Booking/owner/package_rental/index.php"
+        <a href="/Badminton_court_Booking/owner/package_rental/"
             class="<?= sidebar_class('/package_rental/') ?>">
             <i class="fas fa-box w-5"></i> Packages
             <?php if (!$is_active): ?>
@@ -159,11 +159,11 @@ function sidebar_class($path)
         </div>
 
         <?php if ($is_active): ?>
-            <a href="/Badminton_court_Booking/owner/manage_court/index.php"
+            <a href="/Badminton_court_Booking/owner/manage_court/"
                 class="<?= sidebar_class('/manage_court/') ?>">
                 <i class="fas fa-store w-5"></i> My Venue
             </a>
-            <a href="/Badminton_court_Booking/owner/booking_management/index.php"
+            <a href="/Badminton_court_Booking/owner/booking_management/"
                 class="<?= sidebar_class('/booking_management/') ?>">
                 <i class="fas fa-calendar-check w-5"></i> Bookings
                 <?php if ($pending_count > 0): ?>
@@ -172,11 +172,11 @@ function sidebar_class($path)
                     </span>
                 <?php endif; ?>
             </a>
-            <a href="/Badminton_court_Booking/owner/facilities/index.php"
+            <a href="/Badminton_court_Booking/owner/facilities/"
                 class="<?= sidebar_class('/facilities/') ?>">
                 <i class="fas fa-concierge-bell w-5"></i> Facilities
             </a>
-            <a href="/Badminton_court_Booking/owner/advertisement/index.php"
+            <a href="/Badminton_court_Booking/owner/advertisement/"
                 class="<?= sidebar_class('/advertisement/') ?>">
                 <i class="fas fa-bullhorn w-5"></i> Advertisement
                 <?php if ($ad_expiring): ?>
@@ -203,7 +203,7 @@ function sidebar_class($path)
         <div class="pt-3 pb-1">
             <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">Reports</p>
         </div>
-        <a href="/Badminton_court_Booking/owner/reports/index.php"
+        <a href="/Badminton_court_Booking/owner/reports/"
             class="<?= sidebar_class('/reports/') ?>">
             <i class="fas fa-chart-bar w-5"></i> Report
         </a>
@@ -212,7 +212,7 @@ function sidebar_class($path)
         <div class="pt-3 pb-1">
             <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">Notifications</p>
         </div>
-        <a href="/Badminton_court_Booking/owner/notification/index.php"
+        <a href="/Badminton_court_Booking/owner/notification/"
             class="<?= sidebar_class('/notification/') ?>">
             <i class="fas fa-bell w-5"></i> Notifications
             <?php if ($notif_count > 0): ?>
@@ -226,7 +226,7 @@ function sidebar_class($path)
         <div class="pt-3 pb-1">
             <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">Account</p>
         </div>
-        <a href="/Badminton_court_Booking/owner/profile/index.php"
+        <a href="/Badminton_court_Booking/owner/profile/"
             class="<?= sidebar_class('/owner/profile/') ?>">
             <i class="fas fa-user w-5"></i> Profile
         </a>

@@ -10,20 +10,21 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'owner') {
 $ca_id      = $_SESSION['ca_id'];
 $owner_name = $_SESSION['user_name'];
 
-// Check active package - use CA_ID directly
+// Active package (already started and not expired)
 try {
     $stmt = $pdo->prepare("
         SELECT bp.*, pr.Package_duration, pr.Price
         FROM package bp
         INNER JOIN package_rate pr ON bp.Package_rate_ID = pr.Package_rate_ID
         WHERE bp.CA_ID = ? AND bp.Status_Package = 'Active' AND bp.End_time > NOW()
+        AND bp.Start_time <= NOW()
         ORDER BY bp.End_time DESC LIMIT 1
     ");
     $stmt->execute([$ca_id]);
     $active_package = $stmt->fetch();
 } catch (PDOException $e) { $active_package = null; }
 
-// Check pending package - use CA_ID directly
+// Pending package — only truly pending (not rejected, not approved)
 try {
     $stmt = $pdo->prepare("
         SELECT bp.*, pr.Package_duration, pr.Price
@@ -36,6 +37,19 @@ try {
     $pending_package = $stmt->fetch();
 } catch (PDOException $e) { $pending_package = null; }
 
+// Rejected package — show rejection notice
+try {
+    $stmt = $pdo->prepare("
+        SELECT bp.*, pr.Package_duration, pr.Price
+        FROM package bp
+        INNER JOIN package_rate pr ON bp.Package_rate_ID = pr.Package_rate_ID
+        WHERE bp.CA_ID = ? AND bp.Status_Package = 'Rejected'
+        ORDER BY bp.Package_date DESC LIMIT 1
+    ");
+    $stmt->execute([$ca_id]);
+    $rejected_package = $stmt->fetch();
+} catch (PDOException $e) { $rejected_package = null; }
+
 // Get owner's venue
 try {
     $stmt = $pdo->prepare("SELECT * FROM Venue_data WHERE CA_ID = ? LIMIT 1");
@@ -43,14 +57,14 @@ try {
     $venue = $stmt->fetch();
 } catch (PDOException $e) { $venue = null; }
 
-// Get booking stats if venue exists
-$stats = ['total' => 0, 'pending' => 0, 'confirmed' => 0, 'today' => 0, 'revenue' => 0];
+// Booking stats
+$stats = ['total'=>0,'pending'=>0,'confirmed'=>0,'today'=>0,'revenue'=>0];
 if ($venue) {
     try {
         $stmt = $pdo->prepare("
             SELECT 
                 COUNT(*) AS total,
-                SUM(CASE WHEN b.Status_booking = 'Pending' THEN 1 ELSE 0 END) AS pending,
+                SUM(CASE WHEN b.Status_booking = 'Pending'   THEN 1 ELSE 0 END) AS pending,
                 SUM(CASE WHEN b.Status_booking = 'Confirmed' THEN 1 ELSE 0 END) AS confirmed,
                 SUM(CASE WHEN DATE(b.Booking_date) = CURDATE() THEN 1 ELSE 0 END) AS today
             FROM booking b
@@ -78,7 +92,7 @@ if ($venue) {
     } catch (PDOException $e) {}
 }
 
-// Get recent bookings
+// Recent bookings
 $recent_bookings = [];
 if ($venue) {
     try {
@@ -106,7 +120,7 @@ $days_left = $active_package ? ceil((strtotime($active_package['End_time']) - ti
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Owner Dashboard - CourtBook</title>
+    <title>Owner Dashboard - Badminton Booking Court</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -151,13 +165,14 @@ $days_left = $active_package ? ceil((strtotime($active_package['End_time']) - ti
             <?php if ($is_locked): ?>
                 <div class="mb-6">
                     <?php if ($pending_package): ?>
+                        <!-- Pending approval -->
                         <div class="bg-yellow-50 border border-yellow-300 rounded-2xl p-6 flex items-start gap-4">
                             <div class="bg-yellow-100 p-3 rounded-full flex-shrink-0">
                                 <i class="fas fa-clock text-yellow-500 text-2xl"></i>
                             </div>
                             <div>
                                 <h2 class="text-lg font-bold text-yellow-800 mb-1">Payment Pending Approval</h2>
-                                <p class="text-yellow-700 text-sm mb-2">Your package payment slip has been submitted. The admin will approve it shortly. Once approved, you can set up your venue.</p>
+                                <p class="text-yellow-700 text-sm mb-2">Your package payment slip has been submitted. The admin will approve it shortly.</p>
                                 <div class="bg-white border border-yellow-200 rounded-lg px-4 py-2 inline-block text-sm">
                                     <span class="text-gray-500">Package:</span>
                                     <span class="font-bold text-gray-800 ml-1"><?= htmlspecialchars($pending_package['Package_duration']) ?></span>
@@ -167,11 +182,29 @@ $days_left = $active_package ? ceil((strtotime($active_package['End_time']) - ti
                                 </div>
                             </div>
                         </div>
+
+                    <?php elseif ($rejected_package): ?>
+                        <!-- Rejected package -->
+                        <div class="bg-red-50 border border-red-300 rounded-2xl p-6 flex items-start gap-4">
+                            <div class="bg-red-100 p-3 rounded-full flex-shrink-0">
+                                <i class="fas fa-times-circle text-red-500 text-2xl"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-lg font-bold text-red-800 mb-1">Package Payment Rejected</h2>
+                                <p class="text-red-600 text-sm mb-3">Your payment slip was rejected by the admin. Please resubmit with a valid payment slip.</p>
+                                <a href="/Badminton_court_Booking/owner/package_rental/index.php"
+                                   class="inline-block bg-red-600 hover:bg-red-700 text-white font-bold px-5 py-2 rounded-xl transition text-sm">
+                                    <i class="fas fa-redo mr-1"></i> Resubmit Payment
+                                </a>
+                            </div>
+                        </div>
+
                     <?php else: ?>
+                        <!-- No package at all -->
                         <div class="bg-white border-2 border-dashed border-gray-300 rounded-2xl p-10 text-center">
                             <i class="fas fa-lock text-5xl text-gray-300 mb-4 block"></i>
                             <h2 class="text-2xl font-bold text-gray-700 mb-2">Your Account is Not Active Yet</h2>
-                            <p class="text-gray-500 mb-6 max-w-md mx-auto">To start listing your venue and receiving bookings, you need to purchase a package first. Packages range from 1 month to 1 year.</p>
+                            <p class="text-gray-500 mb-6 max-w-md mx-auto">To start listing your venue and receiving bookings, you need to purchase a package first.</p>
                             <a href="/Badminton_court_Booking/owner/package_rental/index.php"
                                 class="inline-block bg-green-600 hover:bg-green-700 text-white font-bold px-8 py-4 rounded-xl transition shadow-lg text-lg">
                                 <i class="fas fa-box mr-2"></i> View Packages & Activate
@@ -185,9 +218,9 @@ $days_left = $active_package ? ceil((strtotime($active_package['End_time']) - ti
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 select-none pointer-events-none">
                         <?php foreach ([
                             ['icon'=>'fa-calendar-check','label'=>'Total Bookings','color'=>'blue'],
-                            ['icon'=>'fa-clock',         'label'=>'Pending',      'color'=>'yellow'],
-                            ['icon'=>'fa-check-circle',  'label'=>'Confirmed',    'color'=>'green'],
-                            ['icon'=>'fa-coins',         'label'=>'Revenue (30%)','color'=>'purple'],
+                            ['icon'=>'fa-clock',         'label'=>'Pending',       'color'=>'yellow'],
+                            ['icon'=>'fa-check-circle',  'label'=>'Confirmed',     'color'=>'green'],
+                            ['icon'=>'fa-coins',         'label'=>'Revenue (30%)', 'color'=>'purple'],
                         ] as $card): ?>
                             <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 blur-sm">
                                 <div class="bg-<?= $card['color'] ?>-100 p-3 rounded-xl w-fit mb-3">
@@ -236,10 +269,10 @@ $days_left = $active_package ? ceil((strtotime($active_package['End_time']) - ti
                 <!-- Stats -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                     <?php foreach ([
-                        ['icon'=>'fa-calendar-check','label'=>'Total Bookings','value'=>$stats['total']??0,   'color'=>'blue',  'fmt'=>false],
-                        ['icon'=>'fa-clock',         'label'=>'Pending',       'value'=>$stats['pending']??0, 'color'=>'yellow','fmt'=>false],
+                        ['icon'=>'fa-calendar-check','label'=>'Total Bookings','value'=>$stats['total']??0,    'color'=>'blue',  'fmt'=>false],
+                        ['icon'=>'fa-clock',         'label'=>'Pending',       'value'=>$stats['pending']??0,  'color'=>'yellow','fmt'=>false],
                         ['icon'=>'fa-check-circle',  'label'=>'Confirmed',     'value'=>$stats['confirmed']??0,'color'=>'green', 'fmt'=>false],
-                        ['icon'=>'fa-coins',         'label'=>'Revenue (30%)', 'value'=>$stats['revenue']??0, 'color'=>'purple','fmt'=>true,'prefix'=>'₭'],
+                        ['icon'=>'fa-coins',         'label'=>'Revenue (30%)', 'value'=>$stats['revenue']??0,  'color'=>'purple','fmt'=>true,'prefix'=>'₭'],
                     ] as $card): ?>
                         <div class="stat-card bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                             <div class="flex items-center justify-between mb-3">
@@ -316,7 +349,7 @@ $days_left = $active_package ? ceil((strtotime($active_package['End_time']) - ti
                                 <a href="/Badminton_court_Booking/owner/booking_management/index.php"
                                     class="flex items-center gap-3 p-3 rounded-xl hover:bg-blue-50 hover:text-blue-700 text-gray-700 transition text-sm font-medium">
                                     <i class="fas fa-calendar-check w-5 text-blue-500"></i>Manage Bookings
-                                    <?php if ($stats['pending'] > 0): ?>
+                                    <?php if (($stats['pending']??0) > 0): ?>
                                         <span class="ml-auto bg-red-500 text-white text-xs rounded-full px-2"><?= $stats['pending'] ?></span>
                                     <?php endif; ?>
                                 </a>

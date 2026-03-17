@@ -25,12 +25,14 @@ $filter = $_GET['filter'] ?? 'pending';
 $error  = '';
 $success= '';
 
+// ── FIX: POST-Redirect-GET to prevent resubmit on refresh ──
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $book_id = intval($_POST['book_id'] ?? 0);
     $action  = $_POST['action'] ?? '';
     if ($book_id && in_array($action, ['approve','reject'])) {
         try {
             $new_status = $action === 'approve' ? 'Confirmed' : 'Cancelled';
+            // Verify booking belongs to this venue
             $stmt = $pdo->prepare("
                 SELECT b.Book_ID FROM booking b
                 INNER JOIN booking_detail bd ON b.Book_ID = bd.Book_ID
@@ -41,15 +43,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($stmt->fetch()) {
                 $pdo->prepare("UPDATE booking SET Status_booking = ? WHERE Book_ID = ?")
                     ->execute([$new_status, $book_id]);
-                $success = $action === 'approve'
+                $msg = $action === 'approve'
                     ? 'Booking #' . $book_id . ' has been confirmed!'
                     : 'Booking #' . $book_id . ' has been rejected.';
+                // Redirect to prevent resubmit on page refresh
+                header('Location: ?filter=' . urlencode($filter) . '&msg=' . urlencode($msg));
+                exit;
+            } else {
+                $error = 'Booking not found or access denied.';
             }
-        } catch (PDOException $e) { $error = 'Action failed. Please try again.'; }
+        } catch (PDOException $e) {
+            $error = 'Action failed: ' . $e->getMessage();
+        }
     }
 }
 
-// Fetch bookings — includes court Open_time / Close_time
+// Show success message from redirect
+if (!empty($_GET['msg'])) {
+    $success = $_GET['msg'];
+}
+
+// Fetch bookings
 function get_bookings($pdo, $vn_id, $filter) {
     try {
         $sql = "
@@ -70,7 +84,8 @@ function get_bookings($pdo, $vn_id, $filter) {
             WHERE c.VN_ID = ?
         ";
         $params = [$vn_id];
-        if ($filter === 'pending')       $sql .= " AND b.Status_booking = 'Pending' AND b.Slip_payment != ''";
+        // FIX: use IS NOT NULL check for Slip_payment to handle NULL values
+        if ($filter === 'pending')       $sql .= " AND b.Status_booking = 'Pending' AND b.Slip_payment IS NOT NULL AND b.Slip_payment != ''";
         elseif ($filter === 'confirmed') $sql .= " AND b.Status_booking = 'Confirmed'";
         elseif ($filter === 'cancelled') $sql .= " AND b.Status_booking = 'Cancelled'";
         elseif ($filter === 'upcoming')  $sql .= " AND b.Status_booking = 'Confirmed' AND bd.Start_time > NOW()";
@@ -83,8 +98,9 @@ function get_bookings($pdo, $vn_id, $filter) {
 
 function count_bookings($pdo, $vn_id, $filter) {
     try {
+        // FIX: use IS NOT NULL check for Slip_payment
         $where = match($filter) {
-            'pending'   => "AND b.Status_booking = 'Pending' AND b.Slip_payment != ''",
+            'pending'   => "AND b.Status_booking = 'Pending' AND b.Slip_payment IS NOT NULL AND b.Slip_payment != ''",
             'confirmed' => "AND b.Status_booking = 'Confirmed'",
             'cancelled' => "AND b.Status_booking = 'Cancelled'",
             'upcoming'  => "AND b.Status_booking = 'Confirmed' AND bd.Start_time > NOW()",
@@ -136,10 +152,9 @@ $counts = [
     'pending'   => count_bookings($pdo, $vn_id, 'pending'),
     'confirmed' => count_bookings($pdo, $vn_id, 'confirmed'),
     'cancelled' => count_bookings($pdo, $vn_id, 'cancelled'),
-    'schedule'  => 0, // placeholder for Time Schedule tab
 ];
 
-// All courts + today's booked hours per court (for schedule panel)
+// All courts for schedule tab
 try {
     $stmt = $pdo->prepare("SELECT * FROM Court_data WHERE VN_ID = ? ORDER BY COURT_Name");
     $stmt->execute([$vn_id]);
@@ -147,30 +162,13 @@ try {
 } catch (PDOException $e) { $all_courts = []; }
 
 $today = date('Y-m-d');
-$court_booked_hours = [];
-try {
-    $stmt = $pdo->prepare("
-        SELECT bd.COURT_ID,
-               SUM(TIMESTAMPDIFF(HOUR, bd.Start_time, bd.End_time)) AS booked_hours
-        FROM booking_detail bd
-        INNER JOIN booking b ON bd.Book_ID = b.Book_ID
-        WHERE b.Status_booking = 'Confirmed'
-          AND DATE(bd.Start_time) = ?
-          AND bd.COURT_ID IN (SELECT COURT_ID FROM Court_data WHERE VN_ID = ?)
-        GROUP BY bd.COURT_ID
-    ");
-    $stmt->execute([$today, $vn_id]);
-    foreach ($stmt->fetchAll() as $row) {
-        $court_booked_hours[$row['COURT_ID']] = (int)$row['booked_hours'];
-    }
-} catch (PDOException $e) {}
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Booking Management - CourtBook</title>
+    <title>Booking Management - Badminton Booking Court</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -229,7 +227,7 @@ try {
                             <div class="bg-<?= $sc['color'] ?>-100 p-2 rounded-xl">
                                 <i class="fas <?= $sc['icon'] ?> text-<?= $sc['color'] ?>-500"></i>
                             </div>
-                            <?php if ($sc['filter']==='pending' && $sc['value']>0): ?>
+                            <?php if ($sc['filter']==='pending' && ($sc['value']??0)>0): ?>
                                 <span class="bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold"><?= $sc['value'] ?></span>
                             <?php endif; ?>
                         </div>
@@ -243,14 +241,11 @@ try {
                 <?php endforeach; ?>
             </div>
 
-             <!-- COURT SLOT VIEW (Time Schedule tab only) -->
+            <!-- SCHEDULE TAB -->
             <?php if ($filter === 'schedule'): ?>
             <?php
-            // Date selector (default today)
             $view_date     = $_GET['view_date'] ?? $today;
             $view_date_fmt = date('Y-m-d', strtotime($view_date));
-
-            // Fetch booked/pending slots for the selected date
             $booked_slots_view = [];
             try {
                 $stmt = $pdo->prepare("
@@ -272,14 +267,11 @@ try {
                 }
             } catch (PDOException $e) {}
             ?>
-
             <?php if (!empty($all_courts)): ?>
             <div class="bg-white rounded-2xl shadow-sm p-5 mb-6">
-                <!-- Header + date picker + legend -->
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
                     <h2 class="font-bold text-gray-800 flex items-center gap-2">
-                        <i class="fas fa-calendar-day text-blue-500"></i>
-                        Court Slot Overview
+                        <i class="fas fa-calendar-day text-blue-500"></i> Court Slot Overview
                     </h2>
                     <div class="flex items-center gap-3 flex-wrap">
                         <div class="hidden md:flex items-center gap-3 text-xs text-gray-500">
@@ -289,34 +281,27 @@ try {
                             <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-gray-100 border border-gray-200 inline-block"></span>Past</span>
                         </div>
                         <form method="GET" class="flex items-center gap-2">
-                            <?php if ($filter !== 'pending'): ?><input type="hidden" name="filter" value="<?= htmlspecialchars($filter) ?>"><?php endif; ?>
+                            <input type="hidden" name="filter" value="schedule">
                             <input type="date" name="view_date" value="<?= htmlspecialchars($view_date_fmt) ?>"
                                    class="border-2 border-gray-200 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:border-blue-400 transition"
                                    onchange="this.form.submit()">
                         </form>
-                        <a href="/Badminton_court_Booking/owner/manage_court/index.php?tab=courts"
-                           class="text-xs text-blue-500 hover:underline flex-shrink-0">
-                            <i class="fas fa-cog mr-1"></i>Manage courts
-                        </a>
                     </div>
                 </div>
-
-                <!-- One block per court -->
                 <?php foreach ($all_courts as $court):
-                    $cs           = $court['Court_Status'] ?? 'Active';
-                    $has_schedule = !empty($court['Open_time']) && !empty($court['Close_time']);
-                    $s_color      = match($cs) { 'Active'=>'green','Inactive'=>'gray','Maintaining'=>'yellow', default=>'gray' };
-                    $s_icon       = match($cs) { 'Active'=>'fa-check-circle','Inactive'=>'fa-eye-slash','Maintaining'=>'fa-tools', default=>'fa-circle' };
+                    $cs       = $court['Court_Status'] ?? 'Active';
+                    $has_sched= !empty($court['Open_time']) && !empty($court['Close_time']);
+                    $s_color  = match($cs) { 'Active'=>'green','Inactive'=>'gray','Maintaining'=>'yellow', default=>'gray' };
+                    $s_icon   = match($cs) { 'Active'=>'fa-check-circle','Inactive'=>'fa-eye-slash','Maintaining'=>'fa-tools', default=>'fa-circle' };
                 ?>
                     <div class="mb-7 last:mb-0">
-                        <!-- Court label -->
                         <div class="flex items-center gap-3 mb-3">
-                            <div class="bg-<?= $s_color ?>-100 text-<?= $s_color ?>-700 font-extrabold w-9 h-9 rounded-xl flex items-center justify-center text-sm flex-shrink-0 border border-<?= $s_color ?>-200">
+                            <div class="bg-<?= $s_color ?>-100 text-<?= $s_color ?>-700 font-extrabold w-9 h-9 rounded-xl flex items-center justify-center text-sm flex-shrink-0">
                                 <?= strtoupper(substr($court['COURT_Name'], 0, 1)) ?>
                             </div>
                             <div class="flex items-center gap-2 flex-wrap">
                                 <span class="font-bold text-gray-800"><?= htmlspecialchars($court['COURT_Name']) ?></span>
-                                <?php if ($has_schedule): ?>
+                                <?php if ($has_sched): ?>
                                     <span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full flex items-center gap-1">
                                         <i class="fas fa-clock text-blue-400"></i>
                                         <?= date('g:i A', strtotime($court['Open_time'])) ?> – <?= date('g:i A', strtotime($court['Close_time'])) ?>
@@ -327,16 +312,15 @@ try {
                                 </span>
                             </div>
                         </div>
-
-                        <?php if (!$has_schedule): ?>
-                            <div class="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-xl px-4 py-3 text-sm text-orange-600 font-semibold">
+                        <?php if (!$has_sched): ?>
+                            <div class="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-xl px-4 py-3 text-sm text-orange-600">
                                 <i class="fas fa-exclamation-triangle"></i> No schedule set.
                                 <a href="/Badminton_court_Booking/owner/manage_court/index.php?tab=courts" class="underline text-blue-500 ml-1">Set now →</a>
                             </div>
                         <?php elseif ($cs !== 'Active'): ?>
-                            <div class="bg-<?= $s_color ?>-50 border border-<?= $s_color ?>-200 rounded-xl px-4 py-3 text-sm text-<?= $s_color ?>-600 font-semibold">
+                            <div class="bg-<?= $s_color ?>-50 border border-<?= $s_color ?>-200 rounded-xl px-4 py-3 text-sm text-<?= $s_color ?>-600">
                                 <i class="fas <?= $s_icon ?> mr-1"></i>
-                                <?= $cs === 'Maintaining' ? 'Under maintenance — not accepting bookings.' : 'Inactive — hidden from customers.' ?>
+                                <?= $cs === 'Maintaining' ? 'Under maintenance.' : 'Inactive — hidden from customers.' ?>
                             </div>
                         <?php else: ?>
                             <?php
@@ -346,51 +330,25 @@ try {
                             ?>
                             <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                                 <?php while ($cur < $end):
-                                    $next     = $cur + 3600;
-                                    $skey     = date('H:i', $cur);
-                                    $bkey     = $court['COURT_ID'] . '_' . $skey;
-                                    $is_past  = $next <= $now && $view_date_fmt === $today;
-                                    $brow     = $booked_slots_view[$bkey] ?? null;
-                                    $is_conf  = $brow && $brow['Status_booking'] === 'Confirmed';
-                                    $is_pend  = $brow && $brow['Status_booking'] === 'Pending';
-
-                                    if ($is_conf) {
-                                        $cc   = 'bg-red-50 border-2 border-red-300';
-                                        $tc   = 'text-red-700';
-                                        $lbl  = 'Booked';
-                                        $sub  = htmlspecialchars($brow['customer_name']);
-                                        $ico  = 'fa-times-circle text-red-400';
-                                    } elseif ($is_pend) {
-                                        $cc   = 'bg-yellow-50 border-2 border-yellow-300';
-                                        $tc   = 'text-yellow-700';
-                                        $lbl  = 'Pending';
-                                        $sub  = htmlspecialchars($brow['customer_name']);
-                                        $ico  = 'fa-clock text-yellow-400';
-                                    } elseif ($is_past) {
-                                        $cc   = 'bg-gray-50 border border-gray-200';
-                                        $tc   = 'text-gray-400';
-                                        $lbl  = 'Past';
-                                        $sub  = '';
-                                        $ico  = '';
-                                    } else {
-                                        $cc   = 'bg-green-50 border border-green-200';
-                                        $tc   = 'text-green-700';
-                                        $lbl  = 'Available';
-                                        $sub  = '';
-                                        $ico  = '';
-                                    }
+                                    $next    = $cur + 3600;
+                                    $skey    = date('H:i', $cur);
+                                    $bkey    = $court['COURT_ID'] . '_' . $skey;
+                                    $is_past = $next <= $now && $view_date_fmt === $today;
+                                    $brow    = $booked_slots_view[$bkey] ?? null;
+                                    $is_conf = $brow && $brow['Status_booking'] === 'Confirmed';
+                                    $is_pend = $brow && $brow['Status_booking'] === 'Pending';
+                                    if ($is_conf)      { $cc='bg-red-50 border-2 border-red-300';    $tc='text-red-700';    $lbl='Booked';    $sub=htmlspecialchars($brow['customer_name']); $ico='fa-times-circle text-red-400'; }
+                                    elseif ($is_pend)  { $cc='bg-yellow-50 border-2 border-yellow-300'; $tc='text-yellow-700'; $lbl='Pending';   $sub=htmlspecialchars($brow['customer_name']); $ico='fa-clock text-yellow-400'; }
+                                    elseif ($is_past)  { $cc='bg-gray-50 border border-gray-200';   $tc='text-gray-400';   $lbl='Past';      $sub=''; $ico=''; }
+                                    else               { $cc='bg-green-50 border border-green-200'; $tc='text-green-700';  $lbl='Available'; $sub=''; $ico=''; }
                                 ?>
                                     <div class="<?= $cc ?> <?= $tc ?> rounded-xl px-3 py-2.5 text-center">
-                                        <p class="text-sm font-bold mb-0.5">
-                                            <?= date('g:i A', $cur) ?> – <?= date('g:i A', $next) ?>
-                                        </p>
+                                        <p class="text-sm font-bold mb-0.5"><?= date('g:i A', $cur) ?> – <?= date('g:i A', $next) ?></p>
                                         <p class="text-xs font-semibold flex items-center justify-center gap-1">
                                             <?php if ($ico): ?><i class="fas <?= $ico ?> text-xs"></i><?php endif; ?>
                                             <?= $lbl ?>
                                         </p>
-                                        <?php if ($sub): ?>
-                                            <p class="text-xs mt-0.5 truncate opacity-70"><?= $sub ?></p>
-                                        <?php endif; ?>
+                                        <?php if ($sub): ?><p class="text-xs mt-0.5 truncate opacity-70"><?= $sub ?></p><?php endif; ?>
                                     </div>
                                 <?php $cur = $next; endwhile; ?>
                             </div>
@@ -399,21 +357,17 @@ try {
                 <?php endforeach; ?>
             </div>
             <?php endif; ?>
+            <?php endif; // end schedule ?>
 
-
-            <?php endif; // end schedule tab ?>
-
-            <!-- ══════════════════════════════════
-                 BOOKINGS LIST (all tabs except schedule)
-            ══════════════════════════════════ -->
+            <!-- BOOKINGS LIST -->
             <?php if ($filter !== 'schedule' && !empty($bookings)): ?>
                 <div class="space-y-4">
                     <?php foreach ($bookings as $booking):
-                        $total      = calc_total($booking['slots'], $booking['Price_per_hour']);
-                        $deposit    = round($total * 0.30);
-                        $remaining  = round($total * 0.70);
-                        $is_past    = strtotime($booking['Start_time']) < time();
-                        $slip_url   = !empty($booking['Slip_payment'])
+                        $total     = calc_total($booking['slots'], $booking['Price_per_hour']);
+                        $deposit   = round($total * 0.30);
+                        $remaining = round($total * 0.70);
+                        $is_past   = strtotime($booking['Start_time']) < time();
+                        $slip_url  = !empty($booking['Slip_payment'])
                             ? '/Badminton_court_Booking/assets/images/slips/' . basename($booking['Slip_payment'])
                             : '';
                         $status_cfg = match($booking['Status_booking']) {
@@ -425,7 +379,6 @@ try {
                         <div class="booking-card bg-white rounded-2xl shadow-sm border-l-4 <?= $status_cfg['border'] ?> overflow-hidden">
                             <div class="p-5">
                                 <div class="flex flex-col md:flex-row justify-between items-start gap-4">
-                                    <!-- Customer -->
                                     <div class="flex items-start gap-3 flex-1">
                                         <div class="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
                                             <?= strtoupper(substr($booking['customer_name'], 0, 1)) ?>
@@ -436,7 +389,6 @@ try {
                                             <p class="text-sm text-gray-500"><i class="fas fa-envelope mr-1 text-blue-400"></i><?= htmlspecialchars($booking['customer_email']) ?></p>
                                         </div>
                                     </div>
-                                    <!-- Status + ID -->
                                     <div class="flex flex-col items-end gap-1">
                                         <span class="<?= $status_cfg['badge_bg'] ?> <?= $status_cfg['badge_text'] ?> text-xs font-bold px-3 py-1 rounded-full">
                                             <i class="fas <?= $status_cfg['icon'] ?> mr-1"></i>
@@ -447,14 +399,13 @@ try {
                                     </div>
                                 </div>
 
-                                <!-- Slots — court name + its schedule + booked time -->
+                                <!-- Slots -->
                                 <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-2">
                                     <?php foreach ($booking['slots'] as $slot):
                                         $slot_cs    = $slot['court_status'] ?? 'Active';
                                         $slot_color = match($slot_cs) { 'Active'=>'green','Maintaining'=>'yellow', default=>'gray' };
                                     ?>
                                         <div class="bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-100">
-                                            <!-- Court name + schedule hours -->
                                             <div class="flex items-center gap-2 mb-1 flex-wrap">
                                                 <i class="fas fa-table-tennis text-<?= $slot_color ?>-500 text-xs flex-shrink-0"></i>
                                                 <span class="font-semibold text-gray-800 text-sm"><?= htmlspecialchars($slot['court']) ?></span>
@@ -463,13 +414,8 @@ try {
                                                         <i class="fas fa-clock text-xs"></i>
                                                         <?= date('g:iA', strtotime($slot['court_open'])) ?>–<?= date('g:iA', strtotime($slot['court_close'])) ?>
                                                     </span>
-                                                <?php else: ?>
-                                                    <span class="ml-auto flex-shrink-0 text-xs text-orange-400 bg-orange-50 border border-orange-100 px-2 py-0.5 rounded-full">
-                                                        <i class="fas fa-exclamation-triangle mr-0.5"></i>No schedule
-                                                    </span>
                                                 <?php endif; ?>
                                             </div>
-                                            <!-- Booked slot time -->
                                             <div class="flex items-center gap-1.5 ml-4 text-xs text-gray-500">
                                                 <i class="fas fa-calendar-check text-gray-300"></i>
                                                 <?= date('M d', strtotime($slot['start'])) ?> &nbsp;·&nbsp;

@@ -1,8 +1,20 @@
 <?php
-$host = 'localhost';
-$dbname = 'Badminton_booking';
-$username = 'root';
-$password = '';
+// ── Environment detection ──
+// Set to 'local' for development, 'live' for production
+$env = 'local';
+
+if ($env === 'local') {
+    $host     = 'localhost';
+    $dbname   = 'Badminton_booking';
+    $username = 'root';
+    $password = '';
+} else {
+    // ── Fill these in when you deploy to hosting ──
+    $host     = 'your_live_host';      // e.g. sql200.infinityfree.com
+    $dbname   = 'your_live_dbname';    // e.g. if0_12345678_badminton
+    $username = 'your_live_username';  // provided by host
+    $password = 'your_live_password';  // provided by host
+}
 
 try {
     $pdo = new PDO(
@@ -10,9 +22,9 @@ try {
         $username,
         $password,
         [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES => false
+            PDO::ATTR_EMULATE_PREPARES   => false
         ]
     );
 } catch (PDOException $e) {
@@ -25,21 +37,11 @@ function get_user_by_login($login, $table) {
     if (!in_array($table, $allowed)) return false;
 
     try {
-        // Admin has NO Email column — username only
         if ($table === 'admin') {
-            $stmt = $pdo->prepare("
-                SELECT * FROM `admin`
-                WHERE LOWER(Username) = LOWER(?)
-                LIMIT 1
-            ");
+            $stmt = $pdo->prepare("SELECT * FROM `admin` WHERE LOWER(Username) = LOWER(?) LIMIT 1");
             $stmt->execute([$login]);
         } else {
-            $stmt = $pdo->prepare("
-                SELECT * FROM `{$table}`
-                WHERE LOWER(Email) = LOWER(?)
-                OR LOWER(Username) = LOWER(?)
-                LIMIT 1
-            ");
+            $stmt = $pdo->prepare("SELECT * FROM `{$table}` WHERE LOWER(Email) = LOWER(?) OR LOWER(Username) = LOWER(?) LIMIT 1");
             $stmt->execute([$login, $login]);
         }
 
@@ -51,7 +53,7 @@ function get_user_by_login($login, $table) {
                 $user['name']     = $user['Name'] . ' ' . $user['Surname'];
                 $user['id']       = $user['Admin_ID'];
                 $user['password'] = $user['Password'];
-                $user['Status']   = 'Active'; // admin is never banned
+                $user['Status']   = 'Active';
             } elseif ($table === 'court_owner') {
                 $user['email']    = $user['Email'];
                 $user['name']     = $user['Name'];
@@ -105,9 +107,9 @@ function get_user_by_id($id, $table) {
     $allowed = ['admin', 'court_owner', 'customer'];
     if (!in_array($table, $allowed)) return false;
     $id_col = match($table) {
-        'admin' => 'Admin_ID',
+        'admin'       => 'Admin_ID',
         'court_owner' => 'CA_ID',
-        'customer' => 'C_ID',
+        'customer'    => 'C_ID',
     };
     try {
         $stmt = $pdo->prepare("SELECT * FROM `{$table}` WHERE `{$id_col}` = ? LIMIT 1");
@@ -123,12 +125,13 @@ function verify_password($password, $hash) {
     return password_verify($password, $hash);
 }
 
-function create_customer($name, $surname, $gender, $phone, $email, $username, $password) {
+// ── Surname removed — only Name is used ──
+function create_customer($name, $gender, $phone, $email, $username, $password) {
     global $pdo;
     try {
         $hashed = password_hash($password, PASSWORD_DEFAULT);
-        $stmt = $pdo->prepare("INSERT INTO customer (Name, Surname, Gender, Phone, Email, Username, Password) VALUES (?, ?, ?, ?, ?, ?, ?)");
-        $stmt->execute([$name, $surname, $gender, $phone, $email, $username, $hashed]);
+        $stmt = $pdo->prepare("INSERT INTO customer (Name, Gender, Phone, Email, Username, Password) VALUES (?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$name, $gender, $phone, $email, $username, $hashed]);
         return $pdo->lastInsertId();
     } catch (PDOException $e) {
         error_log("create_customer error: " . $e->getMessage());
@@ -136,12 +139,12 @@ function create_customer($name, $surname, $gender, $phone, $email, $username, $p
     }
 }
 
-function create_court_owner($name, $surname, $phone, $email, $username, $password) {
+function create_court_owner($name, $phone, $email, $username, $password) {
     global $pdo;
     try {
         $hashed = password_hash($password, PASSWORD_DEFAULT);
-        $stmt = $pdo->prepare("INSERT INTO court_owner (Name, Surname, Gender, Phone, Email, Username, Password) VALUES (?, ?, ?, ?, ?, ?, ?)");
-        $stmt->execute([$name, $surname, 'Not specified', $phone, $email, $username, $hashed]);
+        $stmt = $pdo->prepare("INSERT INTO court_owner (Name, Phone, Email, Username, Password) VALUES (?, ?, ?, ?, ?)");
+        $stmt->execute([$name, $phone, $email, $username, $hashed]);
         return $pdo->lastInsertId();
     } catch (PDOException $e) {
         error_log("create_court_owner error: " . $e->getMessage());
@@ -149,7 +152,7 @@ function create_court_owner($name, $surname, $phone, $email, $username, $passwor
     }
 }
 
-function create_admin($name, $surname, $gender, $image_pay, $username, $email, $password) {
+function create_admin($name, $surname, $gender, $image_pay, $username, $password) {
     global $pdo;
     try {
         $hashed = password_hash($password, PASSWORD_DEFAULT);
@@ -166,7 +169,11 @@ function update_password($id, $table, $new_password) {
     global $pdo;
     $allowed = ['admin', 'court_owner', 'customer'];
     if (!in_array($table, $allowed)) return false;
-    $id_col = match($table) { 'admin' => 'Admin_ID', 'court_owner' => 'CA_ID', 'customer' => 'C_ID' };
+    $id_col = match($table) {
+        'admin'       => 'Admin_ID',
+        'court_owner' => 'CA_ID',
+        'customer'    => 'C_ID'
+    };
     try {
         $hashed = password_hash($new_password, PASSWORD_DEFAULT);
         $stmt = $pdo->prepare("UPDATE `{$table}` SET Password = ? WHERE `{$id_col}` = ?");
@@ -179,7 +186,7 @@ function update_password($id, $table, $new_password) {
 
 function update_customer($id, $data) {
     global $pdo;
-    $allowed_fields = ['Name', 'Surname', 'Gender', 'Phone', 'Email', 'Username'];
+    $allowed_fields = ['Name', 'Gender', 'Phone', 'Email', 'Username'];
     $fields = []; $values = [];
     foreach ($data as $key => $value) {
         if (in_array($key, $allowed_fields)) { $fields[] = "`{$key}` = ?"; $values[] = $value; }

@@ -9,7 +9,6 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'customer') {
 
 $c_id = $_SESSION['c_id'];
 
-// Fetch all bookings
 try {
     $stmt = $pdo->prepare("
         SELECT 
@@ -43,16 +42,13 @@ foreach ($all as $n) {
     ];
 }
 
-// Build current state keys e.g. "3_Confirmed", "2_Cancelled"
 $current_keys = [];
 foreach ($grouped as $b) {
     $current_keys[] = $b['Book_ID'] . '_' . $b['Status_booking'];
 }
 
-// What was already seen last visit (stored in session)
 $seen_keys = $_SESSION['notif_seen'] ?? [];
 
-// Unread = in current but not in seen
 $unread_bookings = [];
 $read_bookings   = [];
 foreach ($grouped as $booking) {
@@ -64,7 +60,6 @@ foreach ($grouped as $booking) {
     }
 }
 
-// NOW mark all current as seen — next visit they'll be in "Earlier"
 $_SESSION['notif_seen'] = $current_keys;
 
 function calc_total($slots, $price_per_hour) {
@@ -77,40 +72,48 @@ function calc_total($slots, $price_per_hour) {
     return $total;
 }
 
+// FIX: Added 'Unpaid' case + translated all messages to Lao
 function get_config($status, $slip) {
     return match($status) {
         'Confirmed' => [
             'bg'=>'bg-green-50', 'border'=>'border-green-400',
             'icon_bg'=>'bg-green-100', 'icon'=>'fa-check-circle', 'icon_color'=>'text-green-500',
             'badge_bg'=>'bg-green-100', 'badge_text'=>'text-green-700',
-            'title'=>'Booking Confirmed!',
-            'message'=>'Your payment has been verified. Your court is booked!',
+            'title'=>'ການຈອງຢືນຢັນແລ້ວ!',
+            'message'=>'ການຊຳລະເງິນຂອງທ່ານໄດ້ຮັບການກວດສອບແລ້ວ. ເດີ່ນຂອງທ່ານຈອງສຳເລັດ!',
         ],
         'Cancelled' => [
             'bg'=>'bg-red-50', 'border'=>'border-red-400',
             'icon_bg'=>'bg-red-100', 'icon'=>'fa-times-circle', 'icon_color'=>'text-red-500',
             'badge_bg'=>'bg-red-100', 'badge_text'=>'text-red-700',
-            'title'=>'Booking Cancelled',
-            'message'=>'Your booking has been cancelled.',
+            'title'=>'ການຈອງຖືກຍົກເລີກ',
+            'message'=>'ການຈອງຂອງທ່ານໄດ້ຖືກຍົກເລີກແລ້ວ.',
+        ],
+        'Unpaid' => [
+            'bg'=>'bg-blue-50', 'border'=>'border-blue-400',
+            'icon_bg'=>'bg-blue-100', 'icon'=>'fa-credit-card', 'icon_color'=>'text-blue-500',
+            'badge_bg'=>'bg-blue-100', 'badge_text'=>'text-blue-700',
+            'title'=>'ລໍຖ້າການຊຳລະເງິນ',
+            'message'=>'ກະລຸນາອັບໂຫລດໃບຮັບເງິນເພື່ອຢືນຢັນການຈອງ.',
         ],
         default => [
             'bg'=>'bg-yellow-50', 'border'=>'border-yellow-400',
             'icon_bg'=>'bg-yellow-100', 'icon'=>'fa-clock', 'icon_color'=>'text-yellow-500',
             'badge_bg'=>'bg-yellow-100', 'badge_text'=>'text-yellow-700',
-            'title'=>'Awaiting Payment Verification',
+            'title'=>'ລໍຖ້າການກວດສອບການຊຳລະເງິນ',
             'message'=> !empty($slip)
-                ? 'Your payment slip has been submitted. Waiting for owner to confirm.'
-                : 'Please upload your payment slip to complete the booking.',
+                ? 'ໃບຮັບເງິນຂອງທ່ານຖືກສົ່ງແລ້ວ. ລໍຖ້າເຈົ້າຂອງຢືນຢັນ.'
+                : 'ກະລຸນາອັບໂຫລດໃບຮັບເງິນເພື່ອຈົບການຈອງ.',
         ],
     };
 }
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="lo">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Notifications - CourtBook</title>
+    <title>ການແຈ້ງເຕືອນ - ລະບົບຈອງເດີ່ນ</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -125,17 +128,17 @@ function get_config($status, $slip) {
 
         <div class="flex items-center justify-between mb-6">
             <div>
-                <h1 class="text-3xl font-extrabold text-gray-800">Notifications</h1>
-                <p class="text-gray-500 mt-1">Updates on your court bookings</p>
+                <h1 class="text-3xl font-extrabold text-gray-800">ການແຈ້ງເຕືອນ</h1>
+                <p class="text-gray-500 mt-1">ອັບເດດກ່ຽວກັບການຈອງເດີ່ນຂອງທ່ານ</p>
             </div>
             <span class="bg-blue-100 text-blue-700 font-bold px-4 py-2 rounded-full text-sm">
-                <?= count($grouped) ?> booking<?= count($grouped) != 1 ? 's' : '' ?>
+                <?= count($grouped) ?> ການຈອງ
             </span>
         </div>
 
         <!-- NEW -->
         <?php if (!empty($unread_bookings)): ?>
-            <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">New</p>
+            <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">ໃໝ່</p>
             <div class="space-y-4 mb-8">
                 <?php foreach ($unread_bookings as $booking):
                     $status    = $booking['Status_booking'];
@@ -155,7 +158,15 @@ function get_config($status, $slip) {
                                 <div class="flex items-start justify-between gap-2 mb-1">
                                     <h3 class="font-bold text-gray-800"><?= $config['title'] ?></h3>
                                     <span class="<?= $config['badge_bg'] ?> <?= $config['badge_text'] ?> text-xs font-bold px-2 py-1 rounded-full flex-shrink-0 mr-4">
-                                        <?= $status ?>
+                                        <?php
+                                        echo match($status) {
+                                            'Confirmed' => 'ຢືນຢັນແລ້ວ',
+                                            'Cancelled' => 'ຍົກເລີກແລ້ວ',
+                                            'Pending'   => 'ລໍຖ້າ',
+                                            'Unpaid'    => 'ຍັງບໍ່ໄດ້ຈ່າຍ',
+                                            default     => $status
+                                        };
+                                        ?>
                                     </span>
                                 </div>
                                 <p class="text-sm text-gray-600 mb-3"><?= $config['message'] ?></p>
@@ -173,7 +184,7 @@ function get_config($status, $slip) {
                                             <i class="fas fa-table-tennis text-green-400 w-4"></i>
                                             <span>
                                                 <?= htmlspecialchars($slot['court']) ?> ·
-                                                <?= date('M d, Y', strtotime($slot['start'])) ?> ·
+                                                <?= date('d/m/Y', strtotime($slot['start'])) ?> ·
                                                 <?= date('g:i A', strtotime($slot['start'])) ?> -
                                                 <?= date('g:i A', strtotime($slot['end'])) ?>
                                             </span>
@@ -181,16 +192,23 @@ function get_config($status, $slip) {
                                     <?php endforeach; ?>
                                     <div class="border-t border-gray-100 pt-2 mt-2 space-y-1">
                                         <div class="flex justify-between text-gray-500">
-                                            <span>Full Price</span>
+                                            <span>ລາຄາລວມ</span>
                                             <span class="font-medium text-gray-700">₭<?= number_format($total, 0) ?></span>
                                         </div>
+                                        <?php if ($status !== 'Unpaid'): ?>
                                         <div class="flex justify-between text-green-600">
-                                            <span>Deposit Paid (30%)</span>
+                                            <span>ມັດຈຳທີ່ຈ່າຍ (30%)</span>
                                             <span class="font-bold">₭<?= number_format($deposit, 0) ?></span>
                                         </div>
+                                        <?php else: ?>
+                                        <div class="flex justify-between text-blue-600">
+                                            <span>ມັດຈຳທີ່ຕ້ອງຈ່າຍ (30%)</span>
+                                            <span class="font-bold">₭<?= number_format($deposit, 0) ?></span>
+                                        </div>
+                                        <?php endif; ?>
                                         <?php if ($status === 'Confirmed' && !$is_past): ?>
                                             <div class="flex justify-between text-orange-600 font-bold">
-                                                <span>Pay at Venue (70%)</span>
+                                                <span>ຈ່າຍທີ່ສະຖານທີ່ (70%)</span>
                                                 <span>₭<?= number_format($remaining, 0) ?></span>
                                             </div>
                                         <?php endif; ?>
@@ -199,30 +217,30 @@ function get_config($status, $slip) {
                                 <?php if ($status === 'Confirmed' && !$is_past): ?>
                                     <div class="bg-orange-50 border border-orange-200 rounded-xl px-4 py-3 text-sm text-orange-700 flex items-start gap-2 mb-3">
                                         <i class="fas fa-info-circle mt-0.5 flex-shrink-0"></i>
-                                        <span>Remember to pay <strong>₭<?= number_format($remaining, 0) ?></strong> when you arrive.</span>
+                                        <span>ຢ່າລືມຈ່າຍ <strong>₭<?= number_format($remaining, 0) ?></strong> ເມື່ອທ່ານມາຮອດ.</span>
                                     </div>
                                 <?php endif; ?>
                                 <div class="flex flex-wrap gap-2 mt-3">
                                     <a href="/Badminton_court_Booking/customer/booking_court/my_booking.php"
                                        class="text-xs bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 px-3 py-1.5 rounded-lg font-medium transition">
-                                        <i class="fas fa-eye mr-1"></i>View Booking
+                                        <i class="fas fa-eye mr-1"></i>ເບິ່ງການຈອງ
                                     </a>
-                                    <?php if ($status === 'Pending' && empty($booking['Slip_payment'])): ?>
+                                    <?php if (in_array($status, ['Unpaid', 'Pending']) && empty($booking['Slip_payment'])): ?>
                                         <a href="/Badminton_court_Booking/customer/payment/index.php?booking_id=<?= $booking['Book_ID'] ?>"
                                            class="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg font-medium transition">
-                                            <i class="fas fa-upload mr-1"></i>Upload Slip
+                                            <i class="fas fa-upload mr-1"></i>ອັບໂຫລດໃບຮັບເງິນ
                                         </a>
                                     <?php endif; ?>
                                     <?php if ($status === 'Confirmed' && $is_past): ?>
                                         <a href="/Badminton_court_Booking/customer/booking_court/venue_detail.php?id=<?= $booking['VN_ID'] ?>"
                                            class="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg font-medium transition">
-                                            <i class="fas fa-redo mr-1"></i>Book Again
+                                            <i class="fas fa-redo mr-1"></i>ຈອງໃໝ່
                                         </a>
                                     <?php endif; ?>
                                 </div>
                                 <p class="text-xs text-gray-400 mt-3">
                                     <i class="fas fa-clock mr-1"></i>
-                                    Booked on <?= date('M d, Y \a\t g:i A', strtotime($booking['Booking_date'])) ?> · #<?= $booking['Book_ID'] ?>
+                                    ຈອງວັນທີ <?= date('d/m/Y \ເວລາ g:i A', strtotime($booking['Booking_date'])) ?> · #<?= $booking['Book_ID'] ?>
                                 </p>
                             </div>
                         </div>
@@ -231,9 +249,9 @@ function get_config($status, $slip) {
             </div>
         <?php endif; ?>
 
-        <!-- EARLIER (seen last visit) -->
+        <!-- EARLIER -->
         <?php if (!empty($read_bookings)): ?>
-            <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Earlier</p>
+            <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">ກ່ອນໜ້ານີ້</p>
             <div class="space-y-3">
                 <?php foreach ($read_bookings as $booking):
                     $status  = $booking['Status_booking'];
@@ -249,24 +267,38 @@ function get_config($status, $slip) {
                                 <div class="flex items-center justify-between gap-2">
                                     <p class="font-semibold text-gray-700 text-sm"><?= htmlspecialchars($booking['VN_Name']) ?></p>
                                     <span class="<?= $config['badge_bg'] ?> <?= $config['badge_text'] ?> text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0">
-                                        <?= $status ?>
+                                        <?php
+                                        echo match($status) {
+                                            'Confirmed' => 'ຢືນຢັນແລ້ວ',
+                                            'Cancelled' => 'ຍົກເລີກແລ້ວ',
+                                            'Pending'   => 'ລໍຖ້າ',
+                                            'Unpaid'    => 'ຍັງບໍ່ໄດ້ຈ່າຍ',
+                                            default     => $status
+                                        };
+                                        ?>
                                     </span>
                                 </div>
                                 <?php foreach ($booking['slots'] as $slot): ?>
                                     <p class="text-xs text-gray-400 mt-0.5">
                                         <?= htmlspecialchars($slot['court']) ?> ·
-                                        <?= date('M d, Y · g:i A', strtotime($slot['start'])) ?>
+                                        <?= date('d/m/Y · g:i A', strtotime($slot['start'])) ?>
                                     </p>
                                 <?php endforeach; ?>
                                 <div class="flex gap-2 mt-2">
                                     <a href="/Badminton_court_Booking/customer/booking_court/my_booking.php"
                                        class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-lg font-medium transition">
-                                        <i class="fas fa-eye mr-1"></i>View
+                                        <i class="fas fa-eye mr-1"></i>ເບິ່ງ
                                     </a>
+                                    <?php if (in_array($status, ['Unpaid', 'Pending']) && empty($booking['Slip_payment'])): ?>
+                                        <a href="/Badminton_court_Booking/customer/payment/index.php?booking_id=<?= $booking['Book_ID'] ?>"
+                                           class="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg font-medium transition">
+                                            <i class="fas fa-upload mr-1"></i>ຈ່າຍດຽວນີ້
+                                        </a>
+                                    <?php endif; ?>
                                     <?php if ($status === 'Confirmed' && $is_past): ?>
                                         <a href="/Badminton_court_Booking/customer/booking_court/venue_detail.php?id=<?= $booking['VN_ID'] ?>"
                                            class="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg font-medium transition">
-                                            <i class="fas fa-redo mr-1"></i>Book Again
+                                            <i class="fas fa-redo mr-1"></i>ຈອງໃໝ່
                                         </a>
                                     <?php endif; ?>
                                 </div>
@@ -281,20 +313,22 @@ function get_config($status, $slip) {
         <?php if (empty($grouped)): ?>
             <div class="bg-white rounded-2xl shadow-sm p-12 text-center">
                 <i class="fas fa-bell-slash text-6xl text-gray-200 mb-4 block"></i>
-                <h3 class="text-xl font-bold text-gray-700 mb-2">No Notifications Yet</h3>
-                <p class="text-gray-400 mb-6">You'll see booking updates here</p>
+                <h3 class="text-xl font-bold text-gray-700 mb-2">ຍັງບໍ່ມີການແຈ້ງເຕືອນ</h3>
+                <p class="text-gray-400 mb-6">ທ່ານຈະເຫັນການອັບເດດການຈອງຢູ່ນີ້</p>
                 <a href="/Badminton_court_Booking/customer/booking_court/index.php"
                    class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-xl transition">
-                    <i class="fas fa-search mr-2"></i>Browse Courts
+                    <i class="fas fa-search mr-2"></i>ຊອກຫາເດີ່ນ
                 </a>
             </div>
         <?php elseif (empty($unread_bookings)): ?>
             <div class="text-center py-4">
                 <i class="fas fa-check-double text-2xl text-green-400 mb-1 block"></i>
-                <p class="text-gray-400 text-sm">You're all caught up!</p>
+                <p class="text-gray-400 text-sm">ທ່ານໄດ້ເຫັນທຸກການແຈ້ງເຕືອນແລ້ວ!</p>
             </div>
         <?php endif; ?>
 
     </div>
+
+    <?php include '../includes/footer.php'; ?>
 </body>
 </html>

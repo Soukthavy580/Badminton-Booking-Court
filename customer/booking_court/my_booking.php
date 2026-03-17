@@ -15,29 +15,17 @@ $filter        = $_GET['filter'] ?? 'all';
 function get_customer_bookings($pdo, $customer_id, $filter = 'all') {
     try {
         $sql = "SELECT 
-                    b.Book_ID,
-                    b.Booking_date,
-                    b.Status_booking,
-                    b.Slip_payment,
-                    bd.ID AS detail_id,
-                    bd.Start_time,
-                    bd.End_time,
-                    c.COURT_Name,
-                    c.COURT_ID,
-                    v.VN_ID,
-                    v.VN_Name,
-                    v.VN_Address,
-                    v.Price_per_hour,
-                    v.VN_Image
+                    b.Book_ID, b.Booking_date, b.Status_booking, b.Slip_payment,
+                    bd.ID AS detail_id, bd.Start_time, bd.End_time,
+                    c.COURT_Name, c.COURT_ID,
+                    v.VN_ID, v.VN_Name, v.VN_Address, v.Price_per_hour, v.VN_Image
                 FROM booking b
                 INNER JOIN booking_detail bd ON b.Book_ID = bd.Book_ID
                 INNER JOIN Court_data c ON bd.COURT_ID = c.COURT_ID
                 INNER JOIN Venue_data v ON c.VN_ID = v.VN_ID
                 WHERE b.C_ID = ?";
-
         $params = [$customer_id];
         $now = date('Y-m-d H:i:s');
-
         if ($filter === 'upcoming') {
             $sql .= " AND bd.Start_time > ? AND b.Status_booking != 'Cancelled'";
             $params[] = $now;
@@ -46,14 +34,14 @@ function get_customer_bookings($pdo, $customer_id, $filter = 'all') {
             $params[] = $now;
         } elseif ($filter === 'cancelled') {
             $sql .= " AND b.Status_booking = 'Cancelled'";
+        } elseif ($filter === 'unpaid') {
+            $sql .= " AND b.Status_booking = 'Unpaid'";
         }
-
         $sql .= " ORDER BY bd.Start_time DESC";
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (PDOException $e) {
-        error_log("Error fetching bookings: " . $e->getMessage());
         return [];
     }
 }
@@ -68,36 +56,37 @@ function calculate_booking_price($price_per_hour, $start_time, $end_time) {
 
 function format_duration($start_time, $end_time) {
     $interval = (new DateTime($start_time))->diff(new DateTime($end_time));
-    if ($interval->h > 0 && $interval->i > 0) return $interval->h . 'h ' . $interval->i . 'm';
-    if ($interval->h > 0) return $interval->h . ' hour' . ($interval->h > 1 ? 's' : '');
-    return $interval->i . ' minutes';
+    if ($interval->h > 0 && $interval->i > 0) return $interval->h . 'ຊມ ' . $interval->i . 'ນທ';
+    if ($interval->h > 0) return $interval->h . ' ຊົ່ວໂມງ';
+    return $interval->i . ' ນາທີ';
 }
 
-// Fetch all once, count from memory
-$all_bookings      = get_customer_bookings($pdo, $customer_id, 'all');
-$upcoming_bookings = get_customer_bookings($pdo, $customer_id, 'upcoming');
-$past_bookings     = get_customer_bookings($pdo, $customer_id, 'past');
-$cancelled_bookings= get_customer_bookings($pdo, $customer_id, 'cancelled');
+$all_bookings       = get_customer_bookings($pdo, $customer_id, 'all');
+$upcoming_bookings  = get_customer_bookings($pdo, $customer_id, 'upcoming');
+$past_bookings      = get_customer_bookings($pdo, $customer_id, 'past');
+$cancelled_bookings = get_customer_bookings($pdo, $customer_id, 'cancelled');
+$unpaid_bookings    = get_customer_bookings($pdo, $customer_id, 'unpaid');
 
-$total_bookings    = count($all_bookings);
-$upcoming_count    = count($upcoming_bookings);
-$past_count        = count($past_bookings);
-$cancelled_count   = count($cancelled_bookings);
+$total_bookings   = count($all_bookings);
+$upcoming_count   = count($upcoming_bookings);
+$past_count       = count($past_bookings);
+$cancelled_count  = count($cancelled_bookings);
+$unpaid_count     = count($unpaid_bookings);
 
-// Show the right set based on filter
 $bookings = match($filter) {
     'upcoming'  => $upcoming_bookings,
     'past'      => $past_bookings,
     'cancelled' => $cancelled_bookings,
+    'unpaid'    => $unpaid_bookings,
     default     => $all_bookings
 };
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="lo">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Bookings - CourtBook</title>
+    <title>ການຈອງຂອງຂ້ອຍ - ລະບົບຈອງເດີ່ນ</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -110,20 +99,20 @@ $bookings = match($filter) {
 
     <main class="max-w-7xl mx-auto px-4 py-8">
 
-        <!-- Page Header -->
         <div class="mb-8">
-            <h1 class="text-3xl font-bold mb-2">My Bookings</h1>
-            <p class="text-gray-600">View and manage all your court bookings</p>
+            <h1 class="text-3xl font-bold mb-2">ການຈອງຂອງຂ້ອຍ</h1>
+            <p class="text-gray-600">ເບິ່ງ ແລະ ຈັດການການຈອງເດີ່ນທັງໝົດຂອງທ່ານ</p>
         </div>
 
         <!-- Filter Tabs -->
         <div class="flex gap-3 mb-6 flex-wrap">
             <?php
             $tabs = [
-                'all'       => ['label' => 'All Bookings',  'count' => $total_bookings,   'icon' => 'fa-list',         'color' => 'bg-gray-100 text-gray-700'],
-                'upcoming'  => ['label' => 'Upcoming',      'count' => $upcoming_count,   'icon' => 'fa-calendar-check','color' => 'bg-green-100 text-green-700'],
-                'past'      => ['label' => 'Past',          'count' => $past_count,       'icon' => 'fa-history',      'color' => 'bg-gray-100 text-gray-700'],
-                'cancelled' => ['label' => 'Cancelled',     'count' => $cancelled_count,  'icon' => 'fa-times-circle', 'color' => 'bg-red-100 text-red-700'],
+                'all'       => ['label' => 'ທັງໝົດ',        'count' => $total_bookings,  'icon' => 'fa-list',          'color' => 'bg-gray-100 text-gray-700'],
+                'unpaid'    => ['label' => 'ຍັງບໍ່ໄດ້ຈ່າຍ', 'count' => $unpaid_count,    'icon' => 'fa-credit-card',   'color' => 'bg-blue-100 text-blue-700'],
+                'upcoming'  => ['label' => 'ຈອງໄວ້',        'count' => $upcoming_count,  'icon' => 'fa-calendar-check','color' => 'bg-green-100 text-green-700'],
+                'past'      => ['label' => 'ຜ່ານມາ',        'count' => $past_count,      'icon' => 'fa-history',       'color' => 'bg-gray-100 text-gray-700'],
+                'cancelled' => ['label' => 'ຍົກເລີກແລ້ວ',   'count' => $cancelled_count, 'icon' => 'fa-times-circle',  'color' => 'bg-red-100 text-red-700'],
             ];
             foreach ($tabs as $key => $tab):
             ?>
@@ -147,36 +136,34 @@ $bookings = match($filter) {
             <div class="space-y-4">
                 <?php foreach ($bookings as $booking):
                     $status_config = [
-                        'Confirmed' => ['bg' => 'bg-green-100', 'text' => 'text-green-800', 'icon' => 'fa-check-circle',  'border' => 'border-green-500'],
-                        'Pending'   => ['bg' => 'bg-yellow-100','text' => 'text-yellow-800','icon' => 'fa-clock',          'border' => 'border-yellow-500'],
-                        'Cancelled' => ['bg' => 'bg-red-100',   'text' => 'text-red-800',   'icon' => 'fa-times-circle',  'border' => 'border-red-500'],
+                        'Confirmed' => ['bg'=>'bg-green-100', 'text'=>'text-green-800','icon'=>'fa-check-circle', 'border'=>'border-green-500'],
+                        'Pending'   => ['bg'=>'bg-yellow-100','text'=>'text-yellow-800','icon'=>'fa-clock',       'border'=>'border-yellow-500'],
+                        'Unpaid'    => ['bg'=>'bg-blue-100',  'text'=>'text-blue-800', 'icon'=>'fa-credit-card', 'border'=>'border-blue-500'],
+                        'Cancelled' => ['bg'=>'bg-red-100',   'text'=>'text-red-800',  'icon'=>'fa-times-circle','border'=>'border-red-500'],
                     ];
-                    $status    = $booking['Status_booking'];
-                    $config    = $status_config[$status] ?? $status_config['Pending'];
-                    $is_past   = strtotime($booking['End_time'])   < time();
+                    $status      = $booking['Status_booking'];
+                    $config      = $status_config[$status] ?? $status_config['Pending'];
+                    $is_past     = strtotime($booking['End_time'])   < time();
                     $is_upcoming = strtotime($booking['Start_time']) > time();
-                    $price     = calculate_booking_price($booking['Price_per_hour'], $booking['Start_time'], $booking['End_time']);
-                    $book_date = date('M d, Y', strtotime($booking['Start_time']));
-                    $start_t   = date('g:i A', strtotime($booking['Start_time']));
-                    $end_t     = date('g:i A', strtotime($booking['End_time']));
-                    $duration  = format_duration($booking['Start_time'], $booking['End_time']);
-                    $opacity   = ($is_past || $status === 'Cancelled') ? 'opacity-75' : '';
-                    $venue_img = !empty($booking['VN_Image'])
+                    $price       = calculate_booking_price($booking['Price_per_hour'], $booking['Start_time'], $booking['End_time']);
+                    $book_date   = date('d/m/Y', strtotime($booking['Start_time']));
+                    $start_t     = date('g:i A', strtotime($booking['Start_time']));
+                    $end_t       = date('g:i A', strtotime($booking['End_time']));
+                    $duration    = format_duration($booking['Start_time'], $booking['End_time']);
+                    $opacity     = ($is_past || $status === 'Cancelled') ? 'opacity-75' : '';
+                    $venue_img   = !empty($booking['VN_Image'])
                         ? '/Badminton_court_Booking/assets/images/venues/' . basename($booking['VN_Image'])
                         : '/Badminton_court_Booking/assets/images/BookingBG.png';
                 ?>
                     <div class="booking-card bg-white rounded-xl shadow-md border-l-4 <?= $config['border'] ?> <?= $opacity ?> overflow-hidden">
                         <div class="flex flex-col md:flex-row">
-                            <!-- Venue Image -->
                             <div class="hidden md:block w-32 flex-shrink-0">
                                 <img src="<?= htmlspecialchars($venue_img) ?>"
                                      alt="<?= htmlspecialchars($booking['VN_Name']) ?>"
                                      class="w-full h-full object-cover"
                                      onerror="this.src='/Badminton_court_Booking/assets/images/BookingBG.png'">
                             </div>
-
                             <div class="flex-1 p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                                <!-- Left Info -->
                                 <div class="flex-1">
                                     <div class="flex items-center gap-3 mb-3">
                                         <div class="bg-blue-100 p-2 rounded-lg">
@@ -191,58 +178,57 @@ $bookings = match($filter) {
                                             </p>
                                         </div>
                                     </div>
-
                                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-3 text-sm">
                                         <div>
-                                            <p class="text-xs text-gray-500 font-medium uppercase tracking-wide">Date</p>
+                                            <p class="text-xs text-gray-500 font-medium uppercase tracking-wide">ວັນທີ</p>
                                             <p class="font-bold text-gray-800"><?= $book_date ?></p>
                                         </div>
                                         <div>
-                                            <p class="text-xs text-gray-500 font-medium uppercase tracking-wide">Time</p>
+                                            <p class="text-xs text-gray-500 font-medium uppercase tracking-wide">ເວລາ</p>
                                             <p class="font-bold text-gray-800"><?= $start_t ?> - <?= $end_t ?></p>
                                         </div>
                                         <div>
-                                            <p class="text-xs text-gray-500 font-medium uppercase tracking-wide">Duration</p>
+                                            <p class="text-xs text-gray-500 font-medium uppercase tracking-wide">ໄລຍະເວລາ</p>
                                             <p class="font-bold text-gray-800"><?= $duration ?></p>
                                         </div>
                                         <div>
-                                            <p class="text-xs text-gray-500 font-medium uppercase tracking-wide">Amount</p>
+                                            <p class="text-xs text-gray-500 font-medium uppercase tracking-wide">ຈຳນວນເງິນ</p>
                                             <p class="font-bold text-green-600 text-base">₭<?= number_format($price, 0) ?></p>
                                         </div>
                                     </div>
                                 </div>
-
-                                <!-- Right Actions -->
                                 <div class="flex flex-col items-start md:items-end gap-2 min-w-max">
-                                    <!-- Status -->
                                     <span class="<?= $config['bg'] ?> <?= $config['text'] ?> px-3 py-1 rounded-full text-xs font-bold">
                                         <i class="fas <?= $config['icon'] ?> mr-1"></i>
-                                        <?= ($is_past && $status === 'Confirmed') ? 'Completed' : $status ?>
+                                        <?php if ($is_past && $status === 'Confirmed'): ?>ສຳເລັດແລ້ວ
+                                        <?php elseif ($status === 'Confirmed'): ?>ຢືນຢັນແລ້ວ
+                                        <?php elseif ($status === 'Pending'): ?>ລໍຖ້າການຢືນຢັນ
+                                        <?php elseif ($status === 'Unpaid'): ?>ຍັງບໍ່ໄດ້ຈ່າຍ
+                                        <?php else: ?>ຍົກເລີກແລ້ວ
+                                        <?php endif; ?>
                                     </span>
-                                    <p class="text-xs text-gray-400">Booking #<?= $booking['Book_ID'] ?></p>
-
-                                    <!-- Action Buttons -->
+                                    <p class="text-xs text-gray-400">ການຈອງ #<?= $booking['Book_ID'] ?></p>
                                     <div class="flex flex-col gap-1 mt-1">
                                         <a href="booking_detail.php?id=<?= $booking['Book_ID'] ?>"
                                            class="text-blue-600 hover:text-blue-700 font-medium text-sm">
-                                            <i class="fas fa-eye mr-1"></i>View Details
+                                            <i class="fas fa-eye mr-1"></i>ເບິ່ງລາຍລະອຽດ
                                         </a>
-                                        <?php if ($status === 'Pending'): ?>
+                                        <?php if ($status === 'Pending' || $status === 'Unpaid'): ?>
                                             <a href="/Badminton_court_Booking/customer/payment/index.php?booking_id=<?= $booking['Book_ID'] ?>"
                                                class="text-green-600 hover:text-green-700 font-medium text-sm">
-                                                <i class="fas fa-credit-card mr-1"></i>Pay Now
+                                                <i class="fas fa-credit-card mr-1"></i>ຈ່າຍດຽວນີ້
                                             </a>
                                         <?php endif; ?>
                                         <?php if ($is_upcoming && $status !== 'Cancelled'): ?>
                                             <button onclick="confirmCancel(<?= $booking['Book_ID'] ?>)"
                                                     class="text-red-600 hover:text-red-700 font-medium text-sm text-left">
-                                                <i class="fas fa-times-circle mr-1"></i>Cancel
+                                                <i class="fas fa-times-circle mr-1"></i>ຍົກເລີກ
                                             </button>
                                         <?php endif; ?>
                                         <?php if ($is_past || $status === 'Cancelled'): ?>
                                             <a href="/Badminton_court_Booking/customer/booking_court/venue_detail.php?id=<?= $booking['VN_ID'] ?>"
                                                class="text-blue-600 hover:text-blue-700 font-medium text-sm">
-                                                <i class="fas fa-redo mr-1"></i>Rebook
+                                                <i class="fas fa-redo mr-1"></i>ຈອງໃໝ່
                                             </a>
                                         <?php endif; ?>
                                     </div>
@@ -258,28 +244,28 @@ $bookings = match($filter) {
                 <i class="fas fa-calendar-times text-6xl text-gray-200 mb-4 block"></i>
                 <h3 class="text-xl font-bold text-gray-800 mb-2">
                     <?= match($filter) {
-                        'upcoming'  => 'No Upcoming Bookings',
-                        'past'      => 'No Past Bookings',
-                        'cancelled' => 'No Cancelled Bookings',
-                        default     => 'No Bookings Yet'
+                        'upcoming'  => 'ບໍ່ມີການຈອງທີ່ຈອງໄວ້',
+                        'past'      => 'ບໍ່ມີການຈອງທີ່ຜ່ານມາ',
+                        'cancelled' => 'ບໍ່ມີການຈອງທີ່ຍົກເລີກ',
+                        'unpaid'    => 'ບໍ່ມີການຈອງທີ່ຍັງຄ້າງຈ່າຍ',
+                        default     => 'ຍັງບໍ່ມີການຈອງ'
                     } ?>
                 </h3>
                 <p class="text-gray-500 mb-6">
-                    <?= $filter === 'all' ? 'Start by browsing and booking your favourite court' : "You don't have any {$filter} bookings" ?>
+                    <?= $filter === 'all' ? 'ເລີ່ມຕົ້ນດ້ວຍການຊອກຫາ ແລະ ຈອງເດີ່ນທີ່ທ່ານມັກ' : 'ທ່ານບໍ່ມີການຈອງ' ?>
                 </p>
                 <a href="/Badminton_court_Booking/customer/booking_court/index.php"
                    class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-medium inline-block transition">
-                    <i class="fas fa-search mr-2"></i>Browse Courts
+                    <i class="fas fa-search mr-2"></i>ຊອກຫາເດີ່ນ
                 </a>
             </div>
         <?php endif; ?>
 
     </main>
 
-
     <script>
         function confirmCancel(bookingId) {
-            if (confirm('Are you sure you want to cancel this booking? This action cannot be undone.')) {
+            if (confirm('ທ່ານແນ່ໃຈບໍ່ວ່າຕ້ອງການຍົກເລີກການຈອງນີ້? ການດຳເນີນການນີ້ບໍ່ສາມາດຍ້ອນກັບໄດ້.')) {
                 window.location.href = '/Badminton_court_Booking/customer/cancellation/index.php?id=' + bookingId;
             }
         }
