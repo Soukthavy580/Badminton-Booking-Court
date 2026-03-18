@@ -16,14 +16,12 @@ try {
     $vn_id = $venue['VN_ID'] ?? null;
 } catch (PDOException $e) { $vn_id = null; }
 
-// Currently running package (already started)
 try {
     $stmt = $pdo->prepare("SELECT bp.*, pr.Package_duration, pr.Price FROM package bp INNER JOIN package_rate pr ON bp.Package_rate_ID = pr.Package_rate_ID WHERE bp.CA_ID = ? AND bp.Status_Package = 'Active' AND bp.Start_time <= NOW() AND bp.End_time > NOW() ORDER BY bp.End_time ASC LIMIT 1");
     $stmt->execute([$ca_id]);
     $active_package = $stmt->fetch();
 } catch (PDOException $e) { $active_package = null; }
 
-// Queued packages (approved but not started yet)
 try {
     $stmt = $pdo->prepare("SELECT bp.*, pr.Package_duration, pr.Price FROM package bp INNER JOIN package_rate pr ON bp.Package_rate_ID = pr.Package_rate_ID WHERE bp.CA_ID = ? AND bp.Status_Package = 'Active' AND bp.Start_time > NOW() ORDER BY bp.Start_time ASC");
     $stmt->execute([$ca_id]);
@@ -42,7 +40,6 @@ try {
     $expiring_package = $stmt->fetch();
 } catch (PDOException $e) { $expiring_package = null; }
 
-// ── Fetch rejection notification ──
 try {
     $stmt = $pdo->prepare("SELECT * FROM owner_notification WHERE CA_ID = ? AND type = 'package' ORDER BY created_at DESC LIMIT 1");
     $stmt->execute([$ca_id]);
@@ -63,11 +60,11 @@ try {
 $days_left = $active_package ? ceil((strtotime($active_package['End_time']) - time()) / 86400) : 0;
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="lo">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Package Rental - CourtBook</title>
+    <title>ແພັກເກດ - Badminton Booking Court</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -84,13 +81,13 @@ $days_left = $active_package ? ceil((strtotime($active_package['End_time']) - ti
         <header class="bg-white shadow-sm px-6 py-4 sticky top-0 z-40">
             <div class="flex items-center justify-between">
                 <div>
-                    <h1 class="text-xl font-bold text-gray-800">Package Rental</h1>
-                    <p class="text-sm text-gray-500">Activate your account to receive bookings</p>
+                    <h1 class="text-xl font-bold text-gray-800">ແພັກເກດ</h1>
+                    <p class="text-sm text-gray-500">ເປີດໃຊ້ງານບັນຊີເພື່ອຮັບການຈອງ</p>
                 </div>
                 <?php if ($active_package): ?>
                     <div class="flex items-center gap-2 bg-green-50 border border-green-200 px-4 py-2 rounded-xl text-sm">
                         <i class="fas fa-check-circle text-green-500"></i>
-                        <span class="text-green-700 font-medium">Active · <?= $days_left ?> days left<?= !empty($queued_packages) ? ' · ' . count($queued_packages) . ' queued' : '' ?></span>
+                        <span class="text-green-700 font-medium">ໃຊ້ງານໄດ້ · <?= $days_left ?> ວັນທີ່ເຫຼືອ<?= !empty($queued_packages) ? ' · ' . count($queued_packages) . ' ລໍຖ້າ' : '' ?></span>
                     </div>
                 <?php endif; ?>
             </div>
@@ -98,7 +95,7 @@ $days_left = $active_package ? ceil((strtotime($active_package['End_time']) - ti
 
         <main class="flex-1 p-6 max-w-5xl mx-auto w-full">
 
-            <!-- ── REJECTION NOTIFICATION ── -->
+            <!-- Rejection -->
             <?php if ($rejection): ?>
                 <div class="mb-6 bg-red-50 border-2 border-red-300 rounded-2xl p-5 flex items-start gap-4">
                     <div class="bg-red-100 p-3 rounded-full flex-shrink-0">
@@ -106,21 +103,15 @@ $days_left = $active_package ? ceil((strtotime($active_package['End_time']) - ti
                     </div>
                     <div class="flex-1">
                         <div class="flex items-center gap-2 mb-2">
-                            <p class="font-extrabold text-red-700">Package Payment Rejected</p>
-                            <span class="bg-red-100 text-red-600 text-xs font-bold px-2 py-0.5 rounded-full">Action Required</span>
+                            <p class="font-extrabold text-red-700">ການຊຳລະເງິນຖືກປະຕິເສດ</p>
+                            <span class="bg-red-100 text-red-600 text-xs font-bold px-2 py-0.5 rounded-full">ຕ້ອງດຳເນີນການ</span>
                         </div>
                         <div class="bg-white border border-red-200 rounded-xl px-4 py-3 mb-2">
-                            <p class="text-xs font-bold text-red-500 mb-1">
-                                <i class="fas fa-user-shield mr-1"></i>Reason from Admin:
-                            </p>
+                            <p class="text-xs font-bold text-red-500 mb-1"><i class="fas fa-user-shield mr-1"></i>ເຫດຜົນຈາກແອດມິນ:</p>
                             <p class="text-sm text-gray-700"><?= nl2br(htmlspecialchars($rejection['message'])) ?></p>
                         </div>
-                        <p class="text-xs text-gray-400 mb-2">
-                            <i class="fas fa-clock mr-1"></i><?= date('M d, Y \a\t g:i A', strtotime($rejection['created_at'])) ?>
-                        </p>
-                        <p class="text-sm text-red-600 font-medium">
-                            <i class="fas fa-arrow-down mr-1"></i>Please select a new package below and resubmit your payment.
-                        </p>
+                        <p class="text-xs text-gray-400 mb-2"><i class="fas fa-clock mr-1"></i><?= date('d/m/Y \ເວລາ g:i A', strtotime($rejection['created_at'])) ?></p>
+                        <p class="text-sm text-red-600 font-medium"><i class="fas fa-arrow-down mr-1"></i>ກະລຸນາເລືອກແພັກເກດໃໝ່ ແລະ ສົ່ງໃບຮັບເງິນໃໝ່.</p>
                     </div>
                 </div>
             <?php endif; ?>
@@ -134,8 +125,8 @@ $days_left = $active_package ? ceil((strtotime($active_package['End_time']) - ti
                         <i class="fas fa-exclamation-triangle text-red-500 text-xl"></i>
                     </div>
                     <div class="flex-1">
-                        <p class="font-extrabold text-red-700 text-lg">⚠️ Package Expiring <?= $exp_days <= 1 ? 'Tomorrow!' : "in {$exp_days} Days!" ?></p>
-                        <p class="text-red-600 text-sm mt-1">Your <strong><?= htmlspecialchars($expiring_package['Package_duration']) ?></strong> expires on <strong><?= date('M d, Y', strtotime($expiring_package['End_time'])) ?></strong>. Renew now to keep your venue active.</p>
+                        <p class="font-extrabold text-red-700 text-lg">⚠️ ແພັກເກດຈະໝົດອາຍຸ<?= $exp_days <= 1 ? 'ມື້ອື່ນ!' : "ໃນ {$exp_days} ວັນ!" ?></p>
+                        <p class="text-red-600 text-sm mt-1">ແພັກເກດ <strong><?= htmlspecialchars($expiring_package['Package_duration']) ?></strong> ຈະໝົດວັນທີ <strong><?= date('d/m/Y', strtotime($expiring_package['End_time'])) ?></strong>. ຕໍ່ອາຍຸດຽວນີ້.</p>
                     </div>
                 </div>
             <?php endif; ?>
@@ -145,13 +136,13 @@ $days_left = $active_package ? ceil((strtotime($active_package['End_time']) - ti
                 <div class="bg-gradient-to-r from-green-500 to-green-600 rounded-2xl p-6 text-white mb-6">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-green-100 text-sm mb-1">Current Active Package</p>
+                            <p class="text-green-100 text-sm mb-1">ແພັກເກດທີ່ໃຊ້ຢູ່</p>
                             <h2 class="text-3xl font-extrabold"><?= htmlspecialchars($active_package['Package_duration']) ?></h2>
-                            <p class="text-green-100 mt-1"><?= date('M d, Y', strtotime($active_package['Start_time'])) ?> → <?= date('M d, Y', strtotime($active_package['End_time'])) ?></p>
+                            <p class="text-green-100 mt-1"><?= date('d/m/Y', strtotime($active_package['Start_time'])) ?> → <?= date('d/m/Y', strtotime($active_package['End_time'])) ?></p>
                         </div>
                         <div class="text-center bg-white bg-opacity-20 rounded-2xl p-4">
                             <p class="text-4xl font-extrabold"><?= $days_left ?></p>
-                            <p class="text-green-100 text-sm">days left</p>
+                            <p class="text-green-100 text-sm">ວັນທີ່ເຫຼືອ</p>
                         </div>
                     </div>
                 </div>
@@ -161,22 +152,22 @@ $days_left = $active_package ? ceil((strtotime($active_package['End_time']) - ti
                             <i class="fas fa-store text-blue-500 text-2xl"></i>
                         </div>
                         <div>
-                            <h3 class="font-bold text-blue-800 mb-1">Package Active! Now Set Up Your Venue</h3>
-                            <p class="text-blue-600 text-sm mb-3">Your package is approved. Create your venue so customers can find and book your courts.</p>
+                            <h3 class="font-bold text-blue-800 mb-1">ແພັກເກດໃຊ້ງານໄດ້ແລ້ວ! ຕັ້ງຄ່າສະຖານທີ່</h3>
+                            <p class="text-blue-600 text-sm mb-3">ສ້າງສະຖານທີ່ຂອງທ່ານເພື່ອໃຫ້ລູກຄ້າຊອກຫາ ແລະ ຈອງ.</p>
                             <a href="/Badminton_court_Booking/owner/manage_court/index.php"
                                class="inline-block bg-blue-600 text-white px-5 py-2 rounded-xl text-sm font-bold hover:bg-blue-700 transition">
-                                <i class="fas fa-plus mr-1"></i> Create My Venue
+                                <i class="fas fa-plus mr-1"></i>ສ້າງສະຖານທີ່
                             </a>
                         </div>
                     </div>
                 <?php endif; ?>
             <?php endif; ?>
 
-            <!-- Queued Packages -->
+            <!-- Queued -->
             <?php if (!empty($queued_packages)): ?>
                 <div class="bg-white rounded-2xl shadow-sm p-6 mb-6">
                     <h2 class="text-lg font-bold text-gray-800 mb-4">
-                        <i class="fas fa-hourglass-half text-purple-500 mr-2 text-xs"></i>Queued — Starts After Current Package Ends
+                        <i class="fas fa-hourglass-half text-purple-500 mr-2 text-xs"></i>ລໍຖ້າ — ເລີ່ມຫຼັງແພັກເກດປັດຈຸບັນໝົດ
                     </h2>
                     <div class="space-y-3">
                         <?php foreach ($queued_packages as $qpkg):
@@ -186,15 +177,13 @@ $days_left = $active_package ? ceil((strtotime($active_package['End_time']) - ti
                                 <div class="flex items-center justify-between">
                                     <div>
                                         <p class="font-bold text-gray-800"><?= htmlspecialchars($qpkg['Package_duration']) ?></p>
-                                        <p class="text-xs text-gray-500">
-                                            Starts: <?= date('M d, Y', strtotime($qpkg['Start_time'])) ?> → <?= date('M d, Y', strtotime($qpkg['End_time'])) ?>
-                                        </p>
+                                        <p class="text-xs text-gray-500">ເລີ່ມ: <?= date('d/m/Y', strtotime($qpkg['Start_time'])) ?> → <?= date('d/m/Y', strtotime($qpkg['End_time'])) ?></p>
                                     </div>
                                     <div class="text-right">
                                         <span class="bg-purple-100 text-purple-700 text-xs font-bold px-3 py-1 rounded-full">
-                                            <i class="fas fa-hourglass-half mr-1"></i>Queued
+                                            <i class="fas fa-hourglass-half mr-1"></i>ລໍຖ້າ
                                         </span>
-                                        <p class="text-xs text-purple-600 mt-1 font-semibold">starts in <?= $days_until ?> day<?= $days_until != 1 ? 's' : '' ?></p>
+                                        <p class="text-xs text-purple-600 mt-1 font-semibold">ເລີ່ມໃນ <?= $days_until ?> ວັນ</p>
                                         <p class="text-xs text-gray-400">₭<?= number_format($qpkg['Price']) ?></p>
                                     </div>
                                 </div>
@@ -211,47 +200,47 @@ $days_left = $active_package ? ceil((strtotime($active_package['End_time']) - ti
                         <i class="fas fa-clock text-yellow-500 text-2xl"></i>
                     </div>
                     <div>
-                        <h3 class="font-bold text-yellow-800 mb-1">Payment Pending Approval</h3>
-                        <p class="text-yellow-700 text-sm">Your <strong><?= htmlspecialchars($pending_package['Package_duration']) ?></strong> package (₭<?= number_format($pending_package['Price']) ?>) is under review.</p>
-                        <p class="text-yellow-600 text-xs mt-1">Submitted: <?= date('M d, Y g:i A', strtotime($pending_package['Package_date'])) ?></p>
+                        <h3 class="font-bold text-yellow-800 mb-1">ລໍຖ້າການອະນຸມັດ</h3>
+                        <p class="text-yellow-700 text-sm">ແພັກເກດ <strong><?= htmlspecialchars($pending_package['Package_duration']) ?></strong> (₭<?= number_format($pending_package['Price']) ?>) ກຳລັງລໍຖ້າກວດສອບ.</p>
+                        <p class="text-yellow-600 text-xs mt-1">ສົ່ງວັນທີ: <?= date('d/m/Y g:i A', strtotime($pending_package['Package_date'])) ?></p>
                     </div>
                 </div>
             <?php endif; ?>
 
-            <!-- Package Selection (always shown unless pending) -->
+            <!-- Package Selection -->
             <?php if (!$pending_package): ?>
             <div class="bg-white rounded-2xl shadow-sm p-6 mb-6">
                 <h2 class="text-xl font-bold text-gray-800 mb-2">
                     <i class="fas fa-box text-green-500 mr-2"></i>
-                    <?= $active_package ? 'Renew or Upgrade' : ($rejection ? 'Resubmit Payment' : 'Choose a Package') ?>
+                    <?= $active_package ? 'ຕໍ່ອາຍຸ ຫຼື ອັບເກຣດ' : ($rejection ? 'ສົ່ງໃໝ່' : 'ເລືອກແພັກເກດ') ?>
                 </h2>
-                <p class="text-gray-500 text-sm mb-6">Select a package then click Proceed to Payment.</p>
+                <p class="text-gray-500 text-sm mb-6">ເລືອກແພັກເກດ ແລ້ວຄລິກ ດຳເນີນການຈ່າຍ.</p>
 
                 <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
                     <?php foreach ($packages as $pkg):
                         $is_popular = !empty($pkg['Is_Popular']);
                         $is_best    = !empty($pkg['Is_Best_Value']);
                         preg_match('/(\d+)/', $pkg['Package_duration'], $m);
-                        $months_num = intval($m[1] ?? 1);
-                        $is_year    = str_contains($pkg['Package_duration'], 'Year');
+                        $months_num      = intval($m[1] ?? 1);
+                        $is_year         = str_contains($pkg['Package_duration'], 'Year');
                         $price_per_month = $is_year ? round($pkg['Price'] / 12) : round($pkg['Price'] / $months_num);
                     ?>
                         <div class="pkg-card rounded-2xl p-4 text-center relative <?= $is_popular ? 'popular' : ($is_best ? 'best' : '') ?>"
                              onclick="selectPackage(<?= $pkg['Package_rate_ID'] ?>, '<?= htmlspecialchars($pkg['Package_duration']) ?>', <?= $pkg['Price'] ?>, this)">
-                            <?php if ($is_popular): ?><div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full">Popular</div><?php endif; ?>
-                            <?php if ($is_best): ?><div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-yellow-500 text-white text-xs font-bold px-3 py-1 rounded-full">Best Value</div><?php endif; ?>
+                            <?php if ($is_popular): ?><div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full">ນິຍົມ</div><?php endif; ?>
+                            <?php if ($is_best): ?><div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-yellow-500 text-white text-xs font-bold px-3 py-1 rounded-full">ຄຸ້ມທີ່ສຸດ</div><?php endif; ?>
                             <div class="bg-green-100 w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-2">
                                 <i class="fas fa-<?= $is_best ? 'crown' : ($is_popular ? 'star' : 'box') ?> text-green-600"></i>
                             </div>
                             <p class="font-bold text-gray-800 text-sm"><?= htmlspecialchars($pkg['Package_duration']) ?></p>
                             <p class="text-2xl font-extrabold text-green-600 mt-1">₭<?= number_format($pkg['Price']) ?></p>
-                            <p class="text-xs text-gray-400 mt-1">₭<?= number_format($price_per_month) ?>/mo</p>
+                            <p class="text-xs text-gray-400 mt-1">₭<?= number_format($price_per_month) ?>/ເດືອນ</p>
                         </div>
                     <?php endforeach; ?>
                 </div>
 
                 <div id="noSelection" class="text-center py-3 text-gray-400 text-sm">
-                    <i class="fas fa-hand-pointer mr-1"></i> Select a package above to continue
+                    <i class="fas fa-hand-pointer mr-1"></i>ເລືອກແພັກເກດຂ້າງເທິງເພື່ອດຳເນີນການ
                 </div>
                 <div id="proceedSection" class="hidden">
                     <div class="bg-green-50 border border-green-200 rounded-xl p-4 mb-4 flex items-center justify-between">
@@ -262,11 +251,11 @@ $days_left = $active_package ? ceil((strtotime($active_package['End_time']) - ti
                                 <p class="text-green-600 text-sm" id="selectedPrice"></p>
                             </div>
                         </div>
-                        <button onclick="clearSelection()" class="text-gray-400 hover:text-gray-600 text-xs"><i class="fas fa-times"></i> Change</button>
+                        <button onclick="clearSelection()" class="text-gray-400 hover:text-gray-600 text-xs"><i class="fas fa-times"></i> ປ່ຽນ</button>
                     </div>
                     <a id="proceedBtn" href="#"
                        class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-xl transition shadow-lg text-lg flex items-center justify-center gap-2">
-                        <i class="fas fa-arrow-right"></i> Proceed to Payment
+                        <i class="fas fa-arrow-right"></i>ດຳເນີນການຈ່າຍ
                     </a>
                 </div>
             </div>
@@ -275,22 +264,23 @@ $days_left = $active_package ? ceil((strtotime($active_package['End_time']) - ti
             <!-- History -->
             <?php if (!empty($history)): ?>
                 <div class="bg-white rounded-2xl shadow-sm p-6">
-                    <h2 class="text-lg font-bold text-gray-800 mb-4"><i class="fas fa-history text-gray-500 mr-2"></i>Package History</h2>
+                    <h2 class="text-lg font-bold text-gray-800 mb-4"><i class="fas fa-history text-gray-500 mr-2"></i>ປະຫວັດແພັກເກດ</h2>
                     <div class="space-y-3">
                         <?php foreach ($history as $h):
                             $color = match($h['Status_Package']) { 'Active'=>'green','Pending'=>'yellow','Rejected'=>'red',default=>'gray' };
+                            $label = match($h['Status_Package']) { 'Active'=>'ໃຊ້ງານໄດ້','Pending'=>'ລໍຖ້າ','Rejected'=>'ຖືກປະຕິເສດ',default=>$h['Status_Package'] };
                         ?>
                             <div class="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 text-sm">
                                 <div class="flex items-center gap-3">
                                     <div class="bg-<?= $color ?>-100 p-2 rounded-lg"><i class="fas fa-box text-<?= $color ?>-500"></i></div>
                                     <div>
                                         <p class="font-semibold text-gray-800"><?= htmlspecialchars($h['Package_duration']) ?></p>
-                                        <p class="text-gray-400 text-xs"><?= date('M d, Y', strtotime($h['Package_date'])) ?></p>
+                                        <p class="text-gray-400 text-xs"><?= date('d/m/Y', strtotime($h['Package_date'])) ?></p>
                                     </div>
                                 </div>
                                 <div class="text-right">
                                     <p class="font-bold text-gray-700">₭<?= number_format($h['Price']) ?></p>
-                                    <span class="bg-<?= $color ?>-100 text-<?= $color ?>-700 text-xs font-bold px-2 py-0.5 rounded-full"><?= $h['Status_Package'] ?></span>
+                                    <span class="bg-<?= $color ?>-100 text-<?= $color ?>-700 text-xs font-bold px-2 py-0.5 rounded-full"><?= $label ?></span>
                                 </div>
                             </div>
                         <?php endforeach; ?>
@@ -305,8 +295,8 @@ $days_left = $active_package ? ceil((strtotime($active_package['End_time']) - ti
 function selectPackage(id, duration, price, card) {
     document.querySelectorAll('.pkg-card').forEach(c => c.classList.remove('selected'));
     card.classList.add('selected');
-    document.getElementById('selectedDuration').textContent = duration + ' Package';
-    document.getElementById('selectedPrice').textContent = '₭' + parseInt(price).toLocaleString() + ' total';
+    document.getElementById('selectedDuration').textContent = duration + ' ແພັກເກດ';
+    document.getElementById('selectedPrice').textContent = '₭' + parseInt(price).toLocaleString() + ' ລວມ';
     document.getElementById('proceedBtn').href = 'payment.php?pkg_id=' + id;
     document.getElementById('noSelection').classList.add('hidden');
     document.getElementById('proceedSection').classList.remove('hidden');

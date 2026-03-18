@@ -26,6 +26,9 @@ function get_customer_bookings($pdo, $customer_id, $filter = 'all') {
                 WHERE b.C_ID = ?";
         $params = [$customer_id];
         $now = date('Y-m-d H:i:s');
+
+        // FIX: Use bd.Start_time for upcoming/past (the actual scheduled play time),
+        //      but keep Booking_date for display only.
         if ($filter === 'upcoming') {
             $sql .= " AND bd.Start_time > ? AND b.Status_booking != 'Cancelled'";
             $params[] = $now;
@@ -49,7 +52,8 @@ function get_customer_bookings($pdo, $customer_id, $filter = 'all') {
 function calculate_booking_price($price_per_hour, $start_time, $end_time) {
     $start = new DateTime($start_time);
     $end   = new DateTime($end_time);
-    $hours = $start->diff($end)->h + ($start->diff($end)->i / 60);
+    $diff  = $start->diff($end);
+    $hours = $diff->h + ($diff->i / 60) + ($diff->days * 24);
     $price_clean = preg_replace('/[^0-9.]/', '', $price_per_hour);
     return $hours * floatval($price_clean);
 }
@@ -141,17 +145,28 @@ $bookings = match($filter) {
                         'Unpaid'    => ['bg'=>'bg-blue-100',  'text'=>'text-blue-800', 'icon'=>'fa-credit-card', 'border'=>'border-blue-500'],
                         'Cancelled' => ['bg'=>'bg-red-100',   'text'=>'text-red-800',  'icon'=>'fa-times-circle','border'=>'border-red-500'],
                     ];
-                    $status      = $booking['Status_booking'];
-                    $config      = $status_config[$status] ?? $status_config['Pending'];
+                    $status = $booking['Status_booking'];
+                    $config = $status_config[$status] ?? $status_config['Pending'];
+
+                    // FIX: Use Start_time and End_time to determine if booking slot is past/upcoming
                     $is_past     = strtotime($booking['End_time'])   < time();
                     $is_upcoming = strtotime($booking['Start_time']) > time();
-                    $price       = calculate_booking_price($booking['Price_per_hour'], $booking['Start_time'], $booking['End_time']);
-                    $book_date   = date('d/m/Y', strtotime($booking['Start_time']));
-                    $start_t     = date('g:i A', strtotime($booking['Start_time']));
-                    $end_t       = date('g:i A', strtotime($booking['End_time']));
-                    $duration    = format_duration($booking['Start_time'], $booking['End_time']);
-                    $opacity     = ($is_past || $status === 'Cancelled') ? 'opacity-75' : '';
-                    $venue_img   = !empty($booking['VN_Image'])
+
+                    $price = calculate_booking_price($booking['Price_per_hour'], $booking['Start_time'], $booking['End_time']);
+
+                    // FIX: Display the actual scheduled play date from Start_time (the court slot date),
+                    //      NOT Booking_date (which is when the booking was created).
+                    //      This matches what users expect to see — the date they will play.
+                    $book_date = date('d/m/Y', strtotime($booking['Start_time']));
+                    $start_t   = date('g:i A', strtotime($booking['Start_time']));
+                    $end_t     = date('g:i A', strtotime($booking['End_time']));
+                    $duration  = format_duration($booking['Start_time'], $booking['End_time']);
+
+                    // FIX: Also show the booking creation date separately for reference
+                    $created_date = date('d/m/Y', strtotime($booking['Booking_date']));
+
+                    $opacity   = ($is_past || $status === 'Cancelled') ? 'opacity-75' : '';
+                    $venue_img = !empty($booking['VN_Image'])
                         ? '/Badminton_court_Booking/assets/images/venues/' . basename($booking['VN_Image'])
                         : '/Badminton_court_Booking/assets/images/BookingBG.png';
                 ?>
@@ -180,7 +195,8 @@ $bookings = match($filter) {
                                     </div>
                                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-3 text-sm">
                                         <div>
-                                            <p class="text-xs text-gray-500 font-medium uppercase tracking-wide">ວັນທີ</p>
+                                            <!-- FIX: This now shows the scheduled PLAY date (from Start_time), which is stable -->
+                                            <p class="text-xs text-gray-500 font-medium uppercase tracking-wide">ວັນທີຫຼິ້ນ</p>
                                             <p class="font-bold text-gray-800"><?= $book_date ?></p>
                                         </div>
                                         <div>
@@ -196,6 +212,10 @@ $bookings = match($filter) {
                                             <p class="font-bold text-green-600 text-base">₭<?= number_format($price, 0) ?></p>
                                         </div>
                                     </div>
+                                    <!-- FIX: Show booking creation date separately so user knows when they booked -->
+                                    <p class="text-xs text-gray-400 mt-2">
+                                        <i class="fas fa-calendar-plus mr-1"></i>ຈອງວັນທີ: <?= $created_date ?>
+                                    </p>
                                 </div>
                                 <div class="flex flex-col items-start md:items-end gap-2 min-w-max">
                                     <span class="<?= $config['bg'] ?> <?= $config['text'] ?> px-3 py-1 rounded-full text-xs font-bold">

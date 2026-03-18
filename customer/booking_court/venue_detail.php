@@ -2,6 +2,9 @@
 session_start();
 require_once '../../config/db.php';
 
+// FIX: Set the correct server timezone so time() matches Laos local time
+date_default_timezone_set('Asia/Vientiane');
+
 $venue_id    = isset($_GET['id']) ? intval($_GET['id']) : 0;
 $search_date = isset($_GET['date']) ? $_GET['date'] : date('Y-m-d');
 
@@ -90,6 +93,9 @@ $price_clean  = preg_replace('/[^0-9.]/', '', $venue['Price_per_hour']);
 $venue_img    = !empty($venue['VN_Image'])
     ? '/Badminton_court_Booking/assets/images/venues/' . basename($venue['VN_Image'])
     : '/Badminton_court_Booking/assets/images/BookingBG.png';
+
+// FIX: Pass current server timestamp (in ms) to JS so it uses server time, not client time
+$server_now_ms = time() * 1000;
 ?>
 <!DOCTYPE html>
 <html lang="lo">
@@ -247,7 +253,8 @@ $venue_img    = !empty($venue['VN_Image'])
                                 </h3>
                                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                                     <?php foreach ($court_slots as $slot):
-                                        $is_booked    = is_slot_booked($booked_slots, $court['COURT_ID'], $slot['start'], $slot['end'], $search_date);
+                                        $is_booked     = is_slot_booked($booked_slots, $court['COURT_ID'], $slot['start'], $slot['end'], $search_date);
+                                        // FIX: Use full datetime string for accurate past check with correct timezone
                                         $slot_datetime = strtotime($search_date . ' ' . $slot['start']);
                                         $is_past_slot  = $slot_datetime < time();
 
@@ -261,6 +268,9 @@ $venue_img    = !empty($venue['VN_Image'])
                                             $slot_class = 'available bg-green-50 border border-green-200 text-green-800';
                                             $disabled   = '';
                                         }
+
+                                        // FIX: Store slot timestamp as data attribute for JS real-time check
+                                        $slot_ts_ms = $slot_datetime * 1000;
                                     ?>
                                         <button type="button"
                                                 class="slot-btn <?= $slot_class ?> rounded-lg px-2 py-3 text-xs font-medium text-center"
@@ -270,6 +280,7 @@ $venue_img    = !empty($venue['VN_Image'])
                                                 data-end="<?= $slot['end'] ?>"
                                                 data-date="<?= $search_date ?>"
                                                 data-price="<?= $price_clean ?>"
+                                                data-slot-ts="<?= $slot_ts_ms ?>"
                                                 <?= $disabled ?>
                                                 onclick="toggleSlot(this)">
                                             <?= $slot['label'] ?>
@@ -278,7 +289,7 @@ $venue_img    = !empty($venue['VN_Image'])
                                             <?php elseif ($is_past_slot): ?>
                                                 <br><span class="text-gray-400 text-xs">ຜ່ານແລ້ວ</span>
                                             <?php else: ?>
-                                                <br><span class="text-green-600 text-xs">₭<?= number_format($price_clean) ?></span>
+                                                <br><span class="slot-price text-green-600 text-xs">₭<?= number_format($price_clean) ?></span>
                                             <?php endif; ?>
                                         </button>
                                     <?php endforeach; ?>
@@ -379,8 +390,48 @@ $venue_img    = !empty($venue['VN_Image'])
     <?php include '../includes/footer.php'; ?>
 
     <script>
-        const isLoggedIn = <?= isset($_SESSION['user_id']) ? 'true' : 'false' ?>;
-        let selectedSlots = [];
+        const isLoggedIn   = <?= isset($_SESSION['user_id']) ? 'true' : 'false' ?>;
+        // FIX: Use server timestamp so timezone is always correct (not the user's device clock)
+        const SERVER_NOW   = <?= $server_now_ms ?>;
+        const PAGE_LOAD_AT = Date.now();
+
+        let selectedSlots  = [];
+
+        // FIX: Real-time clock — returns current time based on server time + elapsed time since page load
+        function getRealNow() {
+            return SERVER_NOW + (Date.now() - PAGE_LOAD_AT);
+        }
+
+        // FIX: Check every 30 seconds and grey out slots that have just passed
+        function refreshPastSlots() {
+            const now = getRealNow();
+            document.querySelectorAll('.slot-btn.available, .slot-btn.selected').forEach(btn => {
+                const slotTs = parseInt(btn.dataset.slotTs);
+                if (slotTs < now) {
+                    // This slot just became past — deselect and disable it
+                    const key = `${btn.dataset.courtId}_${btn.dataset.start}_${btn.dataset.end}`;
+                    selectedSlots = selectedSlots.filter(s => s.key !== key);
+
+                    btn.classList.remove('available', 'selected', 'bg-green-50', 'border',
+                                         'border-green-200', 'text-green-800', 'bg-green-600',
+                                         'text-white', 'border-green-700');
+                    btn.classList.add('past');
+                    btn.disabled = true;
+
+                    // Replace inner price span with "ຜ່ານແລ້ວ" label
+                    const priceSpan = btn.querySelector('.slot-price');
+                    if (priceSpan) {
+                        priceSpan.className = 'text-gray-400 text-xs';
+                        priceSpan.textContent = 'ຜ່ານແລ້ວ';
+                    }
+                }
+            });
+            updateSummary();
+        }
+
+        // Run immediately on load, then every 30 seconds
+        refreshPastSlots();
+        setInterval(refreshPastSlots, 30000);
 
         function toggleSlot(btn) {
             if (btn.disabled || btn.classList.contains('booked') || btn.classList.contains('past')) return;
@@ -388,6 +439,14 @@ $venue_img    = !empty($venue['VN_Image'])
                 document.getElementById('loginModal').classList.remove('hidden');
                 return;
             }
+
+            // FIX: Double-check at click time in case the interval hasn't fired yet
+            const slotTs = parseInt(btn.dataset.slotTs);
+            if (slotTs < getRealNow()) {
+                refreshPastSlots();
+                return;
+            }
+
             const courtId   = btn.dataset.courtId;
             const courtName = btn.dataset.courtName;
             const start     = btn.dataset.start;
@@ -399,6 +458,10 @@ $venue_img    = !empty($venue['VN_Image'])
             if (btn.classList.contains('selected')) {
                 btn.classList.remove('selected');
                 btn.classList.add('available', 'bg-green-50', 'border', 'border-green-200', 'text-green-800');
+                const priceSpan = btn.querySelector('span:last-child');
+                if (priceSpan) {
+                    priceSpan.className = 'slot-price text-green-600 text-xs';
+                }
                 selectedSlots = selectedSlots.filter(s => s.key !== key);
             } else {
                 btn.classList.add('selected');
