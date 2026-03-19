@@ -1,14 +1,8 @@
--- ============================================================
---  Badminton Court Booking System — Corrected Full Schema
---  Fixed to match actual code usage
--- ============================================================
- 
 CREATE DATABASE IF NOT EXISTS badminton_booking
     CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE badminton_booking;
  
 -- ── ADMIN ────────────────────────────────────────────────────
--- FIX: Added Name, Surname, Gender, Image_pay (used in admin profile)
 CREATE TABLE admin (
     Admin_ID   INT(11)      NOT NULL AUTO_INCREMENT,
     Name       VARCHAR(100) NOT NULL,
@@ -21,7 +15,6 @@ CREATE TABLE admin (
 );
  
 -- ── COURT OWNER ──────────────────────────────────────────────
--- FIX: Added Status (for ban/unban)
 CREATE TABLE court_owner (
     CA_ID      INT(11)      NOT NULL AUTO_INCREMENT,
     Name       VARCHAR(100) NOT NULL,
@@ -34,8 +27,6 @@ CREATE TABLE court_owner (
 );
  
 -- ── CUSTOMER ─────────────────────────────────────────────────
--- FIX: Changed CU_ID → C_ID (code uses C_ID everywhere)
--- FIX: Added Gender, Status
 CREATE TABLE customer (
     C_ID       INT(11)      NOT NULL AUTO_INCREMENT,
     Name       VARCHAR(100) NOT NULL,
@@ -59,13 +50,17 @@ CREATE TABLE package_rate (
 );
  
 -- ── PACKAGE ──────────────────────────────────────────────────
+-- UPDATED: Added Reject_reason column (replaces owner_notification for packages)
 CREATE TABLE package (
     Package_ID       INT(11)       NOT NULL AUTO_INCREMENT,
-    Status_Package   VARCHAR(50)   NOT NULL DEFAULT 'Pending',
+    Status_Package   VARCHAR(50)   NOT NULL DEFAULT 'Pending'
+                     COMMENT 'Pending, Active, Expired, Rejected',
     Slip_payment     VARCHAR(255),
     Package_date     DATETIME      NOT NULL,
     Start_time       DATETIME,
     End_time         DATETIME,
+    Reject_reason    TEXT          DEFAULT NULL
+                     COMMENT 'Set by admin when rejecting. Cleared on resubmit.',
     VN_ID            INT(11)       DEFAULT NULL,
     CA_ID            INT(11)       NOT NULL,
     Package_rate_ID  INT(11)       NOT NULL,
@@ -85,8 +80,6 @@ CREATE TABLE advertisement_rate (
 );
  
 -- ── VENUE DATA ───────────────────────────────────────────────
--- FIX: Map_link → VN_MapURL (code uses VN_MapURL)
--- FIX: Added VN_QR_Payment (QR code shown to customers on payment page)
 CREATE TABLE Venue_data (
     VN_ID          INT(11)       NOT NULL AUTO_INCREMENT,
     VN_Name        VARCHAR(255)  NOT NULL,
@@ -99,13 +92,14 @@ CREATE TABLE Venue_data (
     Price_per_hour VARCHAR(50)   NOT NULL,
     VN_MapURL      VARCHAR(500),
     VN_Status      VARCHAR(50)   NOT NULL DEFAULT 'Pending',
+    Reject_reason  TEXT          DEFAULT NULL
+                   COMMENT 'Set by admin when rejecting venue. Cleared on approval.',
     CA_ID          INT(11)       NOT NULL,
     PRIMARY KEY (VN_ID),
     KEY CA_ID (CA_ID)
 );
  
 -- ── COURT DATA ───────────────────────────────────────────────
--- FIX: Added Court_Status (Active/Inactive/Maintaining)
 CREATE TABLE Court_data (
     COURT_ID     INT(11)      NOT NULL AUTO_INCREMENT,
     COURT_Name   VARCHAR(100) NOT NULL,
@@ -128,11 +122,6 @@ CREATE TABLE facilities (
 );
  
 -- ── BOOKING ──────────────────────────────────────────────────
--- FIX: Book_date → Booking_date (code uses Booking_date)
--- FIX: CU_ID → C_ID (code uses C_ID)
--- FIX: Status_booking includes 'Unpaid' (new status for unconfirmed bookings)
--- FIX: Removed Play_date, Start_time, End_time, Total_price, Deposit_amount, COURT_ID, VN_ID
---      (these are in booking_detail, not booking)
 CREATE TABLE booking (
     Book_ID        INT(11)      NOT NULL AUTO_INCREMENT,
     Booking_date   DATETIME     NOT NULL,
@@ -145,8 +134,6 @@ CREATE TABLE booking (
 );
  
 -- ── BOOKING DETAIL ───────────────────────────────────────────
--- FIX: Added COURT_ID (critical - code joins booking_detail to Court_data via COURT_ID)
--- FIX: Changed BD_ID → ID to match code references
 CREATE TABLE booking_detail (
     ID          INT(11)  NOT NULL AUTO_INCREMENT,
     Book_ID     INT(11)  NOT NULL,
@@ -159,7 +146,6 @@ CREATE TABLE booking_detail (
 );
  
 -- ── CANCEL BOOKING ───────────────────────────────────────────
--- FIX: Cancel_reason → Comment (code inserts/reads 'Comment')
 CREATE TABLE cancel_booking (
     Cancel_ID   INT(11)   NOT NULL AUTO_INCREMENT,
     Comment     TEXT,
@@ -189,16 +175,19 @@ CREATE TABLE approve_package (
 );
  
 -- ── ADVERTISEMENT ────────────────────────────────────────────
+-- UPDATED: Added Reject_reason column (replaces owner_notification for ads)
 CREATE TABLE advertisement (
-    AD_ID        INT(11)      NOT NULL AUTO_INCREMENT,
-    AD_date      DATETIME     NOT NULL,
-    Start_time   DATETIME     DEFAULT NULL,
-    End_time     DATETIME     DEFAULT NULL,
-    Slip_payment VARCHAR(255),
-    Status_AD    VARCHAR(50)  NOT NULL DEFAULT 'Pending'
-                 COMMENT 'Pending, Approved, Active, Rejected',
-    VN_ID        INT(11)      NOT NULL,
-    AD_Rate_ID   INT(11)      NOT NULL,
+    AD_ID         INT(11)      NOT NULL AUTO_INCREMENT,
+    AD_date       DATETIME     NOT NULL,
+    Start_time    DATETIME     DEFAULT NULL,
+    End_time      DATETIME     DEFAULT NULL,
+    Slip_payment  VARCHAR(255),
+    Status_AD     VARCHAR(50)  NOT NULL DEFAULT 'Pending'
+                  COMMENT 'Pending, Approved, Active, Rejected',
+    Reject_reason TEXT         DEFAULT NULL
+                  COMMENT 'Set by admin when rejecting. Cleared on resubmit.',
+    VN_ID         INT(11)      NOT NULL,
+    AD_Rate_ID    INT(11)      NOT NULL,
     PRIMARY KEY (AD_ID),
     KEY VN_ID (VN_ID),
     KEY AD_Rate_ID (AD_Rate_ID)
@@ -212,18 +201,4 @@ CREATE TABLE approve_advertisement (
     PRIMARY KEY (AP_AD_ID),
     KEY AD_ID (AD_ID),
     KEY Admin_ID (Admin_ID)
-);
- 
--- ── OWNER NOTIFICATION ───────────────────────────────────────
-CREATE TABLE owner_notification (
-    notif_id       INT(11)      NOT NULL AUTO_INCREMENT,
-    CA_ID          INT(11)      NOT NULL,
-    type           VARCHAR(50)  NOT NULL COMMENT 'package, advertisement, venue',
-    ref_id         INT(11)      NOT NULL,
-    title          VARCHAR(255) NOT NULL,
-    message        TEXT         NOT NULL,
-    flagged_fields TEXT         DEFAULT NULL,
-    created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (notif_id),
-    KEY CA_ID (CA_ID)
 );

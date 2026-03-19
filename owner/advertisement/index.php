@@ -83,7 +83,7 @@ try {
             <div class="flex items-center justify-between">
                 <div>
                     <h1 class="text-xl font-bold text-gray-800">ໂຄສະນາ</h1>
-                    <p class="text-sm text-gray-500">ໂປໂມດສະຖານທີ່ຂອງທ່ານໃນໜ້າຫຼັກ</p>
+                    <p class="text-sm text-gray-500">ໂຄສະນາສະຖານທີ່ຂອງທ່ານໃນໜ້າຫຼັກ</p>
                 </div>
                 <?php if (!empty($active_ads) || !empty($queued_ads)): ?>
                     <div class="flex items-center gap-2 bg-green-50 border border-green-200 px-4 py-2 rounded-xl text-sm">
@@ -169,7 +169,7 @@ try {
             <?php if (!empty($queued_ads)): ?>
                 <div class="bg-white rounded-2xl shadow-sm p-6 mb-6">
                     <h2 class="text-lg font-bold text-gray-800 mb-4">
-                        <i class="fas fa-hourglass-half text-purple-500 mr-2 text-xs"></i>ລໍຖ້າ — ເລີ່ມຫຼັງໂຄສະນາປັດຈຸບັນໝົດ
+                        <i class="fas fa-hourglass-half text-purple-500 mr-2 text-xs"></i>ລໍຖ້າ — ໂຄສະນານີ້ຈະເລີ່ມຫຼັງຈາກການໂຄສະນາປັດຈຸບັນໝົດ
                     </h2>
                     <div class="space-y-3">
                         <?php foreach ($queued_ads as $ad):
@@ -218,7 +218,7 @@ try {
 
             <!-- Why Advertise -->
             <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 mb-6 text-white">
-                <h2 class="text-xl font-bold mb-4"><i class="fas fa-rocket mr-2"></i>ທຳໄມຕ້ອງໂຄສະນາ?</h2>
+                <h2 class="text-xl font-bold mb-4"><i class="fas fa-rocket mr-2"></i>ເປັນຫຍັງຈື່ງຕ້ອງໂຄສະນາ?</h2>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <?php foreach ([
                         ['fa-star',       'ໄດ້ຮັບ Badge ແນະນຳ',   'ສະຖານທີ່ຂອງທ່ານຈະໄດ້ Badge ສີທອງທີ່ລູກຄ້າທຸກຄົນເຫັນ'],

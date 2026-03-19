@@ -2,6 +2,11 @@
 session_start();
 require_once '../../config/db.php';
 
+// FIX: Set timezone so $date and NOW() match Laos local time.
+// Without this, if the server is UTC, a booking at 3:23 AM Laos time
+// (= 8:23 PM UTC previous day) would store the wrong date.
+date_default_timezone_set('Asia/Vientiane');
+
 if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'customer') {
     header('Location: /Badminton_court_Booking/auth/login.php');
     exit;
@@ -28,6 +33,13 @@ if (!$slots || count($slots) === 0) {
     exit;
 }
 
+// FIX: Validate that $date is a real date and not a past date
+if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || $date < date('Y-m-d')) {
+    $_SESSION['booking_error'] = 'Invalid or past booking date.';
+    header('Location: /Badminton_court_Booking/customer/booking_court/venue_detail.php?id=' . $venue_id . '&date=' . $date);
+    exit;
+}
+
 try {
     $pdo->beginTransaction();
 
@@ -46,6 +58,9 @@ try {
     ");
 
     foreach ($slots as $slot) {
+        // FIX: Use $date from POST (the date the user selected on the page),
+        // NOT date('Y-m-d') from server — so the stored date always matches
+        // exactly what the customer picked, regardless of server timezone.
         $start_datetime = $date . ' ' . $slot['start'] . ':00';
         $end_datetime   = $date . ' ' . $slot['end']   . ':00';
         $court_id       = intval($slot['courtId']);

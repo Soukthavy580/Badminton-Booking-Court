@@ -31,21 +31,20 @@ if (!$venue) { header('Location: /Badminton_court_Booking/owner/manage_court/ind
 $vn_id = $venue['VN_ID'];
 
 try {
-    $stmt = $pdo->query("SELECT Image_pay FROM admin LIMIT 1");
-    $admin = $stmt->fetch();
+    $stmt     = $pdo->query("SELECT Image_pay FROM admin LIMIT 1");
+    $admin    = $stmt->fetch();
     $admin_qr = $admin['Image_pay'] ?? '';
 } catch (PDOException $e) { $admin_qr = ''; }
 
 $duration = $rate['Duration'];
-$start = date('Y-m-d');
 if (str_contains($duration, 'Week')) {
     preg_match('/(\d+)/', $duration, $m);
-    $end_preview = date('M d, Y', strtotime('+'.intval($m[1]??1).' weeks'));
+    $end_preview = date('d/m/Y', strtotime('+'.intval($m[1]??1).' weeks'));
 } elseif (str_contains($duration, 'Year')) {
-    $end_preview = date('M d, Y', strtotime('+1 year'));
+    $end_preview = date('d/m/Y', strtotime('+1 year'));
 } else {
     preg_match('/(\d+)/', $duration, $m);
-    $end_preview = date('M d, Y', strtotime('+'.intval($m[1]??1).' months'));
+    $end_preview = date('d/m/Y', strtotime('+'.intval($m[1]??1).' months'));
 }
 
 $error   = '';
@@ -53,60 +52,50 @@ $success = false;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $file = $_FILES['slip_payment'] ?? null;
-
     if (!$file || $file['error'] !== UPLOAD_ERR_OK) {
-        $error = 'Please upload your payment slip.';
+        $error = 'ກະລຸນາອັບໂຫລດໃບຮັບເງິນ.';
+    } elseif (!in_array($file['type'], ['image/jpeg','image/png','image/jpg','image/webp'])) {
+        $error = 'ຮອງຮັບເຉພາະ JPG, PNG, WEBP.';
+    } elseif ($file['size'] > 5 * 1024 * 1024) {
+        $error = 'ໄຟລ໌ຕ້ອງບໍ່ເກີນ 5MB.';
     } else {
-        $allowed = ['image/jpeg','image/png','image/jpg','image/webp'];
-        if (!in_array($file['type'], $allowed)) {
-            $error = 'Only JPG, PNG, WEBP allowed.';
-        } elseif ($file['size'] > 5 * 1024 * 1024) {
-            $error = 'File must be under 5MB.';
-        } else {
-            $ext      = pathinfo($file['name'], PATHINFO_EXTENSION);
-            $filename = 'ad_' . $ca_id . '_' . time() . '.' . $ext;
-            $dir      = $_SERVER['DOCUMENT_ROOT'] . '/Badminton_court_Booking/assets/images/slips/';
-            if (!is_dir($dir)) mkdir($dir, 0755, true);
-
-            if (move_uploaded_file($file['tmp_name'], $dir . $filename)) {
-                try {
-                    if (str_contains($duration, 'Week')) {
-                        preg_match('/(\d+)/', $duration, $m);
-                        $end_dt = date('Y-m-d H:i:s', strtotime('+'.intval($m[1]??1).' weeks'));
-                    } elseif (str_contains($duration, 'Year')) {
-                        $end_dt = date('Y-m-d H:i:s', strtotime('+1 year'));
-                    } else {
-                        preg_match('/(\d+)/', $duration, $m);
-                        $end_dt = date('Y-m-d H:i:s', strtotime('+'.intval($m[1]??1).' months'));
-                    }
-                    $start_dt = date('Y-m-d H:i:s');
-
-                    $pdo->prepare("
-                        INSERT INTO advertisement (AD_date, Slip_payment, Start_time, End_time, Status_AD, VN_ID, AD_Rate_ID)
-                        VALUES (NOW(), ?, ?, ?, 'Pending', ?, ?)
-                    ")->execute([$filename, $start_dt, $end_dt, $vn_id, $rate_id]);
-
-                    // ── Delete ad notification — owner has resubmitted ──
-                    $pdo->prepare("DELETE FROM owner_notification WHERE CA_ID = ? AND type = 'advertisement'")
-                        ->execute([$ca_id]);
-
-                    $success = true;
-                } catch (PDOException $e) {
-                    $error = 'Submission failed: ' . $e->getMessage();
+        $ext      = pathinfo($file['name'], PATHINFO_EXTENSION);
+        $filename = 'ad_' . $ca_id . '_' . time() . '.' . $ext;
+        $dir      = $_SERVER['DOCUMENT_ROOT'] . '/Badminton_court_Booking/assets/images/slips/';
+        if (!is_dir($dir)) mkdir($dir, 0755, true);
+        if (move_uploaded_file($file['tmp_name'], $dir . $filename)) {
+            try {
+                if (str_contains($duration, 'Week')) {
+                    preg_match('/(\d+)/', $duration, $m);
+                    $end_dt = date('Y-m-d H:i:s', strtotime('+'.intval($m[1]??1).' weeks'));
+                } elseif (str_contains($duration, 'Year')) {
+                    $end_dt = date('Y-m-d H:i:s', strtotime('+1 year'));
+                } else {
+                    preg_match('/(\d+)/', $duration, $m);
+                    $end_dt = date('Y-m-d H:i:s', strtotime('+'.intval($m[1]??1).' months'));
                 }
-            } else {
-                $error = 'Failed to upload file. Please try again.';
+                $pdo->prepare("
+                    INSERT INTO advertisement (AD_date, Slip_payment, Start_time, End_time, Status_AD, VN_ID, AD_Rate_ID)
+                    VALUES (NOW(), ?, NOW(), ?, 'Pending', ?, ?)
+                ")->execute([$filename, $end_dt, $vn_id, $rate_id]);
+                $pdo->prepare("DELETE FROM owner_notification WHERE CA_ID = ? AND type = 'advertisement'")
+                    ->execute([$ca_id]);
+                $success = true;
+            } catch (PDOException $e) {
+                $error = 'ສົ່ງບໍ່ສຳເລັດ: ' . $e->getMessage();
             }
+        } else {
+            $error = 'ອັບໂຫລດລົ້ມເຫລວ. ກະລຸນາລອງໃໝ່.';
         }
     }
 }
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="lo">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ad Payment - CourtBook</title>
+    <title>ຈ່າຍເງິນໂຄສະນາ - Badminton Booking Court</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -124,8 +113,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <i class="fas fa-arrow-left text-lg"></i>
                 </a>
                 <div>
-                    <h1 class="text-xl font-bold text-gray-800">Advertisement Payment</h1>
-                    <p class="text-sm text-gray-500">Complete your payment to activate your ad</p>
+                    <h1 class="text-xl font-bold text-gray-800">ຈ່າຍເງິນໂຄສະນາ</h1>
+                    <p class="text-sm text-gray-500">ຊຳລະເງິນເພື່ອເປີດໃຊ້ງານໂຄສະນາ</p>
                 </div>
             </div>
         </header>
@@ -137,16 +126,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                         <i class="fas fa-check-circle text-green-500 text-4xl"></i>
                     </div>
-                    <h2 class="text-2xl font-extrabold text-gray-800 mb-2">Payment Submitted!</h2>
-                    <p class="text-gray-500 mb-2">Your advertisement payment slip has been submitted successfully.</p>
-                    <p class="text-gray-400 text-sm mb-6">Admin will review and approve within 24 hours.</p>
+                    <h2 class="text-2xl font-extrabold text-gray-800 mb-2">ສົ່ງສຳເລັດ!</h2>
+                    <p class="text-gray-500 mb-2">ໃບຮັບເງິນໂຄສະນາຂອງທ່ານຖືກສົ່ງສຳເລັດ.</p>
+                    <p class="text-gray-400 text-sm mb-6">ແອດມິນຈະກວດສອບ ແລະ ອະນຸມັດພາຍໃນ 24 ຊົ່ວໂມງ.</p>
                     <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 text-left">
-                        <p class="text-sm font-bold text-blue-800 mb-1"><?= htmlspecialchars($rate['Duration']) ?> Advertisement</p>
-                        <p class="text-blue-600 text-sm">₭<?= number_format($rate['Price']) ?> · Active until approx. <?= $end_preview ?></p>
+                        <p class="text-sm font-bold text-blue-800 mb-1"><?= htmlspecialchars($rate['Duration']) ?> ໂຄສະນາ</p>
+                        <p class="text-blue-600 text-sm">₭<?= number_format($rate['Price']) ?> · ໃຊ້ໄດ້ຮອດປະມານ <?= $end_preview ?></p>
                     </div>
                     <a href="/Badminton_court_Booking/owner/advertisement/index.php"
                        class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-3 rounded-xl transition">
-                        <i class="fas fa-arrow-left mr-2"></i>Back to Advertisements
+                        <i class="fas fa-arrow-left mr-2"></i>ກັບໄປໂຄສະນາ
                     </a>
                 </div>
 
@@ -159,21 +148,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <?php endif; ?>
 
                 <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 mb-6 text-white">
-                    <p class="text-blue-200 text-sm mb-1">Selected Plan</p>
+                    <p class="text-blue-200 text-sm mb-1">ແພລນທີ່ເລືອກ</p>
                     <h2 class="text-3xl font-extrabold mb-1"><?= htmlspecialchars($rate['Duration']) ?></h2>
                     <p class="text-2xl font-bold text-yellow-300">₭<?= number_format($rate['Price']) ?></p>
                     <div class="mt-3 flex items-center gap-4 text-sm text-blue-200">
-                        <span><i class="fas fa-calendar-check mr-1"></i>Starts: <?= date('M d, Y') ?></span>
-                        <span><i class="fas fa-calendar-times mr-1"></i>Ends: ~<?= $end_preview ?></span>
+                        <span><i class="fas fa-calendar-check mr-1"></i>ເລີ່ມ: <?= date('d/m/Y') ?></span>
+                        <span><i class="fas fa-calendar-times mr-1"></i>ໝົດ: ~<?= $end_preview ?></span>
                     </div>
                     <a href="/Badminton_court_Booking/owner/advertisement/index.php"
                        class="inline-block mt-3 text-blue-200 hover:text-white text-xs underline">
-                        <i class="fas fa-exchange-alt mr-1"></i>Change plan
+                        <i class="fas fa-exchange-alt mr-1"></i>ປ່ຽນແພລນ
                     </a>
                 </div>
 
                 <div class="bg-white rounded-2xl shadow-sm p-6 mb-6">
-                    <h3 class="font-bold text-gray-800 mb-4"><i class="fas fa-qrcode text-blue-500 mr-2"></i>Payment Instructions</h3>
+                    <h3 class="font-bold text-gray-800 mb-4"><i class="fas fa-qrcode text-blue-500 mr-2"></i>ວິທີການຈ່າຍ</h3>
                     <div class="flex flex-col md:flex-row gap-6 items-start">
                         <div class="flex-shrink-0 text-center">
                             <?php if ($admin_qr): ?>
@@ -185,18 +174,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <i class="fas fa-qrcode text-5xl text-gray-300"></i>
                                 </div>
                             <?php endif; ?>
-                            <p class="text-xs text-gray-400 mt-2">Scan to pay</p>
+                            <p class="text-xs text-gray-400 mt-2">ສະແກນເພື່ອຈ່າຍ</p>
                         </div>
                         <div class="flex-1">
-                            <p class="font-semibold text-gray-700 mb-3">How to pay:</p>
+                            <p class="font-semibold text-gray-700 mb-3">ຂັ້ນຕອນ:</p>
                             <ol class="space-y-2">
                                 <?php foreach ([
-                                    'Open your banking app',
-                                    'Scan the QR code on the left',
-                                    'Enter the exact amount: <strong class="text-blue-600">₭'.number_format($rate['Price']).'</strong>',
-                                    'Complete the transfer',
-                                    'Take a screenshot of confirmation',
-                                    'Upload the screenshot below',
+                                    'ເປີດແອັບທະນາຄານຂອງທ່ານ',
+                                    'ສະແກນ QR Code ທາງຊ້າຍ',
+                                    'ໃສ່ຈຳນວນເງິນ: <strong class="text-blue-600">₭'.number_format($rate['Price']).'</strong>',
+                                    'ຢືນຢັນການໂອນ',
+                                    'ຖ່າຍຮູບໜ້າຈໍຢືນຢັນ',
+                                    'ອັບໂຫລດຮູບຂ້າງລຸ່ມ',
                                 ] as $i => $step): ?>
                                     <li class="flex items-start gap-3 text-sm text-gray-600">
                                         <span class="bg-blue-100 text-blue-600 font-bold w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs"><?= $i+1 ?></span>
@@ -209,7 +198,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
 
                 <div class="bg-white rounded-2xl shadow-sm p-6">
-                    <h3 class="font-bold text-gray-800 mb-4"><i class="fas fa-upload text-blue-500 mr-2"></i>Upload Payment Screenshot</h3>
+                    <h3 class="font-bold text-gray-800 mb-4"><i class="fas fa-upload text-blue-500 mr-2"></i>ອັບໂຫລດໃບຮັບເງິນ</h3>
                     <form method="POST" enctype="multipart/form-data">
                         <div class="upload-area rounded-xl p-8 text-center cursor-pointer mb-6" id="uploadArea"
                              onclick="document.getElementById('slipFile').click()"
@@ -218,14 +207,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                              ondrop="e=>{e.preventDefault();document.getElementById('uploadArea').classList.remove('dragover');const f=e.dataTransfer.files[0];if(f){const d=new DataTransfer();d.items.add(f);document.getElementById('slipFile').files=d.files;previewFile(document.getElementById('slipFile'))}}">
                             <div id="uploadPlaceholder">
                                 <i class="fas fa-cloud-upload-alt text-4xl text-gray-300 mb-3 block"></i>
-                                <p class="text-gray-500 font-medium">Click or drag & drop your screenshot here</p>
-                                <p class="text-gray-400 text-xs mt-1">JPG, PNG, WEBP · Max 5MB</p>
+                                <p class="text-gray-500 font-medium">ຄລິກ ຫຼື ລາກໄຟລ໌ມາໃສ່ນີ້</p>
+                                <p class="text-gray-400 text-xs mt-1">JPG, PNG, WEBP · ສູງສຸດ 5MB</p>
                             </div>
                             <img id="previewImg" class="max-h-48 mx-auto rounded-lg hidden">
                         </div>
                         <input type="file" id="slipFile" name="slip_payment" accept="image/jpeg,image/png,image/webp" class="hidden" onchange="previewFile(this)" required>
                         <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl transition shadow-lg text-lg">
-                            <i class="fas fa-paper-plane mr-2"></i>Submit Advertisement Payment
+                            <i class="fas fa-paper-plane mr-2"></i>ສົ່ງໃບຮັບເງິນໂຄສະນາ
                         </button>
                     </form>
                 </div>

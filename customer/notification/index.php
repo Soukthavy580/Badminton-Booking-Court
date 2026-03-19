@@ -97,6 +97,12 @@ foreach ($grouped as $booking) {
 // Count unread for display
 $unread_count = count($unread_bookings);
 
+// FIX: Mark all non-Unpaid bookings as seen when page is visited
+// This clears the bell badge immediately after visiting notifications
+$non_unpaid_keys = array_filter($current_keys, fn($k) => !str_ends_with($k, '_Unpaid'));
+$seen_after_visit = array_unique(array_merge($seen_keys, array_values($non_unpaid_keys)));
+$_SESSION['notif_seen'] = $seen_after_visit;
+
 function calc_total($slots, $price_per_hour) {
     $price = floatval(preg_replace('/[^0-9.]/', '', $price_per_hour));
     $total = 0;

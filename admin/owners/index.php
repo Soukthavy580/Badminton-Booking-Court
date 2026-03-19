@@ -127,11 +127,11 @@ $counts = [
 ];
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="lo">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Owners - Admin</title>
+    <title>ເຈົ້າຂອງ - Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -148,12 +148,12 @@ $counts = [
         <header class="bg-white shadow-sm px-6 py-4 sticky top-0 z-40">
             <div class="flex items-center justify-between">
                 <div>
-                    <h1 class="text-xl font-bold text-gray-800">Owner Management</h1>
-                    <p class="text-sm text-gray-500">View and manage court owner accounts</p>
+                    <h1 class="text-xl font-bold text-gray-800">ຈັດການເຈົ້າຂອງ</h1>
+                    <p class="text-sm text-gray-500">ເບິ່ງ ແລະ ຈັດການບັນຊີເຈົ້າຂອງເດີ່ນ</p>
                 </div>
                 <div class="bg-purple-50 border border-purple-200 px-4 py-2 rounded-xl text-sm">
                     <span class="text-purple-700 font-bold"><?= $counts['all'] ?></span>
-                    <span class="text-purple-500 ml-1">total owners</span>
+                    <span class="text-purple-500 ml-1">ເຈົ້າຂອງທັງໝົດ</span>
                 </div>
             </div>
         </header>
@@ -172,9 +172,9 @@ $counts = [
             <!-- Stats -->
             <div class="grid grid-cols-3 gap-4 mb-6">
                 <?php foreach ([
-                    ['label'=>'All Owners','value'=>$counts['all'],   'color'=>'purple','icon'=>'fa-user-tie',    'filter'=>'all'],
-                    ['label'=>'Active',     'value'=>$counts['active'],'color'=>'green', 'icon'=>'fa-check-circle','filter'=>'active'],
-                    ['label'=>'Banned',     'value'=>$counts['banned'],'color'=>'red',   'icon'=>'fa-ban',         'filter'=>'banned'],
+                    ['label'=>'ທັງໝົດ','value'=>$counts['all'],   'color'=>'purple','icon'=>'fa-user-tie',    'filter'=>'all'],
+                    ['label'=>'ໃຊ້ງານໄດ້',     'value'=>$counts['active'],'color'=>'green', 'icon'=>'fa-check-circle','filter'=>'active'],
+                    ['label'=>'ຖືກລະງັບ',     'value'=>$counts['banned'],'color'=>'red',   'icon'=>'fa-ban',         'filter'=>'banned'],
                 ] as $sc): ?>
                     <a href="?filter=<?= $sc['filter'] ?>"
                        class="bg-white rounded-2xl p-5 shadow-sm border-2 <?= $filter===$sc['filter'] ? 'border-'.$sc['color'].'-400' : 'border-transparent' ?> hover:shadow-md transition block">
@@ -192,17 +192,17 @@ $counts = [
                 <form method="GET" class="flex gap-2 flex-1">
                     <input type="hidden" name="filter" value="<?= htmlspecialchars($filter) ?>">
                     <input type="text" name="search" value="<?= htmlspecialchars($search) ?>"
-                           placeholder="Search by name, email, phone or venue..."
+                           placeholder="ຊອກຫາຕາມຊື່, ອີເມລ໌, ໂທ ຫຼື ສະຖານທີ່..."
                            class="flex-1 border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 transition">
                     <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition">
                         <i class="fas fa-search"></i>
                     </button>
                     <?php if ($search): ?>
-                        <a href="?filter=<?= $filter ?>" class="bg-gray-100 hover:bg-gray-200 text-gray-600 px-4 py-2.5 rounded-xl text-sm font-semibold transition">Clear</a>
+                        <a href="?filter=<?= $filter ?>" class="bg-gray-100 hover:bg-gray-200 text-gray-600 px-4 py-2.5 rounded-xl text-sm font-semibold transition">ລ້າງ</a>
                     <?php endif; ?>
                 </form>
                 <div class="flex gap-2">
-                    <?php foreach (['all'=>'All','active'=>'Active','banned'=>'Banned'] as $key => $label): ?>
+                    <?php foreach (['all'=>'ທັງໝົດ','active'=>'ໃຊ້ງານໄດ້','banned'=>'ຖືກລະງັບ'] as $key => $label): ?>
                         <a href="?filter=<?= $key ?><?= $search ? '&search='.urlencode($search) : '' ?>"
                            class="px-4 py-2.5 rounded-xl font-semibold text-sm transition <?= $filter===$key ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50' ?>">
                             <?= $label ?> <span class="ml-1 text-xs <?= $filter===$key ? 'text-blue-200' : 'text-gray-400' ?>">(<?= $counts[$key] ?>)</span>
@@ -231,7 +231,7 @@ $counts = [
                                             <!-- FIX: Removed Surname -->
                                             <h3 class="font-bold text-gray-800"><?= htmlspecialchars($owner['Name']) ?></h3>
                                             <span class="<?= $status_cfg['badge_bg'] ?> <?= $status_cfg['badge_text'] ?> text-xs font-bold px-2 py-0.5 rounded-full">
-                                                <?= $is_banned ? '🚫 Banned' : '✓ Active' ?>
+                                                <?= $is_banned ? '🚫 ຖືກລະງັບ' : '✓ ໃຊ້ງານໄດ້' ?>
                                             </span>
                                         </div>
                                         <p class="text-sm text-gray-500"><i class="fas fa-at mr-1 text-gray-400"></i><?= htmlspecialchars($owner['Username']) ?></p>
@@ -250,13 +250,13 @@ $counts = [
                                                 $vs_color = match($vs) { 'Active'=>'green','Pending'=>'yellow','Rejected'=>'red', default=>'gray' };
                                                 ?>
                                                 <span class="bg-<?= $vs_color ?>-100 text-<?= $vs_color ?>-700 text-xs px-2 py-0.5 rounded-full font-semibold"><?= $vs ?></span>
-                                                <?php if ($owner['has_active_package']): ?><span class="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full font-semibold"><i class="fas fa-box mr-1"></i>Package Active</span><?php endif; ?>
-                                                <?php if ($owner['has_active_ad']): ?><span class="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full font-semibold"><i class="fas fa-bullhorn mr-1"></i>Advertising</span><?php endif; ?>
+                                                <?php if ($owner['has_active_package']): ?><span class="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full font-semibold"><i class="fas fa-box mr-1"></i>ແພັກເກດໃຊ້ງານໄດ້</span><?php endif; ?>
+                                                <?php if ($owner['has_active_ad']): ?><span class="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full font-semibold"><i class="fas fa-bullhorn mr-1"></i>ໂຄສະນາ</span><?php endif; ?>
                                             </div>
                                         </div>
-                                        <p class="text-xs text-gray-400 text-right"><i class="fas fa-calendar-check mr-1 text-green-400"></i><?= $owner['total_bookings'] ?> confirmed bookings</p>
+                                        <p class="text-xs text-gray-400 text-right"><i class="fas fa-calendar-check mr-1 text-green-400"></i><?= $owner['total_bookings'] ?> ຢືນຢັນ bookings</p>
                                     <?php else: ?>
-                                        <div class="bg-gray-50 rounded-xl px-4 py-2 text-gray-400 text-xs"><i class="fas fa-store mr-1"></i>No venue set up</div>
+                                        <div class="bg-gray-50 rounded-xl px-4 py-2 text-gray-400 text-xs"><i class="fas fa-store mr-1"></i>ຍັງບໍ່ໄດ້ສ້າງສະຖານທີ່</div>
                                     <?php endif; ?>
                                 </div>
                                 <div class="flex flex-col gap-2 flex-shrink-0">
@@ -286,8 +286,8 @@ $counts = [
             <?php else: ?>
                 <div class="bg-white rounded-2xl shadow-sm p-12 text-center">
                     <i class="fas fa-user-tie text-6xl text-gray-200 mb-4 block"></i>
-                    <h3 class="text-xl font-bold text-gray-600 mb-2">No Owners Found</h3>
-                    <p class="text-gray-400 text-sm"><?= $search ? 'No owners match your search.' : 'No owners registered yet.' ?></p>
+                    <h3 class="text-xl font-bold text-gray-600 mb-2">ບໍ່ພົບເຈົ້າຂອງ</h3>
+                    <p class="text-gray-400 text-sm"><?= $search ? 'ບໍ່ມີເຈົ້າຂອງທີ່ກົງກັບການຄົ້ນຫາ.' : 'ຍັງບໍ່ມີເຈົ້າຂອງລົງທະບຽນ.' ?></p>
                 </div>
             <?php endif; ?>
         </main>
@@ -311,7 +311,7 @@ $counts = [
                     <h2 class="text-2xl font-extrabold"><?= htmlspecialchars($modal_owner['Name']) ?></h2>
                     <p class="text-purple-200 text-sm">@<?= htmlspecialchars($modal_owner['Username']) ?></p>
                     <span class="inline-block mt-1 bg-white bg-opacity-20 text-white text-xs font-bold px-3 py-0.5 rounded-full">
-                        <?= htmlspecialchars($modal_owner['Status'] ?? 'Active') ?>
+                        <?= htmlspecialchars($modal_owner['Status']==='Banned' ? 'ຖືກລະງັບ' : 'ໃຊ້ງານໄດ້') ?>
                     </span>
                 </div>
             </div>
@@ -331,16 +331,16 @@ $counts = [
 
             <?php if ($modal_owner['VN_Name']): ?>
                 <div class="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-6">
-                    <h3 class="font-bold text-blue-800 mb-3"><i class="fas fa-store mr-2"></i>Venue Information</h3>
+                    <h3 class="font-bold text-blue-800 mb-3"><i class="fas fa-store mr-2"></i>ຂໍ້ມູນສະຖານທີ່</h3>
                     <div class="grid grid-cols-2 gap-2 text-sm">
                         <?php foreach ([
-                            ['label'=>'Venue Name','value'=>$modal_owner['VN_Name']],
-                            ['label'=>'Status',    'value'=>$modal_owner['VN_Status']],
-                            ['label'=>'Address',   'value'=>$modal_owner['VN_Address']],
-                            ['label'=>'Hours',     'value'=>date('H:i', strtotime($modal_owner['Open_time'])) . ' - ' . date('H:i', strtotime($modal_owner['Close_time']))],
-                            ['label'=>'Price/hr',  'value'=>'₭'.number_format(preg_replace('/[^0-9]/', '', $modal_owner['Price_per_hour']))],
-                            ['label'=>'Courts',    'value'=>$modal_owner['total_courts'].' courts'],
-                            ['label'=>'Bookings',  'value'=>$modal_owner['total_bookings'].' confirmed'],
+                            ['label'=>'ຊື່ສະຖານທີ່','value'=>$modal_owner['VN_Name']],
+                            ['label'=>'ສະຖານະ',    'value'=>$modal_owner['VN_Status']],
+                            ['label'=>'ທີ່ຢູ່',   'value'=>$modal_owner['VN_Address']],
+                            ['label'=>'ເວລາ',     'value'=>date('H:i', strtotime($modal_owner['Open_time'])) . ' - ' . date('H:i', strtotime($modal_owner['Close_time']))],
+                            ['label'=>'ລາຄາ/ຊມ',  'value'=>'₭'.number_format(preg_replace('/[^0-9]/', '', $modal_owner['Price_per_hour']))],
+                            ['label'=>'ເດີ່ນ',    'value'=>$modal_owner['total_courts'].' ເດີ່ນ'],
+                            ['label'=>'ການຈອງ',  'value'=>$modal_owner['total_bookings'].' ຢືນຢັນ'],
                         ] as $f): ?>
                             <div class="bg-white rounded-xl p-2.5">
                                 <p class="text-xs text-gray-400"><?= $f['label'] ?></p>
@@ -351,9 +351,9 @@ $counts = [
                 </div>
             <?php endif; ?>
 
-            <!-- Package History -->
+            <!-- ປະຫວັດແພັກເກດ -->
             <div class="mb-6">
-                <h3 class="font-bold text-gray-800 mb-3"><i class="fas fa-box text-purple-500 mr-2"></i>Package History</h3>
+                <h3 class="font-bold text-gray-800 mb-3"><i class="fas fa-box text-purple-500 mr-2"></i>ປະຫວັດແພັກເກດ</h3>
                 <?php if (!empty($modal_packages)): ?>
                     <div class="space-y-2">
                         <?php foreach ($modal_packages as $pkg):
@@ -375,13 +375,13 @@ $counts = [
                         <?php endforeach; ?>
                     </div>
                 <?php else: ?>
-                    <div class="text-center py-4 bg-gray-50 rounded-xl"><p class="text-gray-400 text-sm">No package history</p></div>
+                    <div class="text-center py-4 bg-gray-50 rounded-xl"><p class="text-gray-400 text-sm">ບໍ່ມີປະຫວັດແພັກເກດ</p></div>
                 <?php endif; ?>
             </div>
 
             <!-- Ad History -->
             <div class="mb-6">
-                <h3 class="font-bold text-gray-800 mb-3"><i class="fas fa-bullhorn text-blue-500 mr-2"></i>Advertisement History</h3>
+                <h3 class="font-bold text-gray-800 mb-3"><i class="fas fa-bullhorn text-blue-500 mr-2"></i>ປະຫວັດໂຄສະນາ</h3>
                 <?php if (!empty($modal_ads)): ?>
                     <div class="space-y-2">
                         <?php foreach ($modal_ads as $ad):
@@ -392,7 +392,7 @@ $counts = [
                                     <div class="bg-<?= $ac ?>-100 p-1.5 rounded-lg"><i class="fas fa-bullhorn text-<?= $ac ?>-500 text-xs"></i></div>
                                     <div>
                                         <p class="font-semibold text-gray-800"><?= htmlspecialchars($ad['Duration']) ?></p>
-                                        <p class="text-gray-400 text-xs"><?= date('M d, Y', strtotime($ad['AD_date'])) ?><?php if ($ad['End_time']): ?> · until <?= date('M d, Y', strtotime($ad['End_time'])) ?><?php endif; ?></p>
+                                        <p class="text-gray-400 text-xs"><?= date('M d, Y', strtotime($ad['AD_date'])) ?><?php if ($ad['End_time']): ?> · ຮອດ <?= date('M d, Y', strtotime($ad['End_time'])) ?><?php endif; ?></p>
                                     </div>
                                 </div>
                                 <div class="text-right">
@@ -403,22 +403,22 @@ $counts = [
                         <?php endforeach; ?>
                     </div>
                 <?php else: ?>
-                    <div class="text-center py-4 bg-gray-50 rounded-xl"><p class="text-gray-400 text-sm">No advertisement history</p></div>
+                    <div class="text-center py-4 bg-gray-50 rounded-xl"><p class="text-gray-400 text-sm">ບໍ່ມີປະຫວັດໂຄສະນາ</p></div>
                 <?php endif; ?>
             </div>
 
             <div class="pt-4 border-t border-gray-100">
-                <?php if (($modal_owner['Status'] ?? 'Active') === 'Banned'): ?>
+                <?php if (($modal_owner['Status']==='Banned' ? 'ຖືກລະງັບ' : 'ໃຊ້ງານໄດ້') === 'Banned'): ?>
                     <form method="POST"><input type="hidden" name="ca_id" value="<?= $modal_owner['CA_ID'] ?>"><input type="hidden" name="action" value="unban">
                         <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition">
-                            <i class="fas fa-check-circle mr-2"></i>Unban This Owner
+                            <i class="fas fa-check-circle mr-2"></i>ຍົກເລີກການລະງັບ
                         </button>
                     </form>
                 <?php else: ?>
                     <form method="POST" onsubmit="return confirm('Ban <?= htmlspecialchars(addslashes($modal_owner["Name"])) ?>?')">
                         <input type="hidden" name="ca_id" value="<?= $modal_owner['CA_ID'] ?>"><input type="hidden" name="action" value="ban">
                         <button type="submit" class="w-full bg-red-50 hover:bg-red-100 text-red-600 font-bold py-3 rounded-xl border border-red-200 transition">
-                            <i class="fas fa-ban mr-2"></i>Ban This Owner
+                            <i class="fas fa-ban mr-2"></i>ລະງັບເຈົ້າຂອງນີ້
                         </button>
                     </form>
                 <?php endif; ?>

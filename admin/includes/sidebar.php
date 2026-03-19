@@ -2,7 +2,6 @@
 $current = $_SERVER['REQUEST_URI'];
 require_once __DIR__ . '/auto_expire.php';
 
-// Count pending items for badges
 $pending_venues   = 0;
 $pending_packages = 0;
 $pending_ads      = 0;
@@ -23,12 +22,6 @@ function admin_sidebar_class($path) {
         ? 'flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-50 text-blue-700 font-semibold border-l-4 border-blue-600'
         : 'flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-blue-50 hover:text-blue-700 font-medium transition';
 }
-function admin_sub_class($path) {
-    global $current;
-    return str_contains($current, $path)
-        ? 'flex items-center gap-3 px-4 py-2.5 rounded-xl bg-blue-50 text-blue-700 font-semibold text-sm border-l-4 border-blue-400'
-        : 'flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-500 hover:bg-blue-50 hover:text-blue-700 text-sm transition';
-}
 ?>
 <aside class="w-64 bg-white shadow-md flex-shrink-0 hidden md:flex flex-col sticky top-0 h-screen">
 
@@ -46,81 +39,69 @@ function admin_sub_class($path) {
                 Badminton<br>Booking Court
             </span>
         </a>
-        <p class="text-xs text-gray-400 mt-1">Admin Panel</p>
+        <p class="text-xs text-gray-400 mt-1">ແພນລ໌ແອດມິນ</p>
     </div>
 
     <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
 
-        <!-- ── MANAGEMENT ── -->
+        <!-- ── ການຈັດການ ── -->
         <div class="pt-1 pb-1">
-            <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">Management</p>
+            <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">ການຈັດການ</p>
         </div>
-
-        <!-- 1. Dashboard -->
-        <a href="/Badminton_court_Booking/admin/"
-           class="<?= admin_sidebar_class('/admin/') ?>">
-            <i class="fas fa-home w-5"></i> Dashboard
+        <a href="/Badminton_court_Booking/admin/" class="<?= admin_sidebar_class('/admin/index') ?>">
+            <i class="fas fa-home w-5"></i>ໜ້າຫຼັກ
             <?php if ($total_pending > 0): ?>
-                <span class="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5">
-                    <?= $total_pending ?>
-                </span>
+                <span class="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5"><?= $total_pending ?></span>
             <?php endif; ?>
         </a>
 
-        <!-- 2. Users -->
-        <div class="pt-1 pb-1">
-            <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">Users</p>
+        <!-- ── ຜູ້ໃຊ້ ── -->
+        <div class="pt-3 pb-1">
+            <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">ຜູ້ໃຊ້</p>
         </div>
         <a href="/Badminton_court_Booking/admin/owners/" class="<?= admin_sidebar_class('/admin/owners/') ?>">
-            <i class="fas fa-user-tie w-5"></i> Owners
+            <i class="fas fa-user-tie w-5"></i>ເຈົ້າຂອງ
         </a>
-        <a href="/Badminton_court_Booking/admin/customers/" class="<?= admin_sidebar_class('/admin/customers/') ?>">
-            <i class="fas fa-users w-5"></i> Customers
-        </a>
+        
 
-        <!-- 3. Approvals -->
+        <!-- ── ການອະນຸມັດ ── -->
         <div class="pt-3 pb-1">
-            <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">Approvals</p>
+            <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">ການອະນຸມັດ</p>
         </div>
         <a href="/Badminton_court_Booking/admin/venues/" class="<?= admin_sidebar_class('/admin/venues/') ?>">
-            <i class="fas fa-store w-5"></i> Venues
+            <i class="fas fa-store w-5"></i>ສະຖານທີ່
             <?php if ($pending_venues > 0): ?>
                 <span class="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5"><?= $pending_venues ?></span>
             <?php endif; ?>
         </a>
         <a href="/Badminton_court_Booking/admin/packages/" class="<?= admin_sidebar_class('/admin/packages/') ?>">
-            <i class="fas fa-box w-5"></i> Packages
+            <i class="fas fa-box w-5"></i>ແພັກເກດ
             <?php if ($pending_packages > 0): ?>
                 <span class="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5"><?= $pending_packages ?></span>
             <?php endif; ?>
         </a>
         <a href="/Badminton_court_Booking/admin/advertisements/" class="<?= admin_sidebar_class('/admin/advertisements/') ?>">
-            <i class="fas fa-bullhorn w-5"></i> Advertisements
+            <i class="fas fa-bullhorn w-5"></i>ໂຄສະນາ
             <?php if ($pending_ads > 0): ?>
                 <span class="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5"><?= $pending_ads ?></span>
             <?php endif; ?>
         </a>
 
-        <!-- Reports -->
+        <!-- ── ລາຍງານ ── -->
         <div class="pt-3 pb-1">
-            <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">Reports</p>
+            <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">ລາຍງານ</p>
         </div>
-        
-        <a href="/Badminton_court_Booking/admin/reports/"
-           class="<?= admin_sidebar_class('/admin/reports/') ?>">
-            <i class="fas fa-chart-bar w-5"></i> Report
+        <a href="/Badminton_court_Booking/admin/reports/" class="<?= admin_sidebar_class('/admin/reports/') ?>">
+            <i class="fas fa-chart-bar w-5"></i>ລາຍງານ
         </a>
 
-        <!-- ── ACCOUNT ── -->
+        <!-- ── ບັນຊີ ── -->
         <div class="pt-3 pb-1">
-            <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">Account</p>
+            <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">ບັນຊີ</p>
         </div>
-
-        <a href="/Badminton_court_Booking/admin/profile/"
-           class="<?= admin_sidebar_class('/admin/profile/') ?>">
-            <i class="fas fa-user w-5"></i> Profile
+        <a href="/Badminton_court_Booking/admin/profile/" class="<?= admin_sidebar_class('/admin/profile/') ?>">
+            <i class="fas fa-user w-5"></i>ໂປຣໄຟລ໌
         </a>
-        
 
     </nav>
 
@@ -132,12 +113,12 @@ function admin_sub_class($path) {
             </div>
             <div class="min-w-0">
                 <p class="text-sm font-semibold text-gray-800 truncate"><?= htmlspecialchars($_SESSION['user_name'] ?? 'Admin') ?></p>
-                <p class="text-xs text-gray-400">Administrator</p>
+                <p class="text-xs text-gray-400">ຜູ້ດູແລລະບົບ</p>
             </div>
         </div>
         <a href="/Badminton_court_Booking/auth/logout.php"
            class="w-full flex items-center gap-2 text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg text-sm transition">
-            <i class="fas fa-sign-out-alt"></i> Logout
+            <i class="fas fa-sign-out-alt"></i>ອອກຈາກລະບົບ
         </a>
     </div>
 

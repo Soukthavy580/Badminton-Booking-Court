@@ -11,15 +11,18 @@ $is_logged_in   = isset($_SESSION['user_id']);
 $notification_count = 0;
 if ($c_id && isset($pdo)) {
     try {
+        // FIX: Exclude 'Unpaid' — those are not real alerts
         $stmt = $pdo->prepare("
             SELECT CONCAT(b.Book_ID, '_', b.Status_booking)
             FROM booking b
             WHERE b.C_ID = ?
+            AND b.Status_booking != 'Unpaid'
             GROUP BY b.Book_ID, b.Status_booking
         ");
         $stmt->execute([$c_id]);
         $current_keys = $stmt->fetchAll(PDO::FETCH_COLUMN);
         $seen_keys = $_SESSION['notif_seen'] ?? [];
+        // Only count keys not yet seen
         $notification_count = count(array_diff($current_keys, $seen_keys));
     } catch (PDOException $e) {
         $notification_count = 0;

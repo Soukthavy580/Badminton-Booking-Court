@@ -9,7 +9,6 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'owner') {
 
 $ca_id = $_SESSION['ca_id'];
 
-// Get venue
 try {
     $stmt = $pdo->prepare("SELECT * FROM Venue_data WHERE CA_ID = ? LIMIT 1");
     $stmt->execute([$ca_id]);
@@ -26,20 +25,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $vn_id) {
     if ($action === 'add') {
         $fac_name = trim($_POST['fac_name'] ?? '');
         if ($fac_name === '') {
-            $error = 'Facility name cannot be empty.';
+            $error = 'ກະລຸນາໃສ່ຊື່ສິ່ງອຳນວຍຄວາມສະດວກ.';
         } else {
             try {
                 $stmt = $pdo->prepare("SELECT COUNT(*) FROM facilities WHERE VN_ID = ? AND Fac_Name = ?");
                 $stmt->execute([$vn_id, $fac_name]);
                 if ($stmt->fetchColumn() > 0) {
-                    $error = 'This facility already exists.';
+                    $error = 'ສິ່ງອຳນວຍຄວາມສະດວກນີ້ມີຢູ່ແລ້ວ.';
                 } else {
                     $pdo->prepare("INSERT INTO facilities (Fac_Name, VN_ID) VALUES (?, ?)")
                         ->execute([$fac_name, $vn_id]);
-                    $success = "Facility added successfully.";
+                    $success = 'ເພີ່ມສິ່ງອຳນວຍຄວາມສະດວກສຳເລັດ.';
                 }
             } catch (PDOException $e) {
-                $error = 'Failed to add: ' . $e->getMessage();
+                $error = 'ລົ້ມເຫລວ: ' . $e->getMessage();
             }
         }
     }
@@ -50,8 +49,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $vn_id) {
             try {
                 $pdo->prepare("DELETE FROM facilities WHERE Fac_ID = ? AND VN_ID = ?")
                     ->execute([$fac_id, $vn_id]);
-                $success = 'Facility removed.';
-            } catch (PDOException $e) { $error = 'Failed to delete.'; }
+                $success = 'ລຶບສິ່ງອຳນວຍຄວາມສະດວກສຳເລັດ.';
+            } catch (PDOException $e) { $error = 'ລົ້ມເຫລວ. ກະລຸນາລອງໃໝ່.'; }
         }
     }
 
@@ -62,8 +61,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $vn_id) {
             try {
                 $pdo->prepare("UPDATE facilities SET Fac_Name = ? WHERE Fac_ID = ? AND VN_ID = ?")
                     ->execute([$fac_name, $fac_id, $vn_id]);
-                $success = 'Facility updated.';
-            } catch (PDOException $e) { $error = 'Failed to update.'; }
+                $success = 'ອັບເດດສຳເລັດ.';
+            } catch (PDOException $e) { $error = 'ລົ້ມເຫລວ. ກະລຸນາລອງໃໝ່.'; }
         }
     }
 }
@@ -77,39 +76,40 @@ if ($vn_id) {
     } catch (PDOException $e) { $facilities = []; }
 }
 
+// Lao suggestions
 $all_suggestions = [
-    'Parking', 'Shower Room', 'Changing Room', 'WiFi', 'Air Conditioning',
-    'Cafeteria', 'Drinking Water', 'Locker', 'Equipment Rental', 'First Aid',
-    'Spectator Seating', 'Restrooms', 'Security Camera', 'Lighting',
+    'ທີ່ຈອດລົດ', 'ຫ້ອງອາບນ້ຳ', 'ຫ້ອງເຄື່ອງ', 'WiFi', 'ເຄື່ອງປັບອາກາດ',
+    'ຮ້ານອາຫານ', 'ນ້ຳດື່ມ', 'ຕູ້ລັອກເຄີ', 'ເຊົ່າອຸປະກອນ', 'ຫ້ອງພະຍາບານ',
+    'ທີ່ນັ່ງຊົມ', 'ຫ້ອງນ້ຳ', 'ກ້ອງວົງຈອນປິດ', 'ໄຟສ່ອງສະຫວ່າງ',
 ];
 $existing_names = array_column($facilities, 'Fac_Name');
 $suggestions = array_filter($all_suggestions, fn($s) => !in_array($s, $existing_names));
 
 function get_icon($name) {
     $n = strtolower($name);
-    if (str_contains($n, 'park'))       return 'fa-parking';
-    if (str_contains($n, 'shower'))     return 'fa-shower';
-    if (str_contains($n, 'wifi'))       return 'fa-wifi';
-    if (str_contains($n, 'air') || str_contains($n, 'ac') || str_contains($n, 'condition')) return 'fa-snowflake';
-    if (str_contains($n, 'cafe') || str_contains($n, 'food') || str_contains($n, 'cafeteria')) return 'fa-utensils';
-    if (str_contains($n, 'water'))      return 'fa-tint';
-    if (str_contains($n, 'locker'))     return 'fa-lock';
-    if (str_contains($n, 'equip') || str_contains($n, 'rental')) return 'fa-tools';
-    if (str_contains($n, 'first') || str_contains($n, 'medical')) return 'fa-first-aid';
-    if (str_contains($n, 'seat') || str_contains($n, 'spectator')) return 'fa-chair';
-    if (str_contains($n, 'toilet') || str_contains($n, 'restroom')) return 'fa-restroom';
-    if (str_contains($n, 'camera') || str_contains($n, 'security')) return 'fa-camera';
-    if (str_contains($n, 'light'))      return 'fa-lightbulb';
-    if (str_contains($n, 'changing'))   return 'fa-door-open';
+    if (str_contains($n, 'park') || str_contains($n, 'ຈອດ'))            return 'fa-parking';
+    if (str_contains($n, 'shower') || str_contains($n, 'ອາບ'))          return 'fa-shower';
+    if (str_contains($n, 'wifi'))                                         return 'fa-wifi';
+    if (str_contains($n, 'air') || str_contains($n, 'ປັບອາກາດ'))        return 'fa-snowflake';
+    if (str_contains($n, 'cafe') || str_contains($n, 'food') || str_contains($n, 'ຮ້ານ')) return 'fa-utensils';
+    if (str_contains($n, 'water') || str_contains($n, 'ນ້ຳ'))           return 'fa-tint';
+    if (str_contains($n, 'locker') || str_contains($n, 'ລັອກ'))         return 'fa-lock';
+    if (str_contains($n, 'equip') || str_contains($n, 'rental') || str_contains($n, 'ເຊົ່າ')) return 'fa-tools';
+    if (str_contains($n, 'first') || str_contains($n, 'medical') || str_contains($n, 'ພະຍາບານ')) return 'fa-first-aid';
+    if (str_contains($n, 'seat') || str_contains($n, 'ນັ່ງ'))           return 'fa-chair';
+    if (str_contains($n, 'toilet') || str_contains($n, 'restroom') || str_contains($n, 'ຫ້ອງນ້ຳ')) return 'fa-restroom';
+    if (str_contains($n, 'camera') || str_contains($n, 'security') || str_contains($n, 'ກ້ອງ')) return 'fa-camera';
+    if (str_contains($n, 'light') || str_contains($n, 'ໄຟ'))            return 'fa-lightbulb';
+    if (str_contains($n, 'changing') || str_contains($n, 'ເຄື່ອງ'))    return 'fa-door-open';
     return 'fa-concierge-bell';
 }
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="lo">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Facilities - CourtBook</title>
+    <title>ສິ່ງອຳນວຍຄວາມສະດວກ - Badminton Booking Court</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -122,20 +122,19 @@ function get_icon($name) {
 <body class="bg-gray-50">
 <div class="flex min-h-screen">
     <?php include '../includes/sidebar.php'; ?>
-
     <div class="flex-1 flex flex-col">
         <header class="bg-white shadow-sm px-6 py-4 sticky top-0 z-40">
             <div class="flex items-center justify-between">
                 <div>
-                    <h1 class="text-xl font-bold text-gray-800">Facilities</h1>
+                    <h1 class="text-xl font-bold text-gray-800">ສິ່ງອຳນວຍຄວາມສະດວກ</h1>
                     <p class="text-sm text-gray-500">
-                        <?= $venue ? 'Manage amenities for ' . htmlspecialchars($venue['VN_Name']) : 'Set up your venue first' ?>
+                        <?= $venue ? 'ຈັດການສິ່ງອຳນວຍຄວາມສະດວກຂອງ ' . htmlspecialchars($venue['VN_Name']) : 'ກະລຸນາສ້າງສະຖານທີ່ກ່ອນ' ?>
                     </p>
                 </div>
                 <?php if (!empty($facilities)): ?>
                     <div class="bg-green-50 border border-green-200 px-4 py-2 rounded-xl text-sm">
                         <span class="text-green-700 font-bold"><?= count($facilities) ?></span>
-                        <span class="text-green-500 ml-1">facilities listed</span>
+                        <span class="text-green-500 ml-1">ລາຍການ</span>
                     </div>
                 <?php endif; ?>
             </div>
@@ -145,25 +144,23 @@ function get_icon($name) {
 
             <?php if ($error): ?>
                 <div class="mb-6 p-4 bg-red-50 border border-red-300 text-red-700 rounded-xl flex items-center gap-3">
-                    <i class="fas fa-exclamation-circle"></i>
-                    <span><?= htmlspecialchars($error) ?></span>
+                    <i class="fas fa-exclamation-circle"></i><span><?= htmlspecialchars($error) ?></span>
                 </div>
             <?php endif; ?>
             <?php if ($success): ?>
                 <div class="mb-6 p-4 bg-green-50 border border-green-300 text-green-700 rounded-xl flex items-center gap-3">
-                    <i class="fas fa-check-circle"></i>
-                    <span><?= htmlspecialchars($success) ?></span>
+                    <i class="fas fa-check-circle"></i><span><?= htmlspecialchars($success) ?></span>
                 </div>
             <?php endif; ?>
 
             <?php if (!$vn_id): ?>
                 <div class="bg-white rounded-2xl shadow-sm p-12 text-center">
                     <i class="fas fa-store text-6xl text-gray-200 mb-4 block"></i>
-                    <h3 class="text-xl font-bold text-gray-600 mb-2">No Venue Yet</h3>
-                    <p class="text-gray-400 text-sm mb-6">You need to create your venue before adding facilities.</p>
+                    <h3 class="text-xl font-bold text-gray-600 mb-2">ຍັງບໍ່ມີສະຖານທີ່</h3>
+                    <p class="text-gray-400 text-sm mb-6">ທ່ານຕ້ອງສ້າງສະຖານທີ່ກ່ອນເພີ່ມສິ່ງອຳນວຍຄວາມສະດວກ.</p>
                     <a href="/Badminton_court_Booking/owner/manage_court/index.php"
                        class="inline-block bg-green-600 hover:bg-green-700 text-white font-bold px-6 py-3 rounded-xl transition">
-                        <i class="fas fa-plus mr-2"></i>Create Venue
+                        <i class="fas fa-plus mr-2"></i>ສ້າງສະຖານທີ່
                     </a>
                 </div>
 
@@ -172,24 +169,24 @@ function get_icon($name) {
                 <!-- Add Facility -->
                 <div class="bg-white rounded-2xl shadow-sm p-6 mb-6">
                     <h2 class="text-lg font-bold text-gray-800 mb-4">
-                        <i class="fas fa-plus-circle text-green-500 mr-2"></i>Add Facility
+                        <i class="fas fa-plus-circle text-green-500 mr-2"></i>ເພີ່ມສິ່ງອຳນວຍຄວາມສະດວກ
                     </h2>
                     <form method="POST" class="flex gap-3">
                         <input type="hidden" name="action" value="add">
                         <input type="text" name="fac_name" id="facNameInput"
-                               placeholder="e.g. Parking, Shower Room, WiFi..."
+                               placeholder="ຕົວຢ່າງ: ທີ່ຈອດລົດ, ຫ້ອງອາບນ້ຳ, WiFi..."
                                maxlength="100"
                                class="flex-1 border-2 border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-green-500 transition"
                                required>
                         <button type="submit"
                                 class="bg-green-600 hover:bg-green-700 text-white font-bold px-6 py-3 rounded-xl transition shadow-sm">
-                            <i class="fas fa-plus mr-2"></i>Add
+                            <i class="fas fa-plus mr-2"></i>ເພີ່ມ
                         </button>
                     </form>
 
                     <?php if (!empty($suggestions)): ?>
                         <div class="mt-4">
-                            <p class="text-xs text-gray-400 mb-2">Quick add:</p>
+                            <p class="text-xs text-gray-400 mb-2">ເພີ່ມດ່ວນ:</p>
                             <div class="flex flex-wrap gap-2">
                                 <?php foreach (array_slice(array_values($suggestions), 0, 8) as $sug): ?>
                                     <button type="button"
@@ -207,15 +204,14 @@ function get_icon($name) {
                 <?php if (!empty($facilities)): ?>
                     <div class="bg-white rounded-2xl shadow-sm p-6">
                         <h2 class="text-lg font-bold text-gray-800 mb-4">
-                            <i class="fas fa-list text-blue-500 mr-2"></i>Current Facilities
-                            <span class="text-sm font-normal text-gray-400 ml-1">(<?= count($facilities) ?> total)</span>
+                            <i class="fas fa-list text-blue-500 mr-2"></i>ສິ່ງອຳນວຍຄວາມສະດວກທີ່ມີ
+                            <span class="text-sm font-normal text-gray-400 ml-1">(<?= count($facilities) ?> ລາຍການ)</span>
                         </h2>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <?php foreach ($facilities as $fac):
                                 $icon = get_icon($fac['Fac_Name']);
                             ?>
                                 <div class="fac-card bg-gray-50 rounded-xl p-4 border border-gray-100">
-                                    <!-- View mode -->
                                     <div class="flex items-center justify-between" id="view-<?= $fac['Fac_ID'] ?>">
                                         <div class="flex items-center gap-3">
                                             <div class="bg-green-100 w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -229,7 +225,7 @@ function get_icon($name) {
                                                 <i class="fas fa-pen text-xs"></i>
                                             </button>
                                             <form method="POST" class="inline"
-                                                  onsubmit="return confirm('Remove this facility?')">
+                                                  onsubmit="return confirm('ລຶບສິ່ງອຳນວຍຄວາມສະດວກນີ້?')">
                                                 <input type="hidden" name="action" value="delete">
                                                 <input type="hidden" name="fac_id" value="<?= $fac['Fac_ID'] ?>">
                                                 <button type="submit"
@@ -239,7 +235,6 @@ function get_icon($name) {
                                             </form>
                                         </div>
                                     </div>
-                                    <!-- Edit mode -->
                                     <div class="edit-form mt-3" id="edit-<?= $fac['Fac_ID'] ?>">
                                         <form method="POST" class="flex gap-2">
                                             <input type="hidden" name="action" value="edit">
@@ -265,8 +260,8 @@ function get_icon($name) {
                 <?php else: ?>
                     <div class="bg-white rounded-2xl shadow-sm p-12 text-center">
                         <i class="fas fa-concierge-bell text-6xl text-gray-200 mb-4 block"></i>
-                        <h3 class="text-xl font-bold text-gray-600 mb-2">No Facilities Yet</h3>
-                        <p class="text-gray-400 text-sm">Add facilities above to let customers know what amenities your venue offers.</p>
+                        <h3 class="text-xl font-bold text-gray-600 mb-2">ຍັງບໍ່ໄດ້ເພີ່ມ</h3>
+                        <p class="text-gray-400 text-sm">ເພີ່ມສິ່ງອຳນວຍຄວາມສະດວກເພື່ອບອກລູກຄ້າວ່າສະຖານທີ່ຂອງທ່ານມີຫຍັງ.</p>
                     </div>
                 <?php endif; ?>
 

@@ -212,9 +212,9 @@ $days_left = $active_package ? ceil((strtotime($active_package['End_time']) - ti
             <div class="bg-white rounded-2xl shadow-sm p-6 mb-6">
                 <h2 class="text-xl font-bold text-gray-800 mb-2">
                     <i class="fas fa-box text-green-500 mr-2"></i>
-                    <?= $active_package ? 'ຕໍ່ອາຍຸ ຫຼື ອັບເກຣດ' : ($rejection ? 'ສົ່ງໃໝ່' : 'ເລືອກແພັກເກດ') ?>
+                    <?= $active_package ? 'ຕໍ່ອາຍຸແພັກເກດ' : ($rejection ? 'ສົ່ງໃໝ່' : 'ເລືອກແພັກເກດ') ?>
                 </h2>
-                <p class="text-gray-500 text-sm mb-6">ເລືອກແພັກເກດ ແລ້ວຄລິກ ດຳເນີນການຈ່າຍ.</p>
+                <p class="text-gray-500 text-sm mb-6">ເລືອກແພັກເກດ ແລ້ວຄລິກ ດຳເນີນການຈ່າຍ</p>
 
                 <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
                     <?php foreach ($packages as $pkg):
@@ -234,7 +234,7 @@ $days_left = $active_package ? ceil((strtotime($active_package['End_time']) - ti
                             </div>
                             <p class="font-bold text-gray-800 text-sm"><?= htmlspecialchars($pkg['Package_duration']) ?></p>
                             <p class="text-2xl font-extrabold text-green-600 mt-1">₭<?= number_format($pkg['Price']) ?></p>
-                            <p class="text-xs text-gray-400 mt-1">₭<?= number_format($price_per_month) ?>/ເດືອນ</p>
+                            
                         </div>
                     <?php endforeach; ?>
                 </div>

@@ -50,6 +50,9 @@ function get_customer_bookings($pdo, $customer_id, $filter = 'all') {
 }
 
 function calculate_booking_price($price_per_hour, $start_time, $end_time) {
+    // Guard against invalid/corrupt time strings
+    if (!strtotime($start_time) || !strtotime($end_time)) return 0;
+    
     $start = new DateTime($start_time);
     $end   = new DateTime($end_time);
     $diff  = $start->diff($end);
@@ -59,6 +62,7 @@ function calculate_booking_price($price_per_hour, $start_time, $end_time) {
 }
 
 function format_duration($start_time, $end_time) {
+    if (!strtotime($start_time) || !strtotime($end_time)) return '-';
     $interval = (new DateTime($start_time))->diff(new DateTime($end_time));
     if ($interval->h > 0 && $interval->i > 0) return $interval->h . 'ຊມ ' . $interval->i . 'ນທ';
     if ($interval->h > 0) return $interval->h . ' ຊົ່ວໂມງ';
