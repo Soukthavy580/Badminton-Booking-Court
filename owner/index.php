@@ -7,6 +7,8 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'owner') {
     exit;
 }
 
+date_default_timezone_set('Asia/Vientiane');
+
 $ca_id      = $_SESSION['ca_id'];
 $owner_name = $_SESSION['user_name'];
 
@@ -63,8 +65,7 @@ if ($venue) {
     try {
         $stmt = $pdo->prepare("
             SELECT
-                COUNT(*) AS total,
-                -- FIX: include Unpaid in pending count (awaiting action)
+                COUNT(DISTINCT b.Book_ID) AS total,
                 SUM(CASE WHEN b.Status_booking IN ('Pending','Unpaid') THEN 1 ELSE 0 END) AS pending,
                 SUM(CASE WHEN b.Status_booking = 'Confirmed' THEN 1 ELSE 0 END) AS confirmed,
                 SUM(CASE WHEN DATE(b.Booking_date) = CURDATE() THEN 1 ELSE 0 END) AS today
@@ -76,7 +77,6 @@ if ($venue) {
         $stmt->execute([$venue['VN_ID']]);
         $stats = $stmt->fetch();
 
-        // FIX: Revenue only from Confirmed (Pending has slip, Unpaid has no slip)
         $stmt = $pdo->prepare("
             SELECT SUM(
                 TIMESTAMPDIFF(HOUR, bd.Start_time, bd.End_time) *
@@ -94,7 +94,7 @@ if ($venue) {
     } catch (PDOException $e) {}
 }
 
-// Recent bookings
+// FIX: Fetch recent bookings grouped by Book_ID so multi-slot bookings show as one entry
 $recent_bookings = [];
 if ($venue) {
     try {
@@ -108,10 +108,35 @@ if ($venue) {
             INNER JOIN customer cu ON b.C_ID = cu.C_ID
             WHERE c.VN_ID = ?
             AND b.Status_booking != 'Unpaid'
-            ORDER BY b.Booking_date DESC LIMIT 5
+            ORDER BY b.Booking_date DESC, bd.Start_time ASC
+            LIMIT 20
         ");
         $stmt->execute([$venue['VN_ID']]);
-        $recent_bookings = $stmt->fetchAll();
+        $rows = $stmt->fetchAll();
+
+        // Group by Book_ID — collect all slots per booking
+        $grouped = [];
+        foreach ($rows as $row) {
+            $id = $row['Book_ID'];
+            if (!isset($grouped[$id])) {
+                $grouped[$id] = [
+                    'Book_ID'        => $row['Book_ID'],
+                    'Status_booking' => $row['Status_booking'],
+                    'Booking_date'   => $row['Booking_date'],
+                    'Slip_payment'   => $row['Slip_payment'],
+                    'customer_name'  => $row['customer_name'],
+                    'customer_phone' => $row['customer_phone'],
+                    'slots'          => [],
+                ];
+            }
+            $grouped[$id]['slots'][] = [
+                'court' => $row['COURT_Name'],
+                'start' => $row['Start_time'],
+                'end'   => $row['End_time'],
+            ];
+        }
+        // Take only 5 most recent bookings after grouping
+        $recent_bookings = array_slice(array_values($grouped), 0, 5);
     } catch (PDOException $e) {}
 }
 
@@ -238,7 +263,6 @@ $days_left = $active_package ? ceil((strtotime($active_package['End_time']) - ti
 
             <?php else: ?>
 
-                <!-- Venue setup prompt -->
                 <?php if (!$venue): ?>
                     <div class="mb-6 bg-blue-50 border border-blue-200 rounded-2xl p-6 flex items-start gap-4">
                         <div class="bg-blue-100 p-3 rounded-full flex-shrink-0">
@@ -255,7 +279,6 @@ $days_left = $active_package ? ceil((strtotime($active_package['End_time']) - ti
                     </div>
                 <?php endif; ?>
 
-                <!-- Package expiry warning -->
                 <?php if ($days_left <= 14 && $days_left > 0): ?>
                     <div class="mb-6 bg-orange-50 border border-orange-200 rounded-2xl p-4 flex items-center gap-3">
                         <i class="fas fa-exclamation-triangle text-orange-500 text-xl"></i>
@@ -308,27 +331,45 @@ $days_left = $active_package ? ceil((strtotime($active_package['End_time']) - ti
                                     $status_label = match($rb['Status_booking']) {
                                         'Confirmed'=>'ຢືນຢັນແລ້ວ','Pending'=>'ລໍຖ້າ','Cancelled'=>'ຍົກເລີກ',default=>$rb['Status_booking']
                                     };
+                                    // Use first slot for date display, show all slots
+                                    $first_slot = $rb['slots'][0];
+                                    $play_date  = strtotime($first_slot['start']) ? date('d/m', strtotime($first_slot['start'])) : '-';
                                 ?>
-                                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                                        <div class="flex items-center gap-3">
-                                            <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-sm">
-                                                <?= strtoupper(substr($rb['customer_name'],0,1)) ?>
+                                    <div class="p-3 bg-gray-50 rounded-xl">
+                                        <div class="flex items-center justify-between mb-2">
+                                            <div class="flex items-center gap-3">
+                                                <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-sm flex-shrink-0">
+                                                    <?= strtoupper(substr($rb['customer_name'],0,1)) ?>
+                                                </div>
+                                                <div>
+                                                    <p class="font-semibold text-gray-800 text-sm"><?= htmlspecialchars($rb['customer_name']) ?></p>
+                                                    <p class="text-xs text-gray-500"><?= $play_date ?> · <?= count($rb['slots']) ?> ເດີ່ນ · ການຈອງ #<?= $rb['Book_ID'] ?></p>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <p class="font-semibold text-gray-800 text-sm"><?= htmlspecialchars($rb['customer_name']) ?></p>
-                                                <p class="text-xs text-gray-500">
-                                                    <?= htmlspecialchars($rb['COURT_Name']) ?> · <?= date('d/m', strtotime($rb['Start_time'])) ?> · <?= date('g:i A', strtotime($rb['Start_time'])) ?>
-                                                </p>
+                                            <div class="flex items-center gap-2">
+                                                <span class="bg-<?= $status_color ?>-100 text-<?= $status_color ?>-700 text-xs font-bold px-2 py-1 rounded-full">
+                                                    <?= $status_label ?>
+                                                </span>
+                                                <?php if ($rb['Status_booking'] === 'Pending' && $rb['Slip_payment']): ?>
+                                                    <a href="/Badminton_court_Booking/owner/booking_management/index.php"
+                                                        class="text-xs bg-green-600 text-white px-2 py-1 rounded-lg hover:bg-green-700 transition">ກວດສອບ</a>
+                                                <?php endif; ?>
                                             </div>
                                         </div>
-                                        <div class="flex items-center gap-2">
-                                            <span class="bg-<?= $status_color ?>-100 text-<?= $status_color ?>-700 text-xs font-bold px-2 py-1 rounded-full">
-                                                <?= $status_label ?>
-                                            </span>
-                                            <?php if ($rb['Status_booking'] === 'Pending' && $rb['Slip_payment']): ?>
-                                                <a href="/Badminton_court_Booking/owner/booking_management/index.php"
-                                                    class="text-xs bg-green-600 text-white px-2 py-1 rounded-lg hover:bg-green-700 transition">ກວດສອບ</a>
-                                            <?php endif; ?>
+                                        <!-- FIX: Show all slots for this booking -->
+                                        <div class="ml-13 space-y-1 pl-13">
+                                            <?php foreach ($rb['slots'] as $slot): ?>
+                                                <div class="flex items-center gap-2 text-xs text-gray-500 ml-12">
+                                                    <i class="fas fa-table-tennis text-green-400 flex-shrink-0"></i>
+                                                    <span class="font-medium text-gray-700"><?= htmlspecialchars($slot['court']) ?></span>
+                                                    <span class="text-gray-400">·</span>
+                                                    <span>
+                                                        <?php if (strtotime($slot['start'])): ?>
+                                                            <?= date('g:i A', strtotime($slot['start'])) ?> – <?= date('g:i A', strtotime($slot['end'])) ?>
+                                                        <?php else: ?>-<?php endif; ?>
+                                                    </span>
+                                                </div>
+                                            <?php endforeach; ?>
                                         </div>
                                     </div>
                                 <?php endforeach; ?>

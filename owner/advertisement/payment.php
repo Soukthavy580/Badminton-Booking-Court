@@ -7,8 +7,9 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'owner') {
     exit;
 }
 
-$ca_id   = $_SESSION['ca_id'];
-$rate_id = intval($_GET['rate_id'] ?? 0);
+$ca_id    = $_SESSION['ca_id'];
+$rate_id  = intval($_GET['rate_id']   ?? 0); // AD_Rate_ID
+$resubmit = intval($_GET['resubmit']  ?? 0); // existing AD_ID to update (0 = new)
 
 if (!$rate_id) { header('Location: /Badminton_court_Booking/owner/advertisement/index.php'); exit; }
 
@@ -19,6 +20,21 @@ try {
 } catch (PDOException $e) { $rate = null; }
 
 if (!$rate) { header('Location: /Badminton_court_Booking/owner/advertisement/index.php'); exit; }
+
+// If resubmitting — verify it belongs to this owner and is Rejected
+$resubmit_ad = null;
+if ($resubmit) {
+    try {
+        $stmt = $pdo->prepare("
+            SELECT ad.* FROM advertisement ad
+            INNER JOIN Venue_data v ON ad.VN_ID = v.VN_ID
+            WHERE ad.AD_ID = ? AND v.CA_ID = ? AND ad.Status_AD = 'Rejected'
+        ");
+        $stmt->execute([$resubmit, $ca_id]);
+        $resubmit_ad = $stmt->fetch();
+    } catch (PDOException $e) { $resubmit_ad = null; }
+    if (!$resubmit_ad) { $resubmit = 0; }
+}
 
 try {
     $stmt = $pdo->prepare("SELECT * FROM Venue_data WHERE CA_ID = ? LIMIT 1");
@@ -74,12 +90,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     preg_match('/(\d+)/', $duration, $m);
                     $end_dt = date('Y-m-d H:i:s', strtotime('+'.intval($m[1]??1).' months'));
                 }
-                $pdo->prepare("
-                    INSERT INTO advertisement (AD_date, Slip_payment, Start_time, End_time, Status_AD, VN_ID, AD_Rate_ID)
-                    VALUES (NOW(), ?, NOW(), ?, 'Pending', ?, ?)
-                ")->execute([$filename, $end_dt, $vn_id, $rate_id]);
-                $pdo->prepare("DELETE FROM owner_notification WHERE CA_ID = ? AND type = 'advertisement'")
-                    ->execute([$ca_id]);
+                if ($resubmit && $resubmit_ad) {
+                    // UPDATE existing rejected ad — don't create a new one
+                    $pdo->prepare("
+                        UPDATE advertisement
+                        SET Slip_payment = ?, Status_AD = 'Pending', AD_date = NOW()
+                        WHERE AD_ID = ?
+                    ")->execute([$filename, $resubmit]);
+                } else {
+                    // INSERT new advertisement
+                    $pdo->prepare("
+                        INSERT INTO advertisement (AD_date, Slip_payment, Start_time, End_time, Status_AD, VN_ID, AD_Rate_ID)
+                        VALUES (NOW(), ?, NOW(), ?, 'Pending', ?, ?)
+                    ")->execute([$filename, $end_dt, $vn_id, $rate_id]);
+                }
                 $success = true;
             } catch (PDOException $e) {
                 $error = 'ສົ່ງບໍ່ສຳເລັດ: ' . $e->getMessage();
@@ -148,7 +172,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <?php endif; ?>
 
                 <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 mb-6 text-white">
-                    <p class="text-blue-200 text-sm mb-1">ແພລນທີ່ເລືອກ</p>
+                    <p class="text-blue-200 text-sm mb-1">ລາຍການໂຄສະນາທີ່ເລືອກ</p>
                     <h2 class="text-3xl font-extrabold mb-1"><?= htmlspecialchars($rate['Duration']) ?></h2>
                     <p class="text-2xl font-bold text-yellow-300">₭<?= number_format($rate['Price']) ?></p>
                     <div class="mt-3 flex items-center gap-4 text-sm text-blue-200">
@@ -157,7 +181,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                     <a href="/Badminton_court_Booking/owner/advertisement/index.php"
                        class="inline-block mt-3 text-blue-200 hover:text-white text-xs underline">
-                        <i class="fas fa-exchange-alt mr-1"></i>ປ່ຽນແພລນ
+                        <i class="fas fa-exchange-alt mr-1"></i>ປ່ຽນລາຍການໂຄສະນາ
                     </a>
                 </div>
 

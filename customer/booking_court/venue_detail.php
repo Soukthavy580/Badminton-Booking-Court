@@ -2,9 +2,6 @@
 session_start();
 require_once '../../config/db.php';
 
-// FIX: Set the correct server timezone so time() matches Laos local time
-date_default_timezone_set('Asia/Vientiane');
-
 $venue_id    = isset($_GET['id']) ? intval($_GET['id']) : 0;
 $search_date = isset($_GET['date']) ? $_GET['date'] : date('Y-m-d');
 
@@ -45,13 +42,13 @@ try {
 function get_booked_slots($pdo, $venue_id, $date) {
     try {
         $stmt = $pdo->prepare("
-            SELECT bd.COURT_ID, bd.Start_time, bd.End_time
+            SELECT bd.COURT_ID, bd.Start_time, bd.End_time, b.Status_booking
             FROM booking_detail bd
             INNER JOIN booking b ON bd.Book_ID = b.Book_ID
             INNER JOIN Court_data c ON bd.COURT_ID = c.COURT_ID
             WHERE c.VN_ID = ?
             AND DATE(bd.Start_time) = ?
-            AND b.Status_booking = 'Confirmed'
+            AND b.Status_booking IN ('Confirmed', 'Pending')
         ");
         $stmt->execute([$venue_id, $date]);
         return $stmt->fetchAll();
@@ -77,13 +74,16 @@ function generate_time_slots($open_time, $close_time, $interval_minutes = 60) {
 }
 
 function is_slot_booked($booked_slots, $court_id, $slot_start, $slot_end, $date) {
+    // Returns: false | 'Confirmed' | 'Pending'
     foreach ($booked_slots as $booked) {
         if ($booked['COURT_ID'] != $court_id) continue;
         $booked_start = strtotime($booked['Start_time']);
         $booked_end   = strtotime($booked['End_time']);
         $check_start  = strtotime($date . ' ' . $slot_start);
         $check_end    = strtotime($date . ' ' . $slot_end);
-        if ($check_start < $booked_end && $check_end > $booked_start) return true;
+        if ($check_start < $booked_end && $check_end > $booked_start) {
+            return $booked['Status_booking'] ?? 'Confirmed';
+        }
     }
     return false;
 }
@@ -93,9 +93,6 @@ $price_clean  = preg_replace('/[^0-9.]/', '', $venue['Price_per_hour']);
 $venue_img    = !empty($venue['VN_Image'])
     ? '/Badminton_court_Booking/assets/images/venues/' . basename($venue['VN_Image'])
     : '/Badminton_court_Booking/assets/images/BookingBG.png';
-
-// FIX: Pass current server timestamp (in ms) to JS so it uses server time, not client time
-$server_now_ms = time() * 1000;
 ?>
 <!DOCTYPE html>
 <html lang="lo">
@@ -110,6 +107,7 @@ $server_now_ms = time() * 1000;
         .slot-btn.available:hover { background-color: #bbf7d0; border-color: #16a34a; transform: scale(1.03); }
         .slot-btn.selected { background-color: #16a34a !important; color: white !important; border-color: #15803d !important; transform: scale(1.03); }
         .slot-btn.booked { background-color: #fee2e2; color: #991b1b; cursor: not-allowed; opacity: 0.7; }
+        .slot-btn.pending-slot { background-color: #fef9c3; color: #92400e; border-color: #fcd34d; cursor: not-allowed; opacity: 0.8; }
         .slot-btn.past { background-color: #f3f4f6; color: #9ca3af; cursor: not-allowed; opacity: 0.6; }
         .summary-box { position: sticky; top: 80px; }
         @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -217,7 +215,7 @@ $server_now_ms = time() * 1000;
                         <div class="flex items-center justify-between mb-6">
                             <h2 class="text-xl font-bold text-gray-800">
                                 <i class="fas fa-table-tennis text-green-500 mr-2"></i>
-                                ເລືອກເດີ່ນ ແລະ ສລັອດເວລາ
+                                ເລືອກເດີ່ນ ແລະແເວລາ
                             </h2>
                             <span class="text-sm text-gray-500 font-medium">
                                 <?= date('d/m/Y', strtotime($search_date)) ?>
@@ -229,6 +227,7 @@ $server_now_ms = time() * 1000;
                             <span class="flex items-center gap-1"><span class="w-4 h-4 rounded bg-green-100 border border-green-300 inline-block"></span> ວ່າງ</span>
                             <span class="flex items-center gap-1"><span class="w-4 h-4 rounded bg-green-600 inline-block"></span> ເລືອກແລ້ວ</span>
                             <span class="flex items-center gap-1"><span class="w-4 h-4 rounded bg-red-100 border border-red-300 inline-block"></span> ຈອງແລ້ວ</span>
+                            <span class="flex items-center gap-1"><span class="w-4 h-4 rounded bg-yellow-100 border border-yellow-300 inline-block"></span> ລໍຖ້າ</span>
                             <span class="flex items-center gap-1"><span class="w-4 h-4 rounded bg-gray-200 inline-block"></span> ຜ່ານແລ້ວ</span>
                         </div>
 
@@ -253,24 +252,23 @@ $server_now_ms = time() * 1000;
                                 </h3>
                                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                                     <?php foreach ($court_slots as $slot):
-                                        $is_booked     = is_slot_booked($booked_slots, $court['COURT_ID'], $slot['start'], $slot['end'], $search_date);
-                                        // FIX: Use full datetime string for accurate past check with correct timezone
+                                        $booked_status = is_slot_booked($booked_slots, $court['COURT_ID'], $slot['start'], $slot['end'], $search_date);
                                         $slot_datetime = strtotime($search_date . ' ' . $slot['start']);
                                         $is_past_slot  = $slot_datetime < time();
 
                                         if ($is_past_slot) {
                                             $slot_class = 'past';
                                             $disabled   = 'disabled';
-                                        } elseif ($is_booked) {
-                                            $slot_class = 'booked';
+                                        } elseif ($booked_status === 'Confirmed') {
+                                            $slot_class = 'booked confirmed-slot';
+                                            $disabled   = 'disabled';
+                                        } elseif ($booked_status === 'Pending') {
+                                            $slot_class = 'booked pending-slot';
                                             $disabled   = 'disabled';
                                         } else {
                                             $slot_class = 'available bg-green-50 border border-green-200 text-green-800';
                                             $disabled   = '';
                                         }
-
-                                        // FIX: Store slot timestamp as data attribute for JS real-time check
-                                        $slot_ts_ms = $slot_datetime * 1000;
                                     ?>
                                         <button type="button"
                                                 class="slot-btn <?= $slot_class ?> rounded-lg px-2 py-3 text-xs font-medium text-center"
@@ -280,16 +278,17 @@ $server_now_ms = time() * 1000;
                                                 data-end="<?= $slot['end'] ?>"
                                                 data-date="<?= $search_date ?>"
                                                 data-price="<?= $price_clean ?>"
-                                                data-slot-ts="<?= $slot_ts_ms ?>"
                                                 <?= $disabled ?>
                                                 onclick="toggleSlot(this)">
                                             <?= $slot['label'] ?>
-                                            <?php if ($is_booked): ?>
+                                            <?php if ($booked_status === 'Confirmed'): ?>
                                                 <br><span class="text-red-500 text-xs">ຈອງແລ້ວ</span>
+                                            <?php elseif ($booked_status === 'Pending'): ?>
+                                                <br><span class="text-yellow-600 text-xs">ລໍຖ້າ</span>
                                             <?php elseif ($is_past_slot): ?>
                                                 <br><span class="text-gray-400 text-xs">ຜ່ານແລ້ວ</span>
                                             <?php else: ?>
-                                                <br><span class="slot-price text-green-600 text-xs">₭<?= number_format($price_clean) ?></span>
+                                                <br><span class="text-green-600 text-xs">₭<?= number_format($price_clean) ?></span>
                                             <?php endif; ?>
                                         </button>
                                     <?php endforeach; ?>
@@ -314,7 +313,7 @@ $server_now_ms = time() * 1000;
 
                     <div id="summaryEmpty" class="text-center py-8">
                         <i class="fas fa-hand-pointer text-4xl text-gray-200 mb-3 block"></i>
-                        <p class="text-gray-400 text-sm">ເລືອກສລັອດເວລາເພື່ອເລີ່ມຈອງ</p>
+                        <p class="text-gray-400 text-sm">ເລືອກເດີ່ນເວລາເພື່ອເລີ່ມຈອງ</p>
                     </div>
 
                     <div id="summaryContent" class="hidden">
@@ -390,48 +389,8 @@ $server_now_ms = time() * 1000;
     <?php include '../includes/footer.php'; ?>
 
     <script>
-        const isLoggedIn   = <?= isset($_SESSION['user_id']) ? 'true' : 'false' ?>;
-        // FIX: Use server timestamp so timezone is always correct (not the user's device clock)
-        const SERVER_NOW   = <?= $server_now_ms ?>;
-        const PAGE_LOAD_AT = Date.now();
-
-        let selectedSlots  = [];
-
-        // FIX: Real-time clock — returns current time based on server time + elapsed time since page load
-        function getRealNow() {
-            return SERVER_NOW + (Date.now() - PAGE_LOAD_AT);
-        }
-
-        // FIX: Check every 30 seconds and grey out slots that have just passed
-        function refreshPastSlots() {
-            const now = getRealNow();
-            document.querySelectorAll('.slot-btn.available, .slot-btn.selected').forEach(btn => {
-                const slotTs = parseInt(btn.dataset.slotTs);
-                if (slotTs < now) {
-                    // This slot just became past — deselect and disable it
-                    const key = `${btn.dataset.courtId}_${btn.dataset.start}_${btn.dataset.end}`;
-                    selectedSlots = selectedSlots.filter(s => s.key !== key);
-
-                    btn.classList.remove('available', 'selected', 'bg-green-50', 'border',
-                                         'border-green-200', 'text-green-800', 'bg-green-600',
-                                         'text-white', 'border-green-700');
-                    btn.classList.add('past');
-                    btn.disabled = true;
-
-                    // Replace inner price span with "ຜ່ານແລ້ວ" label
-                    const priceSpan = btn.querySelector('.slot-price');
-                    if (priceSpan) {
-                        priceSpan.className = 'text-gray-400 text-xs';
-                        priceSpan.textContent = 'ຜ່ານແລ້ວ';
-                    }
-                }
-            });
-            updateSummary();
-        }
-
-        // Run immediately on load, then every 30 seconds
-        refreshPastSlots();
-        setInterval(refreshPastSlots, 30000);
+        const isLoggedIn = <?= isset($_SESSION['user_id']) ? 'true' : 'false' ?>;
+        let selectedSlots = [];
 
         function toggleSlot(btn) {
             if (btn.disabled || btn.classList.contains('booked') || btn.classList.contains('past')) return;
@@ -439,14 +398,6 @@ $server_now_ms = time() * 1000;
                 document.getElementById('loginModal').classList.remove('hidden');
                 return;
             }
-
-            // FIX: Double-check at click time in case the interval hasn't fired yet
-            const slotTs = parseInt(btn.dataset.slotTs);
-            if (slotTs < getRealNow()) {
-                refreshPastSlots();
-                return;
-            }
-
             const courtId   = btn.dataset.courtId;
             const courtName = btn.dataset.courtName;
             const start     = btn.dataset.start;
@@ -458,10 +409,6 @@ $server_now_ms = time() * 1000;
             if (btn.classList.contains('selected')) {
                 btn.classList.remove('selected');
                 btn.classList.add('available', 'bg-green-50', 'border', 'border-green-200', 'text-green-800');
-                const priceSpan = btn.querySelector('span:last-child');
-                if (priceSpan) {
-                    priceSpan.className = 'slot-price text-green-600 text-xs';
-                }
                 selectedSlots = selectedSlots.filter(s => s.key !== key);
             } else {
                 btn.classList.add('selected');
@@ -509,7 +456,7 @@ $server_now_ms = time() * 1000;
 
             list.innerHTML = html;
             total.textContent = '₭' + numberFormat(totalPrice);
-            hours.textContent = 'ເລືອກ ' + selectedSlots.length + ' ສລັອດ';
+            hours.textContent = 'ເລືອກ ' + selectedSlots.length + ' ເດີ່ນ';
         }
 
         function formatTime(time) {
@@ -523,7 +470,7 @@ $server_now_ms = time() * 1000;
 
         function proceedToBooking() {
             if (selectedSlots.length === 0) {
-                alert('ກະລຸນາເລືອກຢ່າງໜ້ອຍໜຶ່ງສລັອດ.');
+                alert('ກະລຸນາເລືອກຢ່າງໜ້ອຍໜຶ່ງເດີ່ນ.');
                 return;
             }
             document.getElementById('slotsJson').value = JSON.stringify(selectedSlots);

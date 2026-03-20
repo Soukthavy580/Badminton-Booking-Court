@@ -33,8 +33,10 @@ try {
     $stmt = $pdo->prepare("
         SELECT
             COUNT(DISTINCT b.Book_ID) AS total,
-            SUM(CASE WHEN b.Status_booking = 'Confirmed' THEN 1 ELSE 0 END) AS confirmed,
-            SUM(CASE WHEN b.Status_booking = 'Cancelled' THEN 1 ELSE 0 END) AS cancelled,
+            SUM(CASE WHEN b.Status_booking = 'Confirmed'  THEN 1 ELSE 0 END) AS confirmed,
+            SUM(CASE WHEN b.Status_booking = 'Completed'  THEN 1 ELSE 0 END) AS completed,
+            SUM(CASE WHEN b.Status_booking = 'No_Show'    THEN 1 ELSE 0 END) AS no_show,
+            SUM(CASE WHEN b.Status_booking = 'Cancelled'  THEN 1 ELSE 0 END) AS cancelled,
             SUM(CASE WHEN b.Status_booking IN ('Pending','Unpaid') THEN 1 ELSE 0 END) AS pending
         FROM booking b
         INNER JOIN booking_detail bd ON b.Book_ID = bd.Book_ID
@@ -59,7 +61,7 @@ try {
         INNER JOIN booking_detail bd ON b.Book_ID = bd.Book_ID
         INNER JOIN Court_data c      ON bd.COURT_ID = c.COURT_ID
         INNER JOIN Venue_data v      ON c.VN_ID = v.VN_ID
-        WHERE c.VN_ID = ? AND b.Status_booking = 'Confirmed' AND DATE(b.Booking_date) >= ?
+        WHERE c.VN_ID = ? AND b.Status_booking IN ('Confirmed','Completed') AND DATE(b.Booking_date) >= ?
     ");
     $stmt->execute([$vn_id, $date_from]);
     $revenue = $stmt->fetch();
@@ -180,7 +182,7 @@ $price_per_hour = floatval(preg_replace('/[^0-9.]/', '', $venue['Price_per_hour'
                         <div class="bg-<?= $sc['color'] ?>-100 w-10 h-10 rounded-xl flex items-center justify-center mb-3">
                             <i class="fas <?= $sc['icon'] ?> text-<?= $sc['color'] ?>-500"></i>
                         </div>
-                        <p class="text-2xl font-extrabold text-gray-800"><?= $sc['value'] ?? 0 ?></p>
+                        <p class="text-2xl font-extrabold text-gray-800"><?= number_format($sc['value'] ?? 0) ?></p>
                         <p class="text-xs font-semibold text-gray-600 mt-0.5"><?= $sc['label'] ?></p>
                         <p class="text-xs text-gray-400"><?= $sc['sub'] ?></p>
                     </div>
@@ -247,7 +249,7 @@ $price_per_hour = floatval(preg_replace('/[^0-9.]/', '', $venue['Price_per_hour'
                                 <div>
                                     <div class="flex items-center justify-between text-sm mb-1">
                                         <span class="font-semibold text-gray-700"><?= $medal ?> <?= htmlspecialchars($court['COURT_Name']) ?></span>
-                                        <span class="text-gray-500 text-xs"><?= $court['booking_count'] ?> ຈອງ · <?= $court['total_hours'] ?? 0 ?>ຊມ</span>
+                                        <span class="text-gray-500 text-xs"><?= number_format($court['booking_count']) ?> ຈອງ · <?= number_format($court['total_hours'] ?? 0) ?>ຊມ</span>
                                     </div>
                                     <div class="bg-gray-100 rounded-full h-2">
                                         <div class="<?= $bar_color ?> h-2 rounded-full transition-all" style="width:<?= $pct ?>%"></div>
@@ -314,7 +316,7 @@ $price_per_hour = floatval(preg_replace('/[^0-9.]/', '', $venue['Price_per_hour'
                                                 <?= date('H:i', strtotime($booking['first_slot'])) ?> - <?= date('H:i', strtotime($booking['last_slot'])) ?>
                                             </p>
                                         </td>
-                                        <td class="py-3 px-2 text-gray-600"><?= $booking['total_hours'] ?>ຊມ</td>
+                                        <td class="py-3 px-2 text-gray-600"><?= number_format($booking['total_hours']) ?>ຊມ</td>
                                         <td class="py-3 px-2">
                                             <?php if ($booking_revenue > 0): ?>
                                                 <p class="font-bold text-green-600">₭<?= number_format($booking_revenue) ?></p>

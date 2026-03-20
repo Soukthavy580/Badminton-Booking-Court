@@ -7,6 +7,8 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'owner') {
     exit;
 }
 
+date_default_timezone_set('Asia/Vientiane');
+
 $ca_id = $_SESSION['ca_id'];
 
 try {
@@ -20,34 +22,60 @@ if (!$venue) {
     exit;
 }
 
-$vn_id  = $venue['VN_ID'];
-// FIX: Default to schedule tab instead of pending
-$filter = $_GET['filter'] ?? 'schedule';
-$error  = '';
-$success= '';
+$vn_id   = $venue['VN_ID'];
+$filter  = $_GET['filter'] ?? 'schedule';
+$error   = '';
+$success = '';
 
-// ── POST-Redirect-GET ──
+// ── POST handler ──
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $book_id = intval($_POST['book_id'] ?? 0);
     $action  = $_POST['action'] ?? '';
-    if ($book_id && in_array($action, ['approve','reject'])) {
+
+    $allowed = ['approve','reject','complete','no_show'];
+    if ($book_id && in_array($action, $allowed)) {
         try {
-            $new_status = $action === 'approve' ? 'Confirmed' : 'Cancelled';
+            // Verify this booking belongs to this owner's venue
             $stmt = $pdo->prepare("
-                SELECT b.Book_ID FROM booking b
+                SELECT b.Book_ID, b.Status_booking FROM booking b
                 INNER JOIN booking_detail bd ON b.Book_ID = bd.Book_ID
                 INNER JOIN Court_data c ON bd.COURT_ID = c.COURT_ID
                 WHERE b.Book_ID = ? AND c.VN_ID = ? LIMIT 1
             ");
             $stmt->execute([$book_id, $vn_id]);
-            if ($stmt->fetch()) {
-                $pdo->prepare("UPDATE booking SET Status_booking = ? WHERE Book_ID = ?")
-                    ->execute([$new_status, $book_id]);
-                $msg = $action === 'approve'
-                    ? 'ຢືນຢັນການຈອງ #' . $book_id . ' ສຳເລັດ!'
-                    : 'ປະຕິເສດການຈອງ #' . $book_id . ' ແລ້ວ.';
-                header('Location: ?filter=' . urlencode($filter) . '&msg=' . urlencode($msg));
-                exit;
+            $brow = $stmt->fetch();
+
+            if ($brow) {
+                $new_status = match($action) {
+                    'approve'  => 'Confirmed',
+                    'reject'   => 'Cancelled',
+                    'complete' => 'Completed',
+                    'no_show'  => 'No_Show',
+                };
+
+                // Guard: only allow valid transitions
+                $current = $brow['Status_booking'];
+                $valid = match($action) {
+                    'approve'  => $current === 'Pending',
+                    'reject'   => $current === 'Pending',
+                    'complete' => $current === 'Confirmed',
+                    'no_show'  => $current === 'Confirmed',
+                };
+
+                if ($valid) {
+                    $pdo->prepare("UPDATE booking SET Status_booking = ? WHERE Book_ID = ?")
+                        ->execute([$new_status, $book_id]);
+                    $msg = match($action) {
+                        'approve'  => 'ຢືນຢັນການຈອງ #' . $book_id . ' ສຳເລັດ!',
+                        'reject'   => 'ປະຕິເສດການຈອງ #' . $book_id . ' ແລ້ວ.',
+                        'complete' => 'ທຳເຄື່ອງໝາຍ #' . $book_id . ' ເປັນ "ສຳເລັດ" — ລູກຄ້າຈ່າຍຄົບ 100% ແລ້ວ.',
+                        'no_show'  => 'ທຳເຄື່ອງໝາຍ #' . $book_id . ' ເປັນ "ບໍ່ໄດ້ມາ".',
+                    };
+                    header('Location: ?filter=' . urlencode($filter) . '&msg=' . urlencode($msg));
+                    exit;
+                } else {
+                    $error = 'ບໍ່ສາມາດດຳເນີນການໄດ້ — ສະຖານະປັດຈຸບັນບໍ່ອະນຸຍາດ.';
+                }
             } else {
                 $error = 'ບໍ່ພົບການຈອງ ຫຼື ບໍ່ມີສິດເຂົ້າເຖິງ.';
             }
@@ -57,8 +85,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-if (!empty($_GET['msg'])) {
-    $success = $_GET['msg'];
+if (!empty($_GET['msg'])) $success = $_GET['msg'];
+
+function count_bookings($pdo, $vn_id, $filter) {
+    try {
+        $where = match($filter) {
+            'pending'   => "AND b.Status_booking = 'Pending' AND b.Slip_payment IS NOT NULL AND b.Slip_payment != ''",
+            'confirmed' => "AND b.Status_booking = 'Confirmed'",
+            'completed' => "AND b.Status_booking = 'Completed'",
+            'no_show'   => "AND b.Status_booking = 'No_Show'",
+            'cancelled' => "AND b.Status_booking = 'Cancelled'",
+            default     => ''
+        };
+        $stmt = $pdo->prepare("
+            SELECT COUNT(DISTINCT b.Book_ID)
+            FROM booking b
+            INNER JOIN booking_detail bd ON b.Book_ID = bd.Book_ID
+            INNER JOIN Court_data c ON bd.COURT_ID = c.COURT_ID
+            WHERE c.VN_ID = ? $where
+        ");
+        $stmt->execute([$vn_id]);
+        return (int)$stmt->fetchColumn();
+    } catch (PDOException $e) { return 0; }
 }
 
 function get_bookings($pdo, $vn_id, $filter) {
@@ -80,69 +128,54 @@ function get_bookings($pdo, $vn_id, $filter) {
             WHERE c.VN_ID = ?
         ";
         $params = [$vn_id];
-        if ($filter === 'pending')       $sql .= " AND b.Status_booking = 'Pending' AND b.Slip_payment IS NOT NULL AND b.Slip_payment != ''";
-        elseif ($filter === 'confirmed') $sql .= " AND b.Status_booking = 'Confirmed'";
-        elseif ($filter === 'cancelled') $sql .= " AND b.Status_booking = 'Cancelled'";
-        $sql .= " ORDER BY b.Booking_date DESC";
+        if ($filter === 'pending')        $sql .= " AND b.Status_booking = 'Pending' AND b.Slip_payment IS NOT NULL AND b.Slip_payment != ''";
+        elseif ($filter === 'confirmed')  $sql .= " AND b.Status_booking = 'Confirmed'";
+        elseif ($filter === 'completed')  $sql .= " AND b.Status_booking = 'Completed'";
+        elseif ($filter === 'no_show')    $sql .= " AND b.Status_booking = 'No_Show'";
+        elseif ($filter === 'cancelled')  $sql .= " AND b.Status_booking = 'Cancelled'";
+        $sql .= " ORDER BY b.Booking_date DESC, bd.Start_time ASC";
+
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
-        return $stmt->fetchAll();
-    } catch (PDOException $e) { return []; }
-}
+        $rows = $stmt->fetchAll();
 
-function count_bookings($pdo, $vn_id, $filter) {
-    try {
-        $where = match($filter) {
-            'pending'   => "AND b.Status_booking = 'Pending' AND b.Slip_payment IS NOT NULL AND b.Slip_payment != ''",
-            'confirmed' => "AND b.Status_booking = 'Confirmed'",
-            'cancelled' => "AND b.Status_booking = 'Cancelled'",
-            default     => ''
-        };
-        $stmt = $pdo->prepare("
-            SELECT COUNT(DISTINCT b.Book_ID) FROM booking b
-            INNER JOIN booking_detail bd ON b.Book_ID = bd.Book_ID
-            INNER JOIN Court_data c ON bd.COURT_ID = c.COURT_ID
-            WHERE c.VN_ID = ? $where
-        ");
-        $stmt->execute([$vn_id]);
-        return (int)$stmt->fetchColumn();
-    } catch (PDOException $e) { return 0; }
-}
-
-function group_bookings($bookings) {
-    $grouped = [];
-    foreach ($bookings as $b) {
-        $id = $b['Book_ID'];
-        if (!isset($grouped[$id])) {
-            $grouped[$id] = $b;
-            $grouped[$id]['slots'] = [];
+        $grouped = [];
+        foreach ($rows as $b) {
+            $id = $b['Book_ID'];
+            if (!isset($grouped[$id])) {
+                $grouped[$id] = $b;
+                $grouped[$id]['slots'] = [];
+            }
+            $grouped[$id]['slots'][] = [
+                'court'        => $b['COURT_Name'],
+                'start'        => $b['Start_time'],
+                'end'          => $b['End_time'],
+                'court_open'   => $b['court_open']   ?? null,
+                'court_close'  => $b['court_close']  ?? null,
+                'court_status' => $b['Court_Status'] ?? 'Active',
+            ];
         }
-        $grouped[$id]['slots'][] = [
-            'court'        => $b['COURT_Name'],
-            'start'        => $b['Start_time'],
-            'end'          => $b['End_time'],
-            'court_open'   => $b['court_open']   ?? null,
-            'court_close'  => $b['court_close']  ?? null,
-            'court_status' => $b['Court_Status'] ?? 'Active',
-        ];
-    }
-    return $grouped;
+        return array_values($grouped);
+    } catch (PDOException $e) { return []; }
 }
 
 function calc_total($slots, $price_per_hour) {
     $price = floatval(preg_replace('/[^0-9.]/', '', $price_per_hour));
     $total = 0;
     foreach ($slots as $s) {
+        if (!strtotime($s['start']) || !strtotime($s['end'])) continue;
         $hours = (strtotime($s['end']) - strtotime($s['start'])) / 3600;
         $total += $hours * $price;
     }
     return $total;
 }
 
-$bookings = group_bookings(get_bookings($pdo, $vn_id, $filter));
+$bookings = get_bookings($pdo, $vn_id, $filter);
 $counts = [
     'pending'   => count_bookings($pdo, $vn_id, 'pending'),
     'confirmed' => count_bookings($pdo, $vn_id, 'confirmed'),
+    'completed' => count_bookings($pdo, $vn_id, 'completed'),
+    'no_show'   => count_bookings($pdo, $vn_id, 'no_show'),
     'cancelled' => count_bookings($pdo, $vn_id, 'cancelled'),
 ];
 
@@ -183,9 +216,7 @@ $today = date('Y-m-d');
                 <?php if ($counts['pending'] > 0): ?>
                     <div class="flex items-center gap-2 bg-red-50 border border-red-200 px-4 py-2 rounded-xl">
                         <i class="fas fa-exclamation-circle text-red-500"></i>
-                        <span class="text-red-700 font-bold text-sm">
-                            <?= $counts['pending'] ?> ໃບຮັບເງິນລໍຖ້າກວດສອບ
-                        </span>
+                        <span class="text-red-700 font-bold text-sm"><?= $counts['pending'] ?> ການຈອງລໍຖ້າກວດສອບ</span>
                     </div>
                 <?php endif; ?>
             </div>
@@ -204,28 +235,30 @@ $today = date('Y-m-d');
                 </div>
             <?php endif; ?>
 
-            <!-- FIX: Schedule is now FIRST, Need Review moved to second -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <!-- Stats Row -->
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
                 <?php foreach ([
-                    ['label'=>'ຕາຕະລາງເວລາ', 'value'=>null,                 'icon'=>'fa-calendar-day', 'color'=>'blue',  'filter'=>'schedule'],
-                    ['label'=>'ລໍຖ້າກວດສອບ',  'value'=>$counts['pending'],  'icon'=>'fa-clock',        'color'=>'yellow','filter'=>'pending'],
-                    ['label'=>'ຢືນຢັນແລ້ວ',   'value'=>$counts['confirmed'],'icon'=>'fa-check-circle', 'color'=>'green', 'filter'=>'confirmed'],
-                    ['label'=>'ຍົກເລີກແລ້ວ',  'value'=>$counts['cancelled'],'icon'=>'fa-times-circle', 'color'=>'red',   'filter'=>'cancelled'],
+                    ['label'=>'ຕາຕະລາງ',     'value'=>null,                  'icon'=>'fa-calendar-day',  'color'=>'blue',   'filter'=>'schedule'],
+                    ['label'=>'ລໍຖ້າ',        'value'=>$counts['pending'],   'icon'=>'fa-clock',         'color'=>'yellow', 'filter'=>'pending'],
+                    ['label'=>'ຢືນຢັນ',       'value'=>$counts['confirmed'], 'icon'=>'fa-check-circle',  'color'=>'green',  'filter'=>'confirmed'],
+                    ['label'=>'ສຳເລັດ',       'value'=>$counts['completed'], 'icon'=>'fa-trophy',        'color'=>'emerald','filter'=>'completed'],
+                    ['label'=>'ບໍ່ໄດ້ມາ',    'value'=>$counts['no_show'],   'icon'=>'fa-user-slash',    'color'=>'orange', 'filter'=>'no_show'],
+                    ['label'=>'ຍົກເລີກ',      'value'=>$counts['cancelled'], 'icon'=>'fa-times-circle',  'color'=>'red',    'filter'=>'cancelled'],
                 ] as $sc): ?>
                     <a href="?filter=<?= $sc['filter'] ?>"
-                       class="bg-white rounded-2xl p-5 shadow-sm border-2 <?= $filter===$sc['filter'] ? 'border-'.$sc['color'].'-400' : 'border-transparent' ?> hover:shadow-md transition block">
+                       class="bg-white rounded-2xl p-4 shadow-sm border-2 <?= $filter===$sc['filter'] ? 'border-'.$sc['color'].'-400' : 'border-transparent' ?> hover:shadow-md transition block">
                         <div class="flex items-center justify-between mb-2">
                             <div class="bg-<?= $sc['color'] ?>-100 p-2 rounded-xl">
-                                <i class="fas <?= $sc['icon'] ?> text-<?= $sc['color'] ?>-500"></i>
+                                <i class="fas <?= $sc['icon'] ?> text-<?= $sc['color'] ?>-500 text-sm"></i>
                             </div>
                             <?php if ($sc['filter']==='pending' && ($sc['value']??0)>0): ?>
                                 <span class="bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold"><?= $sc['value'] ?></span>
                             <?php endif; ?>
                         </div>
                         <?php if ($sc['value'] !== null): ?>
-                            <p class="text-2xl font-extrabold text-gray-800"><?= $sc['value'] ?></p>
+                            <p class="text-xl font-extrabold text-gray-800"><?= $sc['value'] ?></p>
                         <?php else: ?>
-                            <p class="text-lg font-extrabold text-gray-800">ເບິ່ງ</p>
+                            <p class="text-base font-extrabold text-gray-800">ເບິ່ງ</p>
                         <?php endif; ?>
                         <p class="text-xs text-gray-500 mt-0.5"><?= $sc['label'] ?></p>
                     </a>
@@ -247,7 +280,7 @@ $today = date('Y-m-d');
                     FROM booking_detail bd
                     INNER JOIN booking b   ON bd.Book_ID = b.Book_ID
                     INNER JOIN customer cu ON b.C_ID = cu.C_ID
-                    WHERE b.Status_booking IN ('Confirmed','Pending')
+                    WHERE b.Status_booking IN ('Confirmed','Pending','Completed','No_Show')
                     AND DATE(bd.Start_time) = ?
                     AND bd.COURT_ID IN (SELECT COURT_ID FROM Court_data WHERE VN_ID = ?)
                 ");
@@ -262,14 +295,16 @@ $today = date('Y-m-d');
             <div class="bg-white rounded-2xl shadow-sm p-5 mb-6">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
                     <h2 class="font-bold text-gray-800 flex items-center gap-2">
-                        <i class="fas fa-calendar-day text-blue-500"></i>ລາຍການສລັອດເດີ່ນ
+                        <i class="fas fa-calendar-day text-blue-500"></i>ຕາຕະລາງການຈອງ
                     </h2>
                     <div class="flex items-center gap-3 flex-wrap">
-                        <div class="hidden md:flex items-center gap-3 text-xs text-gray-500">
-                            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-red-100 border border-red-300 inline-block"></span>ຈອງແລ້ວ</span>
+                        <div class="hidden md:flex items-center gap-3 text-xs text-gray-500 flex-wrap">
                             <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-yellow-100 border border-yellow-300 inline-block"></span>ລໍຖ້າ</span>
-                            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-green-50 border border-green-300 inline-block"></span>ຫວ່າງ</span>
-                            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-gray-100 border border-gray-200 inline-block"></span>ຜ່ານແລ້ວ</span>
+                            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-red-100 border border-red-300 inline-block"></span>ຢືນຢັນ</span>
+                            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-emerald-100 border border-emerald-300 inline-block"></span>ສຳເລັດ</span>
+                            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-orange-100 border border-orange-300 inline-block"></span>ບໍ່ໄດ້ມາ</span>
+                            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-green-50 border border-green-200 inline-block"></span>ຫວ່າງ</span>
+                            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-gray-100 inline-block"></span>ຜ່ານແລ້ວ</span>
                         </div>
                         <form method="GET" class="flex items-center gap-2">
                             <input type="hidden" name="filter" value="schedule">
@@ -294,8 +329,8 @@ $today = date('Y-m-d');
                             <div class="flex items-center gap-2 flex-wrap">
                                 <span class="font-bold text-gray-800"><?= htmlspecialchars($court['COURT_Name']) ?></span>
                                 <?php if ($has_sched): ?>
-                                    <span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                        <i class="fas fa-clock text-blue-400"></i>
+                                    <span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                                        <i class="fas fa-clock text-blue-400 mr-1"></i>
                                         <?= date('H:i', strtotime($court['Open_time'])) ?> – <?= date('H:i', strtotime($court['Close_time'])) ?>
                                     </span>
                                 <?php endif; ?>
@@ -312,7 +347,7 @@ $today = date('Y-m-d');
                         <?php elseif ($cs !== 'Active'): ?>
                             <div class="bg-<?= $s_color ?>-50 border border-<?= $s_color ?>-200 rounded-xl px-4 py-3 text-sm text-<?= $s_color ?>-600">
                                 <i class="fas <?= $s_icon ?> mr-1"></i>
-                                <?= $cs === 'Maintaining' ? 'ກຳລັງສ້ອມແປງ.' : 'ບໍ່ໃຊ້ງານ — ລູກຄ້າບໍ່ເຫັນ.' ?>
+                                <?= $cs === 'Maintaining' ? 'ກຳລັງສ້ອມແປງ.' : 'ບໍ່ໃຊ້ງານ.' ?>
                             </div>
                         <?php else: ?>
                             <?php
@@ -327,12 +362,14 @@ $today = date('Y-m-d');
                                     $bkey    = $court['COURT_ID'] . '_' . $skey;
                                     $is_past = $next <= $now && $view_date_fmt === $today;
                                     $brow    = $booked_slots_view[$bkey] ?? null;
-                                    $is_conf = $brow && $brow['Status_booking'] === 'Confirmed';
-                                    $is_pend = $brow && $brow['Status_booking'] === 'Pending';
-                                    if ($is_conf)     { $cc='bg-red-50 border-2 border-red-300';       $tc='text-red-700';    $lbl='ຈອງແລ້ວ'; $sub=htmlspecialchars($brow['customer_name']); $ico='fa-times-circle text-red-400'; }
-                                    elseif($is_pend)  { $cc='bg-yellow-50 border-2 border-yellow-300'; $tc='text-yellow-700'; $lbl='ລໍຖ້າ';   $sub=htmlspecialchars($brow['customer_name']); $ico='fa-clock text-yellow-400'; }
-                                    elseif($is_past)  { $cc='bg-gray-50 border border-gray-200';       $tc='text-gray-400';   $lbl='ຜ່ານແລ້ວ';$sub=''; $ico=''; }
-                                    else              { $cc='bg-green-50 border border-green-200';     $tc='text-green-700';  $lbl='ຫວ່າງ';   $sub=''; $ico=''; }
+                                    $bstatus = $brow['Status_booking'] ?? null;
+
+                                    if ($bstatus === 'Confirmed')     { $cc='bg-red-50 border-2 border-red-300';         $tc='text-red-700';     $lbl='ຢືນຢັນ';   $sub=htmlspecialchars($brow['customer_name']); $ico='fa-check-circle text-red-400'; }
+                                    elseif($bstatus === 'Pending')    { $cc='bg-yellow-50 border-2 border-yellow-300';   $tc='text-yellow-700';  $lbl='ລໍຖ້າ';    $sub=htmlspecialchars($brow['customer_name']); $ico='fa-clock text-yellow-400'; }
+                                    elseif($bstatus === 'Completed')  { $cc='bg-emerald-50 border-2 border-emerald-300'; $tc='text-emerald-700'; $lbl='ສຳເລັດ';   $sub=htmlspecialchars($brow['customer_name']); $ico='fa-trophy text-emerald-400'; }
+                                    elseif($bstatus === 'No_Show')    { $cc='bg-orange-50 border-2 border-orange-300';   $tc='text-orange-700';  $lbl='ບໍ່ໄດ້ມາ'; $sub=htmlspecialchars($brow['customer_name']); $ico='fa-user-slash text-orange-400'; }
+                                    elseif($is_past)                  { $cc='bg-gray-50 border border-gray-200';         $tc='text-gray-400';    $lbl='ຜ່ານແລ້ວ'; $sub=''; $ico=''; }
+                                    else                              { $cc='bg-green-50 border border-green-200';       $tc='text-green-700';   $lbl='ຫວ່າງ';    $sub=''; $ico=''; }
                                 ?>
                                     <div class="<?= $cc ?> <?= $tc ?> rounded-xl px-3 py-2.5 text-center">
                                         <p class="text-sm font-bold mb-0.5"><?= date('H:i', $cur) ?> – <?= date('H:i', $next) ?></p>
@@ -358,25 +395,32 @@ $today = date('Y-m-d');
                         $total     = calc_total($booking['slots'], $booking['Price_per_hour']);
                         $deposit   = round($total * 0.30);
                         $remaining = round($total * 0.70);
-                        $is_past   = strtotime($booking['Start_time']) < time();
+                        $first_start = $booking['slots'][0]['start'] ?? '';
+                        $is_past   = $first_start && strtotime($first_start) < time();
                         $slip_url  = !empty($booking['Slip_payment'])
                             ? '/Badminton_court_Booking/assets/images/slips/' . basename($booking['Slip_payment'])
                             : '';
+
                         $status_cfg = match($booking['Status_booking']) {
-                            'Confirmed' => ['border'=>'border-green-400','badge_bg'=>'bg-green-100','badge_text'=>'text-green-700','icon'=>'fa-check-circle'],
-                            'Cancelled' => ['border'=>'border-red-400',  'badge_bg'=>'bg-red-100',  'badge_text'=>'text-red-700',  'icon'=>'fa-times-circle'],
-                            default     => ['border'=>'border-yellow-400','badge_bg'=>'bg-yellow-100','badge_text'=>'text-yellow-700','icon'=>'fa-clock'],
+                            'Confirmed'  => ['border'=>'border-green-400',   'badge_bg'=>'bg-green-100',   'badge_text'=>'text-green-700',   'icon'=>'fa-check-circle'],
+                            'Completed'  => ['border'=>'border-emerald-400', 'badge_bg'=>'bg-emerald-100', 'badge_text'=>'text-emerald-700', 'icon'=>'fa-trophy'],
+                            'No_Show'    => ['border'=>'border-orange-400',  'badge_bg'=>'bg-orange-100',  'badge_text'=>'text-orange-700',  'icon'=>'fa-user-slash'],
+                            'Cancelled'  => ['border'=>'border-red-400',     'badge_bg'=>'bg-red-100',     'badge_text'=>'text-red-700',     'icon'=>'fa-times-circle'],
+                            default      => ['border'=>'border-yellow-400',  'badge_bg'=>'bg-yellow-100',  'badge_text'=>'text-yellow-700',  'icon'=>'fa-clock'],
                         };
                         $status_label = match($booking['Status_booking']) {
-                            'Confirmed' => ($is_past ? 'ສຳເລັດ' : 'ຢືນຢັນແລ້ວ'),
-                            'Cancelled' => 'ຍົກເລີກແລ້ວ',
-                            default     => 'ລໍຖ້າ',
+                            'Confirmed'  => 'ຢືນຢັນແລ້ວ',
+                            'Completed'  => 'ສຳເລັດ — ຈ່າຍຄົບ',
+                            'No_Show'    => 'ບໍ່ໄດ້ມາ',
+                            'Cancelled'  => 'ຍົກເລີກ',
+                            default      => 'ລໍຖ້າ',
                         };
                     ?>
                         <div class="booking-card bg-white rounded-2xl shadow-sm border-l-4 <?= $status_cfg['border'] ?> overflow-hidden">
                             <div class="p-5">
-                                <div class="flex flex-col md:flex-row justify-between items-start gap-4">
-                                    <div class="flex items-start gap-3 flex-1">
+                                <!-- Customer + status -->
+                                <div class="flex flex-col md:flex-row justify-between items-start gap-4 mb-4">
+                                    <div class="flex items-start gap-3">
                                         <div class="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
                                             <?= strtoupper(substr($booking['customer_name'], 0, 1)) ?>
                                         </div>
@@ -396,77 +440,107 @@ $today = date('Y-m-d');
                                 </div>
 
                                 <!-- Slots -->
-                                <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-2">
+                                <div class="space-y-2 mb-4">
                                     <?php foreach ($booking['slots'] as $slot):
-                                        $slot_cs    = $slot['court_status'] ?? 'Active';
-                                        $slot_color = match($slot_cs) { 'Active'=>'green','Maintaining'=>'yellow', default=>'gray' };
+                                        $slot_color = match($slot['court_status'] ?? 'Active') { 'Active'=>'green','Maintaining'=>'yellow', default=>'gray' };
                                     ?>
-                                        <div class="bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-100">
-                                            <div class="flex items-center gap-2 mb-1 flex-wrap">
-                                                <i class="fas fa-table-tennis text-<?= $slot_color ?>-500 text-xs flex-shrink-0"></i>
-                                                <span class="font-semibold text-gray-800 text-sm"><?= htmlspecialchars($slot['court']) ?></span>
-                                                <?php if (!empty($slot['court_open']) && !empty($slot['court_close'])): ?>
-                                                    <span class="ml-auto flex-shrink-0 inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-600 border border-blue-100 px-2 py-0.5 rounded-full">
-                                                        <i class="fas fa-clock text-xs"></i>
-                                                        <?= date('H:i', strtotime($slot['court_open'])) ?>–<?= date('H:i', strtotime($slot['court_close'])) ?>
+                                        <div class="bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-100 flex items-center gap-3 flex-wrap">
+                                            <i class="fas fa-table-tennis text-<?= $slot_color ?>-500 text-xs flex-shrink-0"></i>
+                                            <span class="font-semibold text-gray-800 text-sm"><?= htmlspecialchars($slot['court']) ?></span>
+                                            <span class="ml-auto text-xs text-gray-500">
+                                                <?php if (strtotime($slot['start'])): ?>
+                                                    <?= date('d/m', strtotime($slot['start'])) ?> &nbsp;·&nbsp;
+                                                    <span class="font-semibold text-gray-700">
+                                                        <?= date('H:i', strtotime($slot['start'])) ?> – <?= date('H:i', strtotime($slot['end'])) ?>
                                                     </span>
-                                                <?php endif; ?>
-                                            </div>
-                                            <div class="flex items-center gap-1.5 ml-4 text-xs text-gray-500">
-                                                <i class="fas fa-calendar-check text-gray-300"></i>
-                                                <?= date('d/m', strtotime($slot['start'])) ?> &nbsp;·&nbsp;
-                                                <span class="font-semibold text-gray-700">
-                                                    <?= date('H:i', strtotime($slot['start'])) ?> – <?= date('H:i', strtotime($slot['end'])) ?>
-                                                </span>
-                                            </div>
+                                                <?php else: ?>-<?php endif; ?>
+                                            </span>
                                         </div>
                                     <?php endforeach; ?>
                                 </div>
 
-                                <!-- Price + Actions -->
-                                <div class="mt-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 pt-3 border-t border-gray-100">
-                                    <div class="flex gap-4 text-sm">
-                                        <div>
-                                            <p class="text-gray-400 text-xs">ລາຄາລວມ</p>
-                                            <p class="font-bold text-gray-700">₭<?= number_format($total, 0) ?></p>
-                                        </div>
-                                        <div>
-                                            <p class="text-gray-400 text-xs">ມັດຈຳ (30%)</p>
-                                            <p class="font-bold text-green-600">₭<?= number_format($deposit, 0) ?></p>
-                                        </div>
-                                        <div>
-                                            <p class="text-gray-400 text-xs">ຈ່າຍທີ່ສະຖານທີ່ (70%)</p>
-                                            <p class="font-bold text-orange-500">₭<?= number_format($remaining, 0) ?></p>
-                                        </div>
+                                <!-- Price summary -->
+                                <div class="grid grid-cols-3 gap-3 mb-4 bg-gray-50 rounded-xl p-3">
+                                    <div class="text-center">
+                                        <p class="text-xs text-gray-400">ລາຄາລວມ</p>
+                                        <p class="font-bold text-gray-700 text-sm">₭<?= number_format($total, 0) ?></p>
                                     </div>
-                                    <div class="flex gap-2 flex-wrap">
-                                        <?php if ($slip_url): ?>
-                                            <button onclick="viewSlip('<?= htmlspecialchars($slip_url) ?>', <?= $booking['Book_ID'] ?>, '<?= $booking['Status_booking'] ?>')"
-                                                    class="bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-xl text-sm font-semibold transition">
-                                                <i class="fas fa-receipt mr-1"></i>ເບິ່ງໃບຮັບເງິນ
+                                    <div class="text-center border-x border-gray-200">
+                                        <p class="text-xs text-gray-400">ມັດຈຳ 30%</p>
+                                        <p class="font-bold text-green-600 text-sm">₭<?= number_format($deposit, 0) ?></p>
+                                        <p class="text-xs text-green-500">ຈ່າຍອອນລາຍ</p>
+                                    </div>
+                                    <div class="text-center">
+                                        <p class="text-xs text-gray-400">ທີ່ສະຖານທີ່ 70%</p>
+                                        <p class="font-bold text-orange-500 text-sm">₭<?= number_format($remaining, 0) ?></p>
+                                        <?php if ($booking['Status_booking'] === 'Completed'): ?>
+                                            <p class="text-xs text-emerald-600 font-semibold">✓ ຈ່າຍແລ້ວ</p>
+                                        <?php elseif ($booking['Status_booking'] === 'No_Show'): ?>
+                                            <p class="text-xs text-orange-500">ບໍ່ໄດ້ຈ່າຍ</p>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+
+                                <!-- Actions -->
+                                <div class="flex flex-wrap gap-2 pt-3 border-t border-gray-100">
+                                    <?php if ($slip_url): ?>
+                                        <button onclick="viewSlip('<?= htmlspecialchars($slip_url) ?>', <?= $booking['Book_ID'] ?>, '<?= $booking['Status_booking'] ?>')"
+                                                class="bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-xl text-sm font-semibold transition">
+                                            <i class="fas fa-receipt mr-1"></i>ໃບຮັບເງິນ
+                                        </button>
+                                    <?php else: ?>
+                                        <span class="bg-gray-100 text-gray-400 px-3 py-2 rounded-xl text-sm">
+                                            <i class="fas fa-clock mr-1"></i>ຍັງບໍ່ມີໃບຮັບເງິນ
+                                        </span>
+                                    <?php endif; ?>
+
+                                    <?php if ($booking['Status_booking'] === 'Pending' && $slip_url): ?>
+                                        <form method="POST" class="inline">
+                                            <input type="hidden" name="book_id" value="<?= $booking['Book_ID'] ?>">
+                                            <input type="hidden" name="action" value="approve">
+                                            <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl text-sm font-bold transition shadow">
+                                                <i class="fas fa-check mr-1"></i>ອະນຸມັດ
                                             </button>
-                                        <?php else: ?>
-                                            <span class="bg-gray-100 text-gray-400 px-3 py-2 rounded-xl text-sm">
-                                                <i class="fas fa-clock mr-1"></i>ຍັງບໍ່ມີໃບຮັບເງິນ
-                                            </span>
-                                        <?php endif; ?>
-                                        <?php if ($booking['Status_booking']==='Pending' && $slip_url): ?>
-                                            <form method="POST" class="inline">
-                                                <input type="hidden" name="book_id" value="<?= $booking['Book_ID'] ?>">
-                                                <input type="hidden" name="action" value="approve">
-                                                <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl text-sm font-bold transition shadow">
-                                                    <i class="fas fa-check mr-1"></i>ອະນຸມັດ
-                                                </button>
-                                            </form>
-                                            <form method="POST" class="inline" onsubmit="return confirm('ປະຕິເສດການຈອງ #<?= $booking['Book_ID'] ?>?')">
-                                                <input type="hidden" name="book_id" value="<?= $booking['Book_ID'] ?>">
-                                                <input type="hidden" name="action" value="reject">
-                                                <button type="submit" class="bg-red-50 hover:bg-red-100 text-red-600 px-4 py-2 rounded-xl text-sm font-bold transition border border-red-200">
-                                                    <i class="fas fa-times mr-1"></i>ປະຕິເສດ
-                                                </button>
-                                            </form>
-                                        <?php endif; ?>
-                                    </div>
+                                        </form>
+                                        <form method="POST" class="inline" onsubmit="return confirm('ປະຕິເສດການຈອງ #<?= $booking['Book_ID'] ?>?')">
+                                            <input type="hidden" name="book_id" value="<?= $booking['Book_ID'] ?>">
+                                            <input type="hidden" name="action" value="reject">
+                                            <button type="submit" class="bg-red-50 hover:bg-red-100 text-red-600 px-4 py-2 rounded-xl text-sm font-bold transition border border-red-200">
+                                                <i class="fas fa-times mr-1"></i>ປະຕິເສດ
+                                            </button>
+                                        </form>
+                                    <?php endif; ?>
+
+                                    <?php if ($booking['Status_booking'] === 'Confirmed'): ?>
+                                        <!-- Completed: customer came and paid 70% -->
+                                        <form method="POST" class="inline" onsubmit="return confirm('ຢືນຢັນລູກຄ້າໄດ້ມາ ແລະ ຈ່າຍ 70% ຄົບແລ້ວ?')">
+                                            <input type="hidden" name="book_id" value="<?= $booking['Book_ID'] ?>">
+                                            <input type="hidden" name="action" value="complete">
+                                            <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-bold transition shadow flex items-center gap-1">
+                                                <i class="fas fa-trophy"></i>ມາ + ຈ່າຍຄົບ
+                                            </button>
+                                        </form>
+                                        <!-- No show: customer didn't come -->
+                                        <form method="POST" class="inline" id="noShowForm_<?= $booking['Book_ID'] ?>">
+                                            <input type="hidden" name="book_id" value="<?= $booking['Book_ID'] ?>">
+                                            <input type="hidden" name="action" value="no_show">
+                                            <button type="button" onclick="confirmNoShow(<?= $booking['Book_ID'] ?>)" class="bg-orange-50 hover:bg-orange-100 text-orange-700 px-4 py-2 rounded-xl text-sm font-bold transition border border-orange-200 flex items-center gap-1">
+                                                <i class="fas fa-user-slash"></i>ບໍ່ໄດ້ມາ
+                                            </button>
+                                        </form>
+                                    <?php endif; ?>
+
+                                    <?php if ($booking['Status_booking'] === 'Completed'): ?>
+                                        <span class="bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-2 rounded-xl text-sm font-semibold flex items-center gap-1">
+                                            <i class="fas fa-check-double"></i>ຈ່າຍຄົບ 100% ແລ້ວ
+                                        </span>
+                                    <?php endif; ?>
+
+                                    <?php if ($booking['Status_booking'] === 'No_Show'): ?>
+                                        <span class="bg-orange-50 text-orange-600 border border-orange-200 px-3 py-2 rounded-xl text-sm font-semibold flex items-center gap-1">
+                                            <i class="fas fa-user-slash"></i>ເງິນມັດຈຳ 30% ຕົກເປັນຂອງທ່ານ
+                                        </span>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>
@@ -480,32 +554,24 @@ $today = date('Y-m-d');
                         <?= match($filter) {
                             'pending'   => 'ບໍ່ມີໃບຮັບເງິນທີ່ລໍຖ້າກວດສອບ',
                             'confirmed' => 'ບໍ່ມີການຈອງທີ່ຢືນຢັນແລ້ວ',
+                            'completed' => 'ບໍ່ມີການຈອງທີ່ສຳເລັດ',
+                            'no_show'   => 'ບໍ່ມີການຈອງທີ່ບໍ່ໄດ້ມາ',
                             'cancelled' => 'ບໍ່ມີການຈອງທີ່ຍົກເລີກ',
                             default     => 'ບໍ່ມີການຈອງ'
                         } ?>
                     </h3>
-                    <p class="text-gray-400 text-sm">
-                        <?= $filter==='pending' ? 'ໃບຮັບເງິນທຸກໃບໄດ້ກວດສອບແລ້ວ.' : 'ການຈອງຈະປາກົດຢູ່ນີ້ເມື່ອລູກຄ້າຈອງ.' ?>
-                    </p>
                 </div>
             <?php endif; ?>
-
         </main>
     </div>
 </div>
 
-<!-- Slip Viewer Modal -->
+<!-- Slip Modal -->
 <div class="slip-modal" id="slipModal">
     <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-lg w-full mx-4 relative">
-        <button onclick="closeSlip()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-xl">
-            <i class="fas fa-times"></i>
-        </button>
-        <h3 class="font-bold text-gray-800 text-lg mb-4">
-            <i class="fas fa-receipt text-blue-500 mr-2"></i>
-            ໃບຮັບເງິນ — ການຈອງ #<span id="modalBookingId"></span>
-        </h3>
-        <img id="modalSlipImg" src="" alt="Payment Slip"
-             class="w-full max-h-96 object-contain rounded-xl border border-gray-200">
+        <button onclick="closeSlip()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-xl"><i class="fas fa-times"></i></button>
+        <h3 class="font-bold text-gray-800 text-lg mb-4"><i class="fas fa-receipt text-blue-500 mr-2"></i>ໃບຮັບເງິນ — ການຈອງ #<span id="modalBookingId"></span></h3>
+        <img id="modalSlipImg" src="" alt="Payment Slip" class="w-full max-h-96 object-contain rounded-xl border border-gray-200">
         <div class="flex gap-3 mt-4" id="modalActions"></div>
     </div>
 </div>
@@ -525,7 +591,7 @@ function viewSlip(url, bookId, status) {
                     <i class="fas fa-check mr-2"></i>ອະນຸມັດ
                 </button>
             </form>
-            <form method="POST" class="flex-1" onsubmit="return confirm('ປະຕິເສດການຈອງນີ້?')">
+            <form method="POST" class="flex-1" onsubmit="return confirm('ປະຕິເສດ?')">
                 <input type="hidden" name="book_id" value="${bookId}">
                 <input type="hidden" name="action" value="reject">
                 <button type="submit" class="w-full bg-red-50 hover:bg-red-100 text-red-600 font-bold py-3 rounded-xl border border-red-200 transition">
@@ -536,8 +602,14 @@ function viewSlip(url, bookId, status) {
         actions.innerHTML = '';
     }
 }
+function confirmNoShow(bookId) {
+    if (confirm('ທຳເຄື່ອງໝາຍ #' + bookId + ' ວ່າ "ບໍ່ໄດ້ມາ"?\nລູກຄ້າລ່າຊ້າເກີນ 30 ນາທີ ຫຼື ບໍ່ໄດ້ມາ — ສລັອດຈະຖືກປ່ອຍໃຫ້ຜູ້ອື່ນ ແລະ ເງິນມັດຈຳ 30% ຈະບໍ່ຖືກຄືນ.')) {
+        document.getElementById('noShowForm_' + bookId).submit();
+    }
+}
 function closeSlip() { document.getElementById('slipModal').classList.remove('open'); }
 document.getElementById('slipModal').addEventListener('click', function(e) { if(e.target===this) closeSlip(); });
+document.addEventListener('keydown', e => { if(e.key==='Escape') closeSlip(); });
 </script>
 </body>
 </html>

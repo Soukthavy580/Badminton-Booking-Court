@@ -31,13 +31,14 @@ if ($venue) {
     } catch (PDOException $e) { $courts = []; }
 }
 
+// FIX: Read rejection reason directly from Venue_data table
 $rejection = null;
-if ($venue) {
-    try {
-        $stmt = $pdo->prepare("SELECT * FROM owner_notification WHERE CA_ID = ? AND type = 'venue' AND ref_id = ? ORDER BY created_at DESC LIMIT 1");
-        $stmt->execute([$ca_id, $venue['VN_ID']]);
-        $rejection = $stmt->fetch();
-    } catch (PDOException $e) { $rejection = null; }
+if ($venue && !empty($venue['Reject_reason']) && $venue['VN_Status'] === 'Inactive') {
+    $rejection = [
+        'message'       => $venue['Reject_reason'],
+        'created_at'    => date('Y-m-d H:i:s'),
+        'flagged_fields' => null,
+    ];
 }
 
 $error   = '';
@@ -49,12 +50,11 @@ if (isset($_GET['resubmit']) && $venue) {
     try {
         $pdo->prepare("UPDATE Venue_data SET VN_Status = 'Pending' WHERE VN_ID = ? AND CA_ID = ?")
             ->execute([$venue['VN_ID'], $ca_id]);
-        $pdo->prepare("DELETE FROM owner_notification WHERE CA_ID = ? AND type = 'venue' AND ref_id = ?")
-            ->execute([$ca_id, $venue['VN_ID']]);
+        // FIX: No owner_notification to delete — Reject_reason kept on Venue_data, cleared by admin on approval
         $success = 'ສົ່ງສະຖານທີ່ຂໍການອະນຸມັດຄືນໃໝ່ສຳເລັດ!';
         $venue['VN_Status'] = 'Pending';
         $rejection = null;
-    } catch (PDOException $e) { $error = 'ລົ້ມເຫລວ. ກະລຸນາລອງໃໝ່.'; }
+    } catch (PDOException $e) { $error = 'ຜິດພາດ. ກະລຸນາລອງໃໝ່.'; }
 }
 
 // ── COURT STATUS UPDATE ──
@@ -71,7 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_court_status']
             $stmt = $pdo->prepare("SELECT * FROM Court_data WHERE VN_ID = ? ORDER BY COURT_Name");
             $stmt->execute([$venue['VN_ID']]);
             $courts = $stmt->fetchAll();
-        } catch (PDOException $e) { $error = 'ລົ້ມເຫລວ. ກະລຸນາລອງໃໝ່.'; }
+        } catch (PDOException $e) { $error = 'ຜິດພາດ. ກະລຸນາລອງໃໝ່.'; }
     }
 }
 
@@ -86,7 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_venue'])) {
     $map_url    = trim($_POST['map_url']    ?? '');
 
     if (empty($vn_name) || empty($vn_address) || empty($open_time) || empty($close_time) || empty($price)) {
-        $error = 'ກະລຸນາຕື່ມຂໍ້ມູນທີ່ຈຳເປັນໃຫ້ຄົບ.';
+        $error = 'ກະລຸນາຕື່ມຂໍ້ມູນທີ່ຈຳເປັນໃຫ້ຄົບ';
     } else {
         try {
             $vn_image = $venue['VN_Image'] ?? '';
@@ -136,12 +136,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_venue'])) {
                 $stmt->execute([$ca_id]);
                 $venue   = $stmt->fetch();
                 $success = $venue['VN_Status'] === 'Pending'
-                    ? 'ບັນທຶກສຳເລັດ! ລໍຖ້າການອະນຸມັດຈາກແອດມິນ.'
+                    ? 'ບັນທຶກສຳເລັດ! ກາລຸນາລໍຖ້າການອະນຸມັດຈາກແອດມິນ.'
                     : 'ອັບເດດສະຖານທີ່ສຳເລັດ!';
                 $tab = 'venue';
             }
         } catch (PDOException $e) {
-            $error = 'ລົ້ມເຫລວ: ' . $e->getMessage();
+            $error = 'ຜິດພາດ: ' . $e->getMessage();
         }
     }
 }
@@ -170,7 +170,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_court'])) {
             $stmt = $pdo->prepare("SELECT * FROM Court_data WHERE VN_ID=? ORDER BY COURT_Name");
             $stmt->execute([$venue['VN_ID']]);
             $courts = $stmt->fetchAll();
-        } catch (PDOException $e) { $error = 'ລົ້ມເຫລວ. ກະລຸນາລອງໃໝ່.'; }
+        } catch (PDOException $e) { $error = 'ຜິດພາດ. ກະລຸນາລອງໃໝ່.'; }
     }
 }
 
@@ -194,7 +194,7 @@ if (isset($_GET['delete_court']) && $venue) {
             $stmt->execute([$venue['VN_ID']]);
             $courts = $stmt->fetchAll();
         }
-    } catch (PDOException $e) { $error = 'ລົ້ມເຫລວ. ກະລຸນາລອງໃໝ່.'; }
+    } catch (PDOException $e) { $error = 'ຜິດພາດ. ກະລຸນາລອງໃໝ່.'; }
     $tab = 'courts';
 }
 
@@ -344,13 +344,13 @@ $courts_locked = !$is_active;
                             <div class="md:col-span-2">
                                 <label class="block text-sm font-bold text-gray-700 mb-2">ຊື່ສະຖານທີ່ <span class="text-red-500">*</span></label>
                                 <input type="text" name="vn_name" value="<?= htmlspecialchars($venue['VN_Name'] ?? '') ?>"
-                                       placeholder="ຕົວຢ່າງ: ສະນາມແບດ Champion"
+                                       placeholder="ຕົວຢ່າງ: ເດີ່ນຕີດອກປີກໄກ່ ທະນົງອາດ"
                                        class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-green-500 transition" required>
                             </div>
                             <div class="md:col-span-2">
                                 <label class="block text-sm font-bold text-gray-700 mb-2">ທີ່ຢູ່ <span class="text-red-500">*</span></label>
                                 <input type="text" name="vn_address" value="<?= htmlspecialchars($venue['VN_Address'] ?? '') ?>"
-                                       placeholder="ຕົວຢ່າງ: ບ້ານ..., ເມືອງ..., ວຽງຈັນ"
+                                       placeholder=" ບ້ານ, ເມືອງ, ແຂວງ"
                                        class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-green-500 transition" required>
                             </div>
                             <div class="md:col-span-2">

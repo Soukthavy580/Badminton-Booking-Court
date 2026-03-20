@@ -1,5 +1,5 @@
 <?php
-if (!isset($_SESSION)) {
+if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
@@ -16,7 +16,7 @@ if ($c_id && isset($pdo)) {
             SELECT CONCAT(b.Book_ID, '_', b.Status_booking)
             FROM booking b
             WHERE b.C_ID = ?
-            AND b.Status_booking != 'Unpaid'
+            AND b.Status_booking NOT IN ('Unpaid', 'Completed')
             GROUP BY b.Book_ID, b.Status_booking
         ");
         $stmt->execute([$c_id]);
@@ -80,18 +80,18 @@ function mobile_class($path) {
             <div class="hidden md:flex items-center space-x-6">
                 <a href="/Badminton_court_Booking/customer/"
                    class="<?= nav_class('/Badminton_court_Booking/customer/') ?>">
-                    <i class="fas fa-home"></i> Home
+                    <i class="fas fa-home"></i> ໜ້າຫຼັກ
                 </a>
                 <a href="/Badminton_court_Booking/customer/booking_court/"
                    class="<?= nav_class('/Badminton_court_Booking/customer/booking_court/') ?>">
-                    <i class="fas fa-table-tennis"></i> Book Court
+                    <i class="fas fa-table-tennis"></i> ຈອງເດີ່ນ
                 </a>
             </div>
 
             <!-- Right Side -->
             <div class="flex items-center space-x-4">
                 <?php if ($is_logged_in): ?>
-                    <!-- Notifications Bell -->
+                    <!-- ກະດິ່ງການແຈ້ງເຕືອນ -->
                     <a href="/Badminton_court_Booking/customer/notification/"
                        class="relative <?= str_starts_with($current_path, '/Badminton_court_Booking/customer/notification') ? 'text-green-600' : 'text-gray-600 hover:text-green-600' ?> transition">
                         <i class="fas fa-bell text-xl"></i>
@@ -120,15 +120,15 @@ function mobile_class($path) {
                             </div>
                             <a href="/Badminton_court_Booking/customer/profile/"
                                class="block px-4 py-2 text-sm <?= str_starts_with($current_path, '/Badminton_court_Booking/customer/profile') ? 'text-green-600 bg-green-50 font-semibold' : 'text-gray-700 hover:bg-green-50 hover:text-green-600' ?> transition">
-                                <i class="fas fa-user mr-2"></i> My Profile
+                                <i class="fas fa-user mr-2"></i> ໂປຣໄຟລ໌
                             </a>
                             <a href="/Badminton_court_Booking/customer/booking_court/my_booking.php"
                                class="block px-4 py-2 text-sm <?= str_contains($current_path, 'my_booking') ? 'text-green-600 bg-green-50 font-semibold' : 'text-gray-700 hover:bg-green-50 hover:text-green-600' ?> transition">
-                                <i class="fas fa-calendar-check mr-2"></i> My Bookings
+                                <i class="fas fa-calendar-check mr-2"></i> ການຈອງຂອງຂ້ອຍ
                             </a>
                             <a href="/Badminton_court_Booking/customer/notification/"
                                class="block px-4 py-2 text-sm <?= str_starts_with($current_path, '/Badminton_court_Booking/customer/notification') ? 'text-green-600 bg-green-50 font-semibold' : 'text-gray-700 hover:bg-green-50 hover:text-green-600' ?> transition">
-                                <i class="fas fa-bell mr-2"></i> Notifications
+                                <i class="fas fa-bell mr-2"></i> ການແຈ້ງເຕືອນ
                                 <?php if ($notification_count > 0): ?>
                                     <span class="ml-1 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 font-bold">
                                         <?= $notification_count ?>
@@ -138,7 +138,7 @@ function mobile_class($path) {
                             <div class="border-t border-gray-100 my-1"></div>
                             <a href="/Badminton_court_Booking/auth/logout.php"
                                class="block px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition">
-                                <i class="fas fa-sign-out-alt mr-2"></i> Logout
+                                <i class="fas fa-sign-out-alt mr-2"></i> ອອກຈາກລະບົບ
                             </a>
                         </div>
                     </div>
@@ -146,11 +146,11 @@ function mobile_class($path) {
                 <?php else: ?>
                     <a href="/Badminton_court_Booking/auth/login.php"
                        class="text-gray-700 hover:text-green-600 font-medium transition">
-                        <i class="fas fa-sign-in-alt mr-1"></i> Login
+                        <i class="fas fa-sign-in-alt mr-1"></i> ເຂົ້າສູ່ລະບົບ
                     </a>
                     <a href="/Badminton_court_Booking/auth/register.php"
                        class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition">
-                        Sign Up
+                        ສະໝັກໃຊ້
                     </a>
                 <?php endif; ?>
 
@@ -164,36 +164,36 @@ function mobile_class($path) {
         <!-- Mobile Menu -->
         <div id="mobileMenu" class="hidden md:hidden pb-4 border-t border-gray-100 mt-2">
             <a href="/Badminton_court_Booking/customer/" class="<?= mobile_class('/Badminton_court_Booking/customer/') ?>">
-                <i class="fas fa-home mr-2"></i> Home
+                <i class="fas fa-home mr-2"></i> ໜ້າຫຼັກ
             </a>
             <a href="/Badminton_court_Booking/customer/booking_court/" class="<?= mobile_class('/Badminton_court_Booking/customer/booking_court/') ?>">
-                <i class="fas fa-table-tennis mr-2"></i> Book Court
+                <i class="fas fa-table-tennis mr-2"></i> ຈອງເດີ່ນ
             </a>
             <?php if ($is_logged_in): ?>
                 <a href="/Badminton_court_Booking/customer/booking_court/my_booking.php" class="<?= mobile_class('/Badminton_court_Booking/customer/booking_court/my_booking') ?>">
-                    <i class="fas fa-calendar-alt mr-2"></i> My Bookings
+                    <i class="fas fa-calendar-alt mr-2"></i> ການຈອງຂອງຂ້ອຍ
                 </a>
                 <a href="/Badminton_court_Booking/customer/notification/" class="<?= mobile_class('/Badminton_court_Booking/customer/notification/') ?>">
-                    <i class="fas fa-bell mr-2"></i> Notifications
+                    <i class="fas fa-bell mr-2"></i> ການແຈ້ງເຕືອນ
                     <?php if ($notification_count > 0): ?>
                         <span class="ml-1 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 font-bold"><?= $notification_count ?></span>
                     <?php endif; ?>
                 </a>
                 <a href="/Badminton_court_Booking/customer/profile/" class="<?= mobile_class('/Badminton_court_Booking/customer/profile/') ?>">
-                    <i class="fas fa-user mr-2"></i> My Profile
+                    <i class="fas fa-user mr-2"></i> ໂປຣໄຟລ໌
                 </a>
                 <a href="/Badminton_court_Booking/auth/logout.php"
                    class="block py-2 px-4 text-red-600 hover:bg-red-50 rounded transition">
-                    <i class="fas fa-sign-out-alt mr-2"></i> Logout
+                    <i class="fas fa-sign-out-alt mr-2"></i> ອອກຈາກລະບົບ
                 </a>
             <?php else: ?>
                 <a href="/Badminton_court_Booking/auth/login.php"
                    class="block py-2 px-4 text-gray-700 hover:text-green-600 hover:bg-green-50 rounded transition">
-                    <i class="fas fa-sign-in-alt mr-2"></i> Login
+                    <i class="fas fa-sign-in-alt mr-2"></i> ເຂົ້າສູ່ລະບົບ
                 </a>
                 <a href="/Badminton_court_Booking/auth/register.php"
                    class="block py-2 px-4 text-green-600 font-semibold hover:bg-green-50 rounded transition">
-                    <i class="fas fa-user-plus mr-2"></i> Sign Up
+                    <i class="fas fa-user-plus mr-2"></i> ສະໝັກໃຊ້
                 </a>
             <?php endif; ?>
         </div>

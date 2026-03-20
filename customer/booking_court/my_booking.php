@@ -8,10 +8,13 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'customer') {
     exit;
 }
 
+date_default_timezone_set('Asia/Vientiane');
+
 $customer_id   = $_SESSION['c_id'];
 $customer_name = $_SESSION['user_name'];
 $filter        = $_GET['filter'] ?? 'all';
 
+// FIX: Fetch ALL rows then group by Book_ID so multi-slot bookings show as one card
 function get_customer_bookings($pdo, $customer_id, $filter = 'all') {
     try {
         $sql = "SELECT 
@@ -27,38 +30,76 @@ function get_customer_bookings($pdo, $customer_id, $filter = 'all') {
         $params = [$customer_id];
         $now = date('Y-m-d H:i:s');
 
-        // FIX: Use bd.Start_time for upcoming/past (the actual scheduled play time),
-        //      but keep Booking_date for display only.
         if ($filter === 'upcoming') {
-            $sql .= " AND bd.Start_time > ? AND b.Status_booking != 'Cancelled'";
+            // Booking is upcoming if ANY slot's Start_time is in the future
+            $sql .= " AND b.Book_ID IN (
+                SELECT DISTINCT bd2.Book_ID FROM booking_detail bd2
+                INNER JOIN booking b2 ON bd2.Book_ID = b2.Book_ID
+                WHERE b2.C_ID = ? AND bd2.Start_time > ? AND b2.Status_booking != 'Cancelled'
+            )";
+            $params[] = $customer_id;
             $params[] = $now;
         } elseif ($filter === 'past') {
-            $sql .= " AND bd.End_time < ? AND b.Status_booking != 'Cancelled'";
+            // Booking is past if ALL slots' End_time are in the past
+            $sql .= " AND b.Book_ID IN (
+                SELECT DISTINCT bd2.Book_ID FROM booking_detail bd2
+                INNER JOIN booking b2 ON bd2.Book_ID = b2.Book_ID
+                WHERE b2.C_ID = ? AND b2.Status_booking != 'Cancelled'
+                GROUP BY bd2.Book_ID
+                HAVING MAX(bd2.End_time) < ?
+            )";
+            $params[] = $customer_id;
             $params[] = $now;
         } elseif ($filter === 'cancelled') {
             $sql .= " AND b.Status_booking = 'Cancelled'";
         } elseif ($filter === 'unpaid') {
             $sql .= " AND b.Status_booking = 'Unpaid'";
         }
-        $sql .= " ORDER BY bd.Start_time DESC";
+        $sql .= " ORDER BY b.Book_ID DESC, bd.Start_time ASC";
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // FIX: Group rows by Book_ID — one entry per booking, slots as array
+        $grouped = [];
+        foreach ($rows as $row) {
+            $id = $row['Book_ID'];
+            if (!isset($grouped[$id])) {
+                $grouped[$id] = [
+                    'Book_ID'        => $row['Book_ID'],
+                    'Booking_date'   => $row['Booking_date'],
+                    'Status_booking' => $row['Status_booking'],
+                    'Slip_payment'   => $row['Slip_payment'],
+                    'VN_ID'          => $row['VN_ID'],
+                    'VN_Name'        => $row['VN_Name'],
+                    'VN_Address'     => $row['VN_Address'],
+                    'Price_per_hour' => $row['Price_per_hour'],
+                    'VN_Image'       => $row['VN_Image'],
+                    'slots'          => [],
+                ];
+            }
+            $grouped[$id]['slots'][] = [
+                'court_name' => $row['COURT_Name'],
+                'court_id'   => $row['COURT_ID'],
+                'start'      => $row['Start_time'],
+                'end'        => $row['End_time'],
+            ];
+        }
+        return array_values($grouped);
     } catch (PDOException $e) {
         return [];
     }
 }
 
-function calculate_booking_price($price_per_hour, $start_time, $end_time) {
-    // Guard against invalid/corrupt time strings
-    if (!strtotime($start_time) || !strtotime($end_time)) return 0;
-    
-    $start = new DateTime($start_time);
-    $end   = new DateTime($end_time);
-    $diff  = $start->diff($end);
-    $hours = $diff->h + ($diff->i / 60) + ($diff->days * 24);
-    $price_clean = preg_replace('/[^0-9.]/', '', $price_per_hour);
-    return $hours * floatval($price_clean);
+function calculate_booking_price($price_per_hour, $slots) {
+    $price_clean = floatval(preg_replace('/[^0-9.]/', '', $price_per_hour));
+    $total = 0;
+    foreach ($slots as $slot) {
+        if (!strtotime($slot['start']) || !strtotime($slot['end'])) continue;
+        $hours = (strtotime($slot['end']) - strtotime($slot['start'])) / 3600;
+        $total += $hours * $price_clean;
+    }
+    return $total;
 }
 
 function format_duration($start_time, $end_time) {
@@ -151,22 +192,17 @@ $bookings = match($filter) {
                     ];
                     $status = $booking['Status_booking'];
                     $config = $status_config[$status] ?? $status_config['Pending'];
+                    $slots  = $booking['slots'];
 
-                    // FIX: Use Start_time and End_time to determine if booking slot is past/upcoming
-                    $is_past     = strtotime($booking['End_time'])   < time();
-                    $is_upcoming = strtotime($booking['Start_time']) > time();
+                    // Use earliest start and latest end across all slots
+                    $first_start = $slots[0]['start'];
+                    $last_end    = end($slots)['end'];
 
-                    $price = calculate_booking_price($booking['Price_per_hour'], $booking['Start_time'], $booking['End_time']);
+                    $is_past     = strtotime($last_end)    < time();
+                    $is_upcoming = strtotime($first_start) > time();
 
-                    // FIX: Display the actual scheduled play date from Start_time (the court slot date),
-                    //      NOT Booking_date (which is when the booking was created).
-                    //      This matches what users expect to see — the date they will play.
-                    $book_date = date('d/m/Y', strtotime($booking['Start_time']));
-                    $start_t   = date('g:i A', strtotime($booking['Start_time']));
-                    $end_t     = date('g:i A', strtotime($booking['End_time']));
-                    $duration  = format_duration($booking['Start_time'], $booking['End_time']);
-
-                    // FIX: Also show the booking creation date separately for reference
+                    $price        = calculate_booking_price($booking['Price_per_hour'], $slots);
+                    $play_date    = strtotime($first_start) ? date('d/m/Y', strtotime($first_start)) : '-';
                     $created_date = date('d/m/Y', strtotime($booking['Booking_date']));
 
                     $opacity   = ($is_past || $status === 'Cancelled') ? 'opacity-75' : '';
@@ -182,14 +218,14 @@ $bookings = match($filter) {
                                      class="w-full h-full object-cover"
                                      onerror="this.src='/Badminton_court_Booking/assets/images/BookingBG.png'">
                             </div>
-                            <div class="flex-1 p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                            <div class="flex-1 p-6 flex flex-col md:flex-row justify-between items-start gap-4">
                                 <div class="flex-1">
+                                    <!-- Venue info -->
                                     <div class="flex items-center gap-3 mb-3">
                                         <div class="bg-blue-100 p-2 rounded-lg">
                                             <i class="fas fa-table-tennis text-blue-600 text-lg"></i>
                                         </div>
                                         <div>
-                                            <h3 class="text-lg font-bold text-gray-800"><?= htmlspecialchars($booking['COURT_Name']) ?></h3>
                                             <p class="text-sm font-medium text-gray-600"><?= htmlspecialchars($booking['VN_Name']) ?></p>
                                             <p class="text-xs text-gray-500">
                                                 <i class="fas fa-map-marker-alt mr-1 text-red-400"></i>
@@ -197,30 +233,48 @@ $bookings = match($filter) {
                                             </p>
                                         </div>
                                     </div>
-                                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-3 text-sm">
+
+                                    <!-- Date + total price row -->
+                                    <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-3 text-sm">
                                         <div>
-                                            <!-- FIX: This now shows the scheduled PLAY date (from Start_time), which is stable -->
                                             <p class="text-xs text-gray-500 font-medium uppercase tracking-wide">ວັນທີຫຼິ້ນ</p>
-                                            <p class="font-bold text-gray-800"><?= $book_date ?></p>
+                                            <p class="font-bold text-gray-800"><?= $play_date ?></p>
                                         </div>
                                         <div>
-                                            <p class="text-xs text-gray-500 font-medium uppercase tracking-wide">ເວລາ</p>
-                                            <p class="font-bold text-gray-800"><?= $start_t ?> - <?= $end_t ?></p>
+                                            <p class="text-xs text-gray-500 font-medium uppercase tracking-wide">ຈຳນວນສລັອດ</p>
+                                            <p class="font-bold text-gray-800"><?= count($slots) ?> ເດີ່ນ</p>
                                         </div>
                                         <div>
-                                            <p class="text-xs text-gray-500 font-medium uppercase tracking-wide">ໄລຍະເວລາ</p>
-                                            <p class="font-bold text-gray-800"><?= $duration ?></p>
-                                        </div>
-                                        <div>
-                                            <p class="text-xs text-gray-500 font-medium uppercase tracking-wide">ຈຳນວນເງິນ</p>
+                                            <p class="text-xs text-gray-500 font-medium uppercase tracking-wide">ຈຳນວນເງິນລວມ</p>
                                             <p class="font-bold text-green-600 text-base">₭<?= number_format($price, 0) ?></p>
                                         </div>
                                     </div>
-                                    <!-- FIX: Show booking creation date separately so user knows when they booked -->
+
+                                    <!-- FIX: Show ALL slots for this booking as a list -->
+                                    <div class="space-y-1.5">
+                                        <?php foreach ($slots as $slot): ?>
+                                            <div class="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2 text-sm">
+                                                <i class="fas fa-table-tennis text-green-500 text-xs flex-shrink-0"></i>
+                                                <span class="font-semibold text-gray-700 w-6"><?= htmlspecialchars($slot['court_name']) ?></span>
+                                                <span class="text-gray-400 mx-1">·</span>
+                                                <span class="text-gray-600">
+                                                    <?php if (strtotime($slot['start'])): ?>
+                                                        <?= date('g:i A', strtotime($slot['start'])) ?> – <?= date('g:i A', strtotime($slot['end'])) ?>
+                                                        <span class="text-gray-400 text-xs ml-1">(<?= format_duration($slot['start'], $slot['end']) ?>)</span>
+                                                    <?php else: ?>
+                                                        -
+                                                    <?php endif; ?>
+                                                </span>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+
                                     <p class="text-xs text-gray-400 mt-2">
                                         <i class="fas fa-calendar-plus mr-1"></i>ຈອງວັນທີ: <?= $created_date ?>
                                     </p>
                                 </div>
+
+                                <!-- Status + actions -->
                                 <div class="flex flex-col items-start md:items-end gap-2 min-w-max">
                                     <span class="<?= $config['bg'] ?> <?= $config['text'] ?> px-3 py-1 rounded-full text-xs font-bold">
                                         <i class="fas <?= $config['icon'] ?> mr-1"></i>

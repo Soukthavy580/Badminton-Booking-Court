@@ -154,7 +154,7 @@ $status_config = match($status) {
         <!-- Booked Slots -->
         <div class="bg-white rounded-2xl shadow-sm p-6 mb-6">
             <h3 class="font-bold text-gray-800 mb-4">
-                <i class="fas fa-calendar-check text-green-500 mr-2"></i>ສລັອດທີ່ຈອງໄວ້
+                <i class="fas fa-calendar-check text-green-500 mr-2"></i>ເດີ່ນທີ່ຈອງໄວ້
             </h3>
             <div class="space-y-3">
                 <?php foreach ($details as $d):

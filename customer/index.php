@@ -334,7 +334,7 @@ $is_logged_in    = isset($_SESSION['user_id']);
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
                     <?php foreach ([
                         ['fa-search',       'blue',   '1', 'ຊອກຫາເດີ່ນ',         'ເບິ່ງສະຖານທີ່ທີ່ມີ ແລະ ເລືອກເວລາທີ່ທ່ານຕ້ອງການ'],
-                        ['fa-credit-card',  'green',  '2', 'ຈ່າຍມັດຈຳ 30%',      'ຈອງສລັອດຂອງທ່ານດ້ວຍການຈ່າຍມັດຈຳ 30% ຜ່ານ QR Code'],
+                        ['fa-credit-card',  'green',  '2', 'ຈ່າຍມັດຈຳ 30%',      'ຈອງເດີ່ນຂອງທ່ານດ້ວຍການຈ່າຍມັດຈຳ 30% ຜ່ານ QR Code'],
                         ['fa-table-tennis', 'yellow', '3', 'ຫຼິ້ນ ແລະ ຈ່າຍສ່ວນທີ່ເຫຼືອ', 'ມາຮອດສະຖານທີ່ ແລະ ຈ່າຍສ່ວນທີ່ເຫຼືອ 70% ໂດຍກົງ'],
                     ] as [$icon,$color,$step,$title,$desc]): ?>
                         <div class="bg-white rounded-2xl p-8 shadow-sm hover-scale">

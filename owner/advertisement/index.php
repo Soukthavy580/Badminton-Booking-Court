@@ -54,10 +54,19 @@ try {
     $all_ads = $stmt->fetchAll();
 } catch (PDOException $e) { $all_ads = []; }
 
+// Read rejection reason from approve_advertisement table
+$rejection = null;
 try {
-    $stmt = $pdo->prepare("SELECT * FROM owner_notification WHERE CA_ID = ? AND type = 'advertisement' ORDER BY created_at DESC LIMIT 1");
-    $stmt->execute([$ca_id]);
-    $rejection = $stmt->fetch();
+    $stmt = $pdo->prepare("
+        SELECT ap.Reject_reason AS message, ap.actioned_at AS created_at
+        FROM approve_advertisement ap
+        INNER JOIN advertisement ad ON ap.AD_ID = ad.AD_ID
+        WHERE ad.VN_ID = ? AND ap.Action = 'Rejected'
+        AND ad.Status_AD = 'Rejected'
+        ORDER BY ap.actioned_at DESC LIMIT 1
+    ");
+    $stmt->execute([$vn_id]);
+    $rejection = $stmt->fetch() ?: null;
 } catch (PDOException $e) { $rejection = null; }
 ?>
 <!DOCTYPE html>
@@ -83,12 +92,12 @@ try {
             <div class="flex items-center justify-between">
                 <div>
                     <h1 class="text-xl font-bold text-gray-800">ໂຄສະນາ</h1>
-                    <p class="text-sm text-gray-500">ໂຄສະນາສະຖານທີ່ຂອງທ່ານໃນໜ້າຫຼັກ</p>
+                    <p class="text-sm text-gray-500">ໂຄສະນາເດີ່ນຂອງທ່ານໃນໜ້າຫຼັກ</p>
                 </div>
                 <?php if (!empty($active_ads) || !empty($queued_ads)): ?>
                     <div class="flex items-center gap-2 bg-green-50 border border-green-200 px-4 py-2 rounded-xl text-sm">
                         <i class="fas fa-bullhorn text-green-500"></i>
-                        <span class="text-green-700 font-semibold"><?= count($active_ads) ?> ກຳລັງແລ່ນ<?= !empty($queued_ads) ? ', ' . count($queued_ads) . ' ລໍຖ້າ' : '' ?></span>
+                        <span class="text-green-700 font-semibold"><?= count($active_ads) ?> ກຳລັງໃຊ້ງານຢູ່<?= !empty($queued_ads) ? ', ' . count($queued_ads) . ' ລໍຖ້າ' : '' ?></span>
                     </div>
                 <?php endif; ?>
             </div>
@@ -112,7 +121,21 @@ try {
                             <p class="text-sm text-gray-700"><?= nl2br(htmlspecialchars($rejection['message'])) ?></p>
                         </div>
                         <p class="text-xs text-gray-400 mb-2"><i class="fas fa-clock mr-1"></i><?= date('d/m/Y \ເວລາ g:i A', strtotime($rejection['created_at'])) ?></p>
-                        <p class="text-sm text-red-600 font-medium"><i class="fas fa-arrow-down mr-1"></i>ກະລຸນາເລືອກແພລນໃໝ່ ແລະ ສົ່ງໃບຮັບເງິນໃໝ່.</p>
+                        <p class="text-sm text-red-600 font-medium mb-3"><i class="fas fa-exclamation-circle mr-1"></i>ກະລຸນາສົ່ງຫຼັກຖານການໂອນໃໝ່ສຳລັບຄຳຂໍເດີມ.</p>
+                        <?php
+                        // Get the rejected ad ID to resubmit
+                        try {
+                            $rej_stmt = $pdo->prepare("SELECT ad.AD_ID, ad.AD_Rate_ID FROM advertisement ad INNER JOIN Venue_data v ON ad.VN_ID = v.VN_ID WHERE v.CA_ID = ? AND ad.Status_AD = 'Rejected' ORDER BY ad.AD_date DESC LIMIT 1");
+                            $rej_stmt->execute([$ca_id]);
+                            $rej_ad = $rej_stmt->fetch();
+                        } catch (PDOException $e) { $rej_ad = null; }
+                        ?>
+                        <?php if ($rej_ad): ?>
+                            <a href="/Badminton_court_Booking/owner/advertisement/payment.php?rate_id=<?= $rej_ad['AD_Rate_ID'] ?>&resubmit=<?= $rej_ad['AD_ID'] ?>"
+                               class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition shadow">
+                                <i class="fas fa-upload"></i>ອັບໂຫລດຫຼັກຖານການໂອນໃໝ່
+                            </a>
+                        <?php endif; ?>
                     </div>
                 </div>
             <?php endif; ?>
@@ -135,7 +158,7 @@ try {
             <!-- Currently Running -->
             <?php if (!empty($active_ads)): ?>
                 <div class="bg-white rounded-2xl shadow-sm p-6 mb-6">
-                    <h2 class="text-lg font-bold text-gray-800 mb-4"><i class="fas fa-circle text-green-500 mr-2 text-xs"></i>ກຳລັງແລ່ນຢູ່</h2>
+                    <h2 class="text-lg font-bold text-gray-800 mb-4"><i class="fas fa-circle text-green-500 mr-2 text-xs"></i>ກຳລັງໃຊ້ງານຢູ່</h2>
                     <div class="space-y-3">
                         <?php foreach ($active_ads as $ad):
                             $days_left  = ceil((strtotime($ad['End_time']) - time()) / 86400);
@@ -157,7 +180,7 @@ try {
                                     <div class="flex-1 bg-blue-100 rounded-full h-2">
                                         <div class="bg-blue-500 h-2 rounded-full" style="width:<?= $pct ?>%"></div>
                                     </div>
-                                    <span class="font-bold <?= $days_left <= 3 ? 'text-orange-500' : 'text-blue-600' ?>"><?= $days_left ?> ວັນທີ່ເຫຼືອ</span>
+                                    <span class="font-bold <?= $days_left <= 3 ? 'text-orange-500' : 'text-blue-600' ?>"><?= $days_left ?> ມື້ທີ່ເຫຼືອ</span>
                                 </div>
                             </div>
                         <?php endforeach; ?>
@@ -169,7 +192,7 @@ try {
             <?php if (!empty($queued_ads)): ?>
                 <div class="bg-white rounded-2xl shadow-sm p-6 mb-6">
                     <h2 class="text-lg font-bold text-gray-800 mb-4">
-                        <i class="fas fa-hourglass-half text-purple-500 mr-2 text-xs"></i>ລໍຖ້າ — ໂຄສະນານີ້ຈະເລີ່ມຫຼັງຈາກການໂຄສະນາປັດຈຸບັນໝົດ
+                        <i class="fas fa-hourglass-half text-purple-500 mr-2 text-xs"></i>ໂຄສະນານີ້ຈະເລີ່ມຫຼັງຈາກໂຄສະນາປັດຈຸບັນໝົດ
                     </h2>
                     <div class="space-y-3">
                         <?php foreach ($queued_ads as $ad):
@@ -185,7 +208,7 @@ try {
                                         <span class="bg-purple-100 text-purple-700 text-xs font-bold px-3 py-1 rounded-full">
                                             <i class="fas fa-hourglass-half mr-1"></i>ລໍຖ້າ
                                         </span>
-                                        <p class="text-xs text-purple-600 mt-1 font-semibold">ເລີ່ມໃນ <?= $days_until ?> ວັນ</p>
+                                        <p class="text-xs text-purple-600 mt-1 font-semibold">ເລີ່ມໃນ <?= $days_until ?> ມື້</p>
                                         <p class="text-xs text-gray-400">₭<?= number_format($ad['Price']) ?></p>
                                     </div>
                                 </div>
@@ -218,12 +241,12 @@ try {
 
             <!-- Why Advertise -->
             <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 mb-6 text-white">
-                <h2 class="text-xl font-bold mb-4"><i class="fas fa-rocket mr-2"></i>ເປັນຫຍັງຈື່ງຕ້ອງໂຄສະນາ?</h2>
+                <h2 class="text-xl font-bold mb-4"><i class="fas fa-rocket mr-2"></i>ທຳໄມຕ້ອງໂຄສະນາ?</h2>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <?php foreach ([
-                        ['fa-star',       'ໄດ້ຮັບ Badge ແນະນຳ',   'ສະຖານທີ່ຂອງທ່ານຈະໄດ້ Badge ສີທອງທີ່ລູກຄ້າທຸກຄົນເຫັນ'],
-                        ['fa-home',       'ສະແດງໃນໜ້າຫຼັກ',       'ປາກົດໃນສ່ວນ "ເດີ່ນແນະນຳ" ໃນໜ້າຫຼັກ'],
-                        ['fa-chart-line', 'ການຈອງເພີ່ມຂຶ້ນ',      'ສະຖານທີ່ທີ່ໂຄສະນາໄດ້ຮັບການເບິ່ງ ແລະ ຈອງຫຼາຍຂຶ້ນ'],
+                        ['fa-star',       'ໄດ້ຮັບ ປ້າຍ ແນະນຳ',   'ເດີ່ນຂອງທ່ານຈະໄດ້ປ້າຍທີ່ຈະສະແດງໃຫ້ລູກຄ້າທຸກຄົນເຫັນ'],
+                        ['fa-home',       'ສະແດງໃນໜ້າຫຼັກ',       'ສະແດງໃນສ່ວນ "ເດີ່ນແນະນຳ" ໃນໜ້າຫຼັກ'],
+                        ['fa-chart-line', 'ການຈອງເພີ່ມຂຶ້ນ',      'ເດີ່ນຂອງທ່ານໄດ້ຮັບຄວາມສົນໃຈ ແລະ ການຈອງຫຼາຍຂຶ້ນ'],
                     ] as [$icon, $title, $desc]): ?>
                         <div class="bg-white bg-opacity-15 rounded-xl p-4">
                             <i class="fas <?= $icon ?> text-yellow-300 text-xl mb-2 block"></i>
@@ -239,7 +262,7 @@ try {
             <div class="bg-white rounded-2xl shadow-sm p-6 mb-6">
                 <h2 class="text-xl font-bold text-gray-800 mb-2">
                     <i class="fas fa-tags text-blue-500 mr-2"></i>
-                    <?= $rejection ? 'ສົ່ງໃໝ່' : 'ເລືອກແພລນ' ?>
+                    <?= $rejection ? 'ສົ່ງໃໝ່' : 'ເລືອກລາຍການໂຄສະນາ' ?>
                 </h2>
                 <p class="text-gray-500 text-sm mb-6">ເລືອກໄລຍະເວລາ ແລ້ວຄລິກ ດຳເນີນການຈ່າຍ.</p>
                 <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
@@ -260,12 +283,11 @@ try {
                             </div>
                             <p class="font-bold text-gray-800 text-sm"><?= htmlspecialchars($rate['Duration']) ?></p>
                             <p class="text-2xl font-extrabold text-blue-600 mt-1">₭<?= number_format($rate['Price']) ?></p>
-                            <p class="text-xs text-gray-400 mt-1">₭<?= number_format($per_day) ?>/ວັນ</p>
                         </div>
                     <?php endforeach; ?>
                 </div>
                 <div id="noSelection" class="text-center py-3 text-gray-400 text-sm">
-                    <i class="fas fa-hand-pointer mr-1"></i>ເລືອກແພລນຂ້າງເທິງເພື່ອດຳເນີນການ
+                    <i class="fas fa-hand-pointer mr-1"></i>ເລືອກລາຍການໂຄສະນາຂ້າງເທິງເພື່ອດຳເນີນການ
                 </div>
                 <div id="proceedSection" class="hidden">
                     <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 flex items-center justify-between">

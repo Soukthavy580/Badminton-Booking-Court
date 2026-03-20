@@ -39,7 +39,7 @@ function admin_sidebar_class($path) {
                 Badminton<br>Booking Court
             </span>
         </a>
-        <p class="text-xs text-gray-400 mt-1">ແພນລ໌ແອດມິນ</p>
+        <p class="text-xs text-gray-400 mt-1">ແອດມິນ - ເຈົ້າຂອງເວັບໄຊ້</p>
     </div>
 
     <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
@@ -62,7 +62,6 @@ function admin_sidebar_class($path) {
         <a href="/Badminton_court_Booking/admin/owners/" class="<?= admin_sidebar_class('/admin/owners/') ?>">
             <i class="fas fa-user-tie w-5"></i>ເຈົ້າຂອງ
         </a>
-        
 
         <!-- ── ການອະນຸມັດ ── -->
         <div class="pt-3 pb-1">

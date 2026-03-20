@@ -12,25 +12,29 @@ $ca_id = $_SESSION['ca_id'];
 // FIX: Fetch notifications from the 3 source tables directly — no owner_notification needed
 $notifications = [];
 try {
-    // Rejected packages
+    // Rejected packages — read reason from approve_package
     $s = $pdo->prepare("
-        SELECT 'package' AS type, Package_ID AS ref_id,
-               Reject_reason AS message, Package_date AS created_at,
+        SELECT 'package' AS type, bp.Package_ID AS ref_id,
+               ap.Reject_reason AS message, ap.actioned_at AS created_at,
                'ການຈ່າຍເງິນແພັກເກດຖືກປະຕິເສດ' AS title
-        FROM package
-        WHERE CA_ID = ? AND Status_Package = 'Rejected' AND Reject_reason IS NOT NULL
+        FROM package bp
+        INNER JOIN approve_package ap ON ap.Package_ID = bp.Package_ID AND ap.Action = 'Rejected'
+        WHERE bp.CA_ID = ? AND bp.Status_Package = 'Rejected'
+        ORDER BY ap.actioned_at DESC
     ");
     $s->execute([$ca_id]);
     $notifications = array_merge($notifications, $s->fetchAll());
 
-    // Rejected advertisements
+    // Rejected advertisements — read reason from approve_advertisement
     $s = $pdo->prepare("
-        SELECT 'advertisement' AS type, AD_ID AS ref_id,
-               Reject_reason AS message, AD_date AS created_at,
+        SELECT 'advertisement' AS type, ad.AD_ID AS ref_id,
+               ap.Reject_reason AS message, ap.actioned_at AS created_at,
                'ໂຄສະນາຖືກປະຕິເສດ' AS title
-        FROM advertisement
-        WHERE VN_ID IN (SELECT VN_ID FROM Venue_data WHERE CA_ID = ?)
-        AND Status_AD = 'Rejected' AND Reject_reason IS NOT NULL
+        FROM advertisement ad
+        INNER JOIN approve_advertisement ap ON ap.AD_ID = ad.AD_ID AND ap.Action = 'Rejected'
+        INNER JOIN Venue_data v ON ad.VN_ID = v.VN_ID
+        WHERE v.CA_ID = ? AND ad.Status_AD = 'Rejected'
+        ORDER BY ap.actioned_at DESC
     ");
     $s->execute([$ca_id]);
     $notifications = array_merge($notifications, $s->fetchAll());

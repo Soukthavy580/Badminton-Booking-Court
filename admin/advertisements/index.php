@@ -12,7 +12,7 @@ $error    = '';
 $success  = '';
 $filter   = $_GET['filter'] ?? 'pending';
 
-// ── RATE MANAGEMENT ──
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_rate'])) {
     $rate_id  = intval($_POST['rate_id'] ?? 0);
     $duration = trim($_POST['rate_duration'] ?? '');
@@ -110,7 +110,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['save_rate']) && !iss
                     // FIX: correct table = advertisement, correct columns
                     $pdo->prepare("UPDATE advertisement SET Status_AD='Approved', Start_time=?, End_time=? WHERE AD_ID=?")
                         ->execute([$start, $end, $ad_id]);
-                    $pdo->prepare("INSERT INTO approve_advertisement (AD_ID, Admin_ID) VALUES (?,?) ON DUPLICATE KEY UPDATE Admin_ID=VALUES(Admin_ID)")
+                    $pdo->prepare("INSERT INTO approve_advertisement (AD_ID, Admin_ID, Action, actioned_at) VALUES (?,?,'Approved',NOW())")
                         ->execute([$ad_id, $admin_id]);
                     // FIX: no owner_notification — nothing to delete
 
@@ -124,8 +124,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['save_rate']) && !iss
                         $error = 'ກະລຸນາຂຽນເຫດຜົນໄປຫາເຈົ້າຂອງ.';
                     } else {
                         // FIX: UPDATE advertisement with Reject_reason column (no owner_notification)
-                        $pdo->prepare("UPDATE advertisement SET Status_AD='Rejected', Reject_reason=? WHERE AD_ID=?")
-                            ->execute([$comment, $ad_id]);
+                        $pdo->prepare("UPDATE advertisement SET Status_AD='Rejected' WHERE AD_ID=?")
+                            ->execute([$ad_id]);
+                        $pdo->prepare("INSERT INTO approve_advertisement (AD_ID, Admin_ID, Action, Reject_reason, actioned_at) VALUES (?,?,'Rejected',?,NOW())")
+                            ->execute([$ad_id, $admin_id, $comment]);
                         $success = 'ປະຕິເສດໂຄສະນາສຳເລັດ. ເຈົ້າຂອງຈະເຫັນໃນການແຈ້ງເຕືອນ.';
                     }
                 }
@@ -148,7 +150,7 @@ function get_ads($pdo, $filter) {
                COALESCE(r.Is_Popular,0) AS rate_popular, COALESCE(r.Is_Best_Value,0) AS rate_best,
                v.VN_Name, v.VN_Address, v.VN_Image, v.CA_ID, v.VN_ID,
                co.Name AS owner_name, co.Email AS owner_email, co.Phone AS owner_phone,
-               ad.Reject_reason
+               (SELECT ap.Reject_reason FROM approve_advertisement ap WHERE ap.AD_ID=ad.AD_ID AND ap.Action='Rejected' ORDER BY ap.actioned_at DESC LIMIT 1) AS reject_reason
         FROM advertisement ad
         INNER JOIN advertisement_rate r ON ad.AD_Rate_ID = r.AD_Rate_ID
         INNER JOIN Venue_data v ON ad.VN_ID = v.VN_ID
@@ -255,8 +257,8 @@ try { $revenue = $pdo->query("SELECT COALESCE(SUM(r.Price),0) FROM advertisement
                     <div class="flex items-center gap-3">
                         <div class="bg-blue-100 w-9 h-9 rounded-xl flex items-center justify-center"><i class="fas fa-tags text-blue-500"></i></div>
                         <div class="text-left">
-                            <h2 class="font-bold text-gray-800">ເພີ່ມ ແລະ ແກ້ໄຂລາຄາໂຄສະນາ</h2>
-                            <p class="text-xs text-gray-400"><?= count($ad_rates) ?> ລາຍການ, ຄລິກເພື່ອຈັດການລາຄາ ແລະ ໄລຍະ</p>
+                            <h2 class="font-bold text-gray-800">ລາຍການລາຄາໂຄສະນາ</h2>
+                            <p class="text-xs text-gray-400"><?= count($ad_rates) ?> ລາຍການ · ຄລິກເພື່ອຈັດການລາຄາ ແລະ ໄລຍະເວລາ</p>
                         </div>
                     </div>
                     <i class="fas fa-chevron-down text-gray-400" id="ratesChevron"></i>
@@ -286,9 +288,8 @@ try { $revenue = $pdo->query("SELECT COALESCE(SUM(r.Price),0) FROM advertisement
                                     <input type="hidden" name="is_best_value" id="best_pkg_<?= $rate['AD_Rate_ID'] ?>" value="<?= $is_best ? 1 : 0 ?>">
                                     <input type="text" name="rate_duration" value="<?= htmlspecialchars($rate['Duration']) ?>"
                                            class="w-full text-center text-sm font-semibold text-gray-700 bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-blue-400 focus:outline-none rounded px-1 py-0.5 transition">
-                                    <input type="text" name="rate_price" value="<?= number_format($rate['Price'],0,'.','')?>"
+                                    <input type="text" name="rate_price" value="<?= number_format($rate['Price'],0,'.',',') ?>"
                                            class="w-full text-center text-2xl font-extrabold text-green-600 bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-blue-400 focus:outline-none rounded px-1 py-0.5 transition">
-                                    <?php if ($mo_price): ?><p class="text-xs text-gray-400">₭<?= number_format($mo_price) ?>/ເດືອນ</p><?php endif; ?>
                                     <div class="flex gap-1.5 pt-1">
                                         <button type="submit" name="save_rate" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-1.5 rounded-xl text-xs transition"><i class="fas fa-save mr-0.5"></i>ບັນທຶກ</button>
                                         <button type="submit" name="delete_rate" onclick="return confirm('ລຶບແພລນນີ້?')" class="bg-red-50 hover:bg-red-100 text-red-500 border border-red-200 font-bold py-1.5 px-2.5 rounded-xl text-xs transition"><i class="fas fa-trash"></i></button>
@@ -467,7 +468,7 @@ try { $revenue = $pdo->query("SELECT COALESCE(SUM(r.Price),0) FROM advertisement
                     <h3 class="text-xl font-bold text-gray-600 mb-2">
                         <?= match($filter) { 'pending'=>'ບໍ່ມີໂຄສະນາລໍຖ້າ','active'=>'ບໍ່ມີໂຄສະນາທີ່ໃຊ້ງານ','expired'=>'ບໍ່ມີໂຄສະນາໝົດອາຍຸ',default=>'ບໍ່ມີລາຍການ' } ?>
                     </h3>
-                    <p class="text-gray-400 text-sm"><?= $filter==='pending' ? 'ໂຄສະນາທຸກໃບໄດ້ຮັບການກວດສອບແລ້ວ.' : 'ບໍ່ມີໂຄສະນາໃນໝວດນີ້.' ?></p>
+                    <p class="text-gray-400 text-sm"><?= $filter==='pending' ? 'ໂຄສະນາທຸກອັນໄດ້ຮັບການກວດສອບແລ້ວ.' : 'ບໍ່ມີໂຄສະນາໃນໝວດນີ້.' ?></p>
                 </div>
             <?php endif; ?>
         </main>
@@ -489,11 +490,11 @@ try { $revenue = $pdo->query("SELECT COALESCE(SUM(r.Price),0) FROM advertisement
     <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full mx-4 relative">
         <button onclick="closeReject()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-xl"><i class="fas fa-times"></i></button>
         <h3 class="font-bold text-gray-800 text-lg mb-1"><i class="fas fa-times-circle text-red-500 mr-2"></i>ປະຕິເສດໂຄສະນາ</h3>
-        <p class="text-sm text-gray-500 mb-4">ເຈົ້າຂອງຈະເຫັນເຫດຜົນນີ້ໃນການແຈ້ງເຕືອນ.</p>
+        <p class="text-sm text-gray-500 mb-4">ເຈົ້າຂອງເດີ່ນຈະເຫັນເຫດຜົນນີ້ໃນການແຈ້ງເຕືອນ.</p>
         <form method="POST">
             <input type="hidden" name="ad_id" id="rejectAdId">
             <input type="hidden" name="action" value="reject">
-            <textarea name="comment" rows="4" required placeholder="ຕົວຢ່າງ: ໃບຮັບເງິນບໍ່ຊັດ ກະລຸນາສົ່ງໃໝ່."
+            <textarea name="comment" rows="4" required placeholder="ຕົວຢ່າງ: ຫຼັກຖານການໂອນບໍ່ຊັດ ກະລຸນາສົ່ງໃໝ່."
                       class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-red-400 transition resize-none text-sm mb-4"></textarea>
             <div class="flex gap-3">
                 <button type="button" onclick="closeReject()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 rounded-xl transition">ຍົກເລີກ</button>

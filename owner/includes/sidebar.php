@@ -10,12 +10,12 @@ if (isset($pdo) && isset($ca_id)) {
     } catch (PDOException $e) { $is_active = false; }
 }
 
-// FIX: Include Unpaid in pending count + NULL check on Slip_payment
+// Count distinct bookings (not courts) — 1 person booking 3 courts = 1 alert
 $pending_count = 0;
 if (isset($pdo) && isset($ca_id) && $is_active) {
     try {
         $s = $pdo->prepare("
-            SELECT COUNT(*) FROM booking b
+            SELECT COUNT(DISTINCT b.Book_ID) FROM booking b
             INNER JOIN booking_detail bd ON b.Book_ID = bd.Book_ID
             INNER JOIN Court_data c ON bd.COURT_ID = c.COURT_ID
             INNER JOIN Venue_data v ON c.VN_ID = v.VN_ID
@@ -72,12 +72,14 @@ if (isset($pdo) && isset($ca_id)) {
     try {
         $stmt = $pdo->prepare("
             SELECT
-                (SELECT COUNT(*) FROM package
-                 WHERE CA_ID = ? AND Status_Package = 'Rejected' AND Reject_reason IS NOT NULL)
+                (SELECT COUNT(DISTINCT bp.Package_ID) FROM package bp
+                 INNER JOIN approve_package ap ON ap.Package_ID = bp.Package_ID AND ap.Action = 'Rejected'
+                 WHERE bp.CA_ID = ? AND bp.Status_Package = 'Rejected')
                 +
-                (SELECT COUNT(*) FROM advertisement
-                 WHERE VN_ID IN (SELECT VN_ID FROM Venue_data WHERE CA_ID = ?)
-                 AND Status_AD = 'Rejected' AND Reject_reason IS NOT NULL)
+                (SELECT COUNT(DISTINCT ad.AD_ID) FROM advertisement ad
+                 INNER JOIN approve_advertisement ap ON ap.AD_ID = ad.AD_ID AND ap.Action = 'Rejected'
+                 INNER JOIN Venue_data v ON ad.VN_ID = v.VN_ID
+                 WHERE v.CA_ID = ? AND ad.Status_AD = 'Rejected')
                 +
                 (SELECT COUNT(*) FROM Venue_data
                  WHERE CA_ID = ? AND VN_Status = 'Inactive' AND Reject_reason IS NOT NULL)
@@ -111,7 +113,7 @@ function sidebar_class($path) {
                 Badminton<br>Booking Court
             </span>
         </a>
-        <p class="text-xs text-gray-400 mt-1">ແພນລ໌ເຈົ້າຂອງ</p>
+        <p class="text-xs text-gray-400 mt-1">ເຈົ້າຂອງເດີ່ນ</p>
     </div>
 
     <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
@@ -126,7 +128,7 @@ function sidebar_class($path) {
 
         <!-- ── ແພັກເກດ ── -->
         <div class="pt-3 pb-1">
-            <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">ສະໝັກໃຊ້</p>
+            <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">ການສະໝັກການໃຊ້ງານ</p>
         </div>
         <a href="/Badminton_court_Booking/owner/package_rental/" class="<?= sidebar_class('/package_rental/') ?>">
             <i class="fas fa-box w-5"></i>ແພັກເກດ
@@ -139,16 +141,14 @@ function sidebar_class($path) {
 
         <!-- ── ສະຖານທີ່ ── -->
         <div class="pt-3 pb-1">
-            <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">ການຈັດການເດີ່ນ</p>
+            <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">ການຈັດການສະຖານທີ່</p>
         </div>
 
         <?php if ($is_active): ?>
             <a href="/Badminton_court_Booking/owner/manage_court/" class="<?= sidebar_class('/manage_court/') ?>">
-                <i class="fas fa-store w-5"></i>ສະຖານທີ່
+                <i class="fas fa-store w-5"></i>ສະຖານທີ່ ແລະ ເດີ່ນ
             </a>
-            <a href="/Badminton_court_Booking/owner/customers/" class="<?= sidebar_class('/owner/customers/') ?>">
-                <i class="fas fa-users w-5"></i>ລູກຄ້າ
-            </a>
+            
             <a href="/Badminton_court_Booking/owner/booking_management/" class="<?= sidebar_class('/booking_management/') ?>">
                 <i class="fas fa-calendar-check w-5"></i>ການຈອງ
                 <?php if ($pending_count > 0): ?>
@@ -164,13 +164,16 @@ function sidebar_class($path) {
                     <span class="ml-auto bg-orange-500 text-white text-xs rounded-full px-2 py-0.5">⚠</span>
                 <?php endif; ?>
             </a>
+            <a href="/Badminton_court_Booking/owner/customers/" class="<?= sidebar_class('/owner/customers/') ?>">
+                <i class="fas fa-users w-5"></i>ລູກຄ້າ
+            </a>
         <?php else: ?>
             <?php foreach ([
-                ['fa-store',          'ສະຖານທີ່ຂອງຂ້ອຍ'],
-                ['fa-users',          'ລູກຄ້າ'],
+                ['fa-store',          'ສະຖານທີ່ຂອງຂ້ອຍ'],            
                 ['fa-calendar-check', 'ການຈອງ'],
                 ['fa-concierge-bell', 'ສິ່ງອຳນວຍຄວາມສະດວກ'],
                 ['fa-bullhorn',       'ໂຄສະນາ'],
+                 ['fa-users',          'ລູກຄ້າ'],
             ] as [$icon, $label]): ?>
                 <div class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-300 cursor-not-allowed select-none">
                     <i class="fas fa-lock w-5 text-xs"></i><?= $label ?>

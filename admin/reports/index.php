@@ -21,7 +21,9 @@ try {
     $total_customers = $pdo->query("SELECT COUNT(*) FROM customer WHERE Status != 'Banned'")->fetchColumn();
     $stmt = $pdo->prepare("
         SELECT COUNT(DISTINCT b.Book_ID) AS total_bookings,
-               SUM(CASE WHEN b.Status_booking='Confirmed' THEN 1 ELSE 0 END) AS confirmed,
+               SUM(CASE WHEN b.Status_booking IN ('Confirmed','Completed') THEN 1 ELSE 0 END) AS confirmed,
+               SUM(CASE WHEN b.Status_booking='Completed' THEN 1 ELSE 0 END) AS completed,
+               SUM(CASE WHEN b.Status_booking='No_Show'   THEN 1 ELSE 0 END) AS no_show,
                SUM(CASE WHEN b.Status_booking='Cancelled' THEN 1 ELSE 0 END) AS cancelled
         FROM booking b WHERE DATE(b.Booking_date) >= ?
     ");
@@ -29,7 +31,7 @@ try {
     $booking_stats = $stmt->fetch();
 } catch (PDOException $e) {
     $total_venues = $total_owners = $total_customers = 0;
-    $booking_stats = ['total_bookings'=>0,'confirmed'=>0,'cancelled'=>0];
+    $booking_stats = ['total_bookings'=>0,'confirmed'=>0,'completed'=>0,'no_show'=>0,'cancelled'=>0];
 }
 
 try {
@@ -138,13 +140,15 @@ try {
                     ['label'=>'ສະຖານທີ່ໃຊ້ງານໄດ້','value'=>$total_venues,                   'icon'=>'fa-store',   'color'=>'blue',  'sub'=>'ໃນແພລດຟອມ'],
                     ['label'=>'ເຈົ້າຂອງ',          'value'=>$total_owners,                   'icon'=>'fa-user-tie','color'=>'purple','sub'=>'ລົງທະບຽນ'],
                     ['label'=>'ລູກຄ້າ',             'value'=>$total_customers,                'icon'=>'fa-users',   'color'=>'yellow','sub'=>'ລົງທະບຽນ'],
-                    ['label'=>'ການຈອງທັງໝົດ',     'value'=>$booking_stats['total_bookings'],'icon'=>'fa-calendar','color'=>'green', 'sub'=>'ໃນໄລຍະທີ່ເລືອກ'],
+                    ['label'=>'ການຈອງທັງໝົດ',     'value'=>$booking_stats['total_bookings'],           'icon'=>'fa-calendar',   'color'=>'green',  'sub'=>'ໃນໄລຍະທີ່ເລືອກ'],
+                    ['label'=>'ສຳເລັດ',               'value'=>$booking_stats['completed'] ?? 0,           'icon'=>'fa-trophy',     'color'=>'emerald','sub'=>'ລູກຄ້າຈ່າຍຄົບ'],
+                    ['label'=>'ບໍ່ໄດ້ມາ',             'value'=>$booking_stats['no_show']   ?? 0,           'icon'=>'fa-user-slash', 'color'=>'orange', 'sub'=>'ບໍ່ໄດ້ມາ'],
                 ] as $sc): ?>
                     <div class="stat-card bg-white rounded-2xl shadow-sm p-5 border border-gray-100">
                         <div class="bg-<?= $sc['color'] ?>-100 w-10 h-10 rounded-xl flex items-center justify-center mb-3">
                             <i class="fas <?= $sc['icon'] ?> text-<?= $sc['color'] ?>-500"></i>
                         </div>
-                        <p class="text-2xl font-extrabold text-gray-800"><?= $sc['value'] ?></p>
+                        <p class="text-2xl font-extrabold text-gray-800"><?= number_format($sc['value']) ?></p>
                         <p class="text-xs font-semibold text-gray-600 mt-0.5"><?= $sc['label'] ?></p>
                         <p class="text-xs text-gray-400"><?= $sc['sub'] ?></p>
                     </div>
@@ -214,7 +218,7 @@ try {
                                         <p class="text-xs text-gray-400 truncate"><?= htmlspecialchars($cu['Email']) ?></p>
                                     </div>
                                     <div class="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-full flex-shrink-0">
-                                        <?= $cu['total_bookings'] ?> ຈອງ
+                                        <?= number_format($cu['total_bookings']) ?> ຈອງ
                                     </div>
                                 </div>
                             <?php endforeach; ?>
@@ -245,8 +249,8 @@ try {
                                         <span class="text-xs text-gray-400">ໂດຍ <?= htmlspecialchars($v['owner_name']) ?></span>
                                     </div>
                                     <div class="flex items-center gap-3 text-xs">
-                                        <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold"><?= $v['confirmed'] ?> ຢືນຢັນ</span>
-                                        <span class="bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold"><?= $v['cancelled'] ?> ຍົກເລີກ</span>
+                                        <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold"><?= number_format($v['confirmed']) ?> ຢືນຢັນ</span>
+                                        <span class="bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold"><?= number_format($v['cancelled']) ?> ຍົກເລີກ</span>
                                         <?php if ($v['booking_revenue'] > 0): ?>
                                             <span class="text-green-600 font-bold">₭<?= number_format($v['booking_revenue']) ?></span>
                                         <?php endif; ?>

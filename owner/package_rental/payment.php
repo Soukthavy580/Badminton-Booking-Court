@@ -7,8 +7,9 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'owner') {
     exit;
 }
 
-$ca_id  = $_SESSION['ca_id'];
-$pkg_id = intval($_GET['pkg_id'] ?? 0);
+$ca_id      = $_SESSION['ca_id'];
+$pkg_id     = intval($_GET['pkg_id']    ?? 0); // package_rate_ID
+$resubmit   = intval($_GET['resubmit']  ?? 0); // existing Package_ID to update (0 = new)
 
 if (!$pkg_id) { header('Location: /Badminton_court_Booking/owner/package_rental/index.php'); exit; }
 
@@ -19,6 +20,17 @@ try {
 } catch (PDOException $e) { $pkg = null; }
 
 if (!$pkg) { header('Location: /Badminton_court_Booking/owner/package_rental/index.php'); exit; }
+
+// If resubmitting — verify it belongs to this owner and is Rejected
+$resubmit_pkg = null;
+if ($resubmit) {
+    try {
+        $stmt = $pdo->prepare("SELECT * FROM package WHERE Package_ID = ? AND CA_ID = ? AND Status_Package = 'Rejected'");
+        $stmt->execute([$resubmit, $ca_id]);
+        $resubmit_pkg = $stmt->fetch();
+    } catch (PDOException $e) { $resubmit_pkg = null; }
+    if (!$resubmit_pkg) { $resubmit = 0; } // fallback to new if not found
+}
 
 try {
     $stmt  = $pdo->prepare("SELECT VN_ID FROM Venue_data WHERE CA_ID = ? LIMIT 1");
@@ -52,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $file = $_FILES['slip_payment'] ?? null;
         if (!$file || $file['error'] !== UPLOAD_ERR_OK) {
-            $error = 'ກະລຸນາອັບໂຫລດໃບຮັບເງິນ.';
+            $error = 'ກະລຸນາອັບໂຫລດຫຼັກຖານການໂອນ.';
         } elseif (!in_array($file['type'], ['image/jpeg','image/png','image/jpg','image/webp'])) {
             $error = 'ຮອງຮັບເຉພາະ JPG, PNG, WEBP.';
         } elseif ($file['size'] > 5 * 1024 * 1024) {
@@ -66,12 +78,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 try {
                     $start_dt = date('Y-m-d H:i:s');
                     $end_dt   = date('Y-m-d H:i:s', strtotime("+{$months_num} months"));
-                    $pdo->prepare("
-                        INSERT INTO package (Package_date, Slip_payment, Start_time, End_time, Status_Package, VN_ID, CA_ID, Package_rate_ID)
-                        VALUES (NOW(), ?, ?, ?, 'Pending', ?, ?, ?)
-                    ")->execute([$filename, $start_dt, $end_dt, $vn_id, $ca_id, $pkg_id]);
-                    $pdo->prepare("DELETE FROM owner_notification WHERE CA_ID = ? AND type = 'package'")
-                        ->execute([$ca_id]);
+                    if ($resubmit && $resubmit_pkg) {
+                        // UPDATE existing rejected package — don't create a new one
+                        $pdo->prepare("
+                            UPDATE package
+                            SET Slip_payment = ?, Status_Package = 'Pending', Package_date = NOW()
+                            WHERE Package_ID = ? AND CA_ID = ?
+                        ")->execute([$filename, $resubmit, $ca_id]);
+                    } else {
+                        // INSERT new package
+                        $pdo->prepare("
+                            INSERT INTO package (Package_date, Slip_payment, Start_time, End_time, Status_Package, VN_ID, CA_ID, Package_rate_ID)
+                            VALUES (NOW(), ?, ?, ?, 'Pending', ?, ?, ?)
+                        ")->execute([$filename, $start_dt, $end_dt, $vn_id, $ca_id, $pkg_id]);
+                    }
                     $success = true;
                 } catch (PDOException $e) {
                     $error = 'ສົ່ງບໍ່ສຳເລັດ: ' . $e->getMessage();
@@ -120,7 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <i class="fas fa-check-circle text-green-500 text-4xl"></i>
                     </div>
                     <h2 class="text-2xl font-extrabold text-gray-800 mb-2">ສົ່ງສຳເລັດ!</h2>
-                    <p class="text-gray-500 mb-2">ໃບຮັບເງິນແພັກເກດຂອງທ່ານຖືກສົ່ງສຳເລັດ.</p>
+                    <p class="text-gray-500 mb-2">ຫຼັກຖານການໂອນແພັກເກດຂອງທ່ານຖືກສົ່ງສຳເລັດ.</p>
                     <p class="text-gray-400 text-sm mb-6">ແອດມິນຈະກວດສອບ ແລະ ອະນຸມັດພາຍໃນ 24 ຊົ່ວໂມງ.</p>
                     <div class="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 text-left">
                         <p class="text-sm font-bold text-green-800 mb-1"><?= htmlspecialchars($pkg['Package_duration']) ?> ແພັກເກດ</p>
@@ -191,7 +211,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
 
                 <div class="bg-white rounded-2xl shadow-sm p-6">
-                    <h3 class="font-bold text-gray-800 mb-4"><i class="fas fa-upload text-green-500 mr-2"></i>ອັບໂຫລດໃບຮັບເງິນ</h3>
+                    <h3 class="font-bold text-gray-800 mb-4"><i class="fas fa-upload text-green-500 mr-2"></i>ອັບໂຫລດຫຼັກຖານການໂອນ</h3>
                     <form method="POST" enctype="multipart/form-data">
                         <div class="upload-area rounded-xl p-8 text-center cursor-pointer mb-6" id="uploadArea"
                              onclick="document.getElementById('slipFile').click()"
@@ -207,7 +227,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                         <input type="file" id="slipFile" name="slip_payment" accept="image/jpeg,image/png,image/webp" class="hidden" onchange="previewFile(this)" required>
                         <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-xl transition shadow-lg text-lg">
-                            <i class="fas fa-paper-plane mr-2"></i>ສົ່ງໃບຮັບເງິນແພັກເກດ
+                            <i class="fas fa-paper-plane mr-2"></i>ສົ່ງຫຼັກຖານການໂອນແພັກເກດ
                         </button>
                     </form>
                 </div>

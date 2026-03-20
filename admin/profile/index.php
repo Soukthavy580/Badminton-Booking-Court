@@ -32,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_profile'])) {
                 if (in_array($file['type'], ['image/jpeg','image/png','image/jpg','image/webp']) && $file['size'] <= 5*1024*1024) {
                     $ext      = pathinfo($file['name'], PATHINFO_EXTENSION);
                     $filename = 'AdminQrcode_' . time() . '.' . $ext;
-                    $dir      = $_SERVER['DOCUMENT_ROOT'] . '/Badminton_court_Booking/assets/images/qr/';
+                    $dir      = $_SERVER['DOCUMENT_ROOT'] . '/Badminton_court_Booking/assets/adminQR/';
                     if (!is_dir($dir)) mkdir($dir, 0755, true);
                     if (move_uploaded_file($file['tmp_name'], $dir . $filename)) {
                         $image_pay = $filename;
@@ -87,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
 }
 
 $image_pay_url = !empty($admin['Image_pay'])
-    ? '/Badminton_court_Booking/assets/images/qr/' . basename($admin['Image_pay'])
+    ? '/Badminton_court_Booking/assets/adminQR/' . basename($admin['Image_pay'])
     : '';
 ?>
 <!DOCTYPE html>

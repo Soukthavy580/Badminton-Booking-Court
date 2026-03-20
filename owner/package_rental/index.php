@@ -40,10 +40,19 @@ try {
     $expiring_package = $stmt->fetch();
 } catch (PDOException $e) { $expiring_package = null; }
 
+// Read rejection reason from approve_package table
+$rejection = null;
 try {
-    $stmt = $pdo->prepare("SELECT * FROM owner_notification WHERE CA_ID = ? AND type = 'package' ORDER BY created_at DESC LIMIT 1");
+    $stmt = $pdo->prepare("
+        SELECT ap.Reject_reason AS message, ap.actioned_at AS created_at
+        FROM approve_package ap
+        INNER JOIN package bp ON ap.Package_ID = bp.Package_ID
+        WHERE bp.CA_ID = ? AND ap.Action = 'Rejected'
+        AND bp.Status_Package = 'Rejected'   ← added
+        ORDER BY ap.actioned_at DESC LIMIT 1
+    ");
     $stmt->execute([$ca_id]);
-    $rejection = $stmt->fetch();
+    $rejection = $stmt->fetch() ?: null;
 } catch (PDOException $e) { $rejection = null; }
 
 try {
@@ -87,7 +96,7 @@ $days_left = $active_package ? ceil((strtotime($active_package['End_time']) - ti
                 <?php if ($active_package): ?>
                     <div class="flex items-center gap-2 bg-green-50 border border-green-200 px-4 py-2 rounded-xl text-sm">
                         <i class="fas fa-check-circle text-green-500"></i>
-                        <span class="text-green-700 font-medium">ໃຊ້ງານໄດ້ · <?= $days_left ?> ວັນທີ່ເຫຼືອ<?= !empty($queued_packages) ? ' · ' . count($queued_packages) . ' ລໍຖ້າ' : '' ?></span>
+                        <span class="text-green-700 font-medium">ໃຊ້ງານໄດ້ · <?= $days_left ?> ມື້ທີ່ເຫຼືອ<?= !empty($queued_packages) ? ' · ' . count($queued_packages) . ' ລໍຖ້າ' : '' ?></span>
                     </div>
                 <?php endif; ?>
             </div>
@@ -111,7 +120,21 @@ $days_left = $active_package ? ceil((strtotime($active_package['End_time']) - ti
                             <p class="text-sm text-gray-700"><?= nl2br(htmlspecialchars($rejection['message'])) ?></p>
                         </div>
                         <p class="text-xs text-gray-400 mb-2"><i class="fas fa-clock mr-1"></i><?= date('d/m/Y \ເວລາ g:i A', strtotime($rejection['created_at'])) ?></p>
-                        <p class="text-sm text-red-600 font-medium"><i class="fas fa-arrow-down mr-1"></i>ກະລຸນາເລືອກແພັກເກດໃໝ່ ແລະ ສົ່ງໃບຮັບເງິນໃໝ່.</p>
+                        <p class="text-sm text-red-600 font-medium mb-3"><i class="fas fa-exclamation-circle mr-1"></i>ກະລຸນາສົ່ງຫຼັກຖານການໂອນໃໝ່</p>
+                <?php
+                // Get the rejected package ID to resubmit
+                try {
+                    $rej_stmt = $pdo->prepare("SELECT Package_ID, Package_rate_ID FROM package WHERE CA_ID = ? AND Status_Package = 'Rejected' ORDER BY Package_date DESC LIMIT 1");
+                    $rej_stmt->execute([$ca_id]);
+                    $rej_pkg = $rej_stmt->fetch();
+                } catch (PDOException $e) { $rej_pkg = null; }
+                ?>
+                <?php if ($rej_pkg): ?>
+                    <a href="/Badminton_court_Booking/owner/package_rental/payment.php?pkg_id=<?= $rej_pkg['Package_rate_ID'] ?>&resubmit=<?= $rej_pkg['Package_ID'] ?>"
+                       class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition shadow">
+                        <i class="fas fa-upload"></i>ອັບໂຫລດຫຼັກຖານການໂອນໃໝ່
+                    </a>
+                <?php endif; ?>
                     </div>
                 </div>
             <?php endif; ?>
@@ -142,7 +165,7 @@ $days_left = $active_package ? ceil((strtotime($active_package['End_time']) - ti
                         </div>
                         <div class="text-center bg-white bg-opacity-20 rounded-2xl p-4">
                             <p class="text-4xl font-extrabold"><?= $days_left ?></p>
-                            <p class="text-green-100 text-sm">ວັນທີ່ເຫຼືອ</p>
+                            <p class="text-green-100 text-sm">ມື້ທີ່ເຫຼືອ</p>
                         </div>
                     </div>
                 </div>
@@ -183,7 +206,7 @@ $days_left = $active_package ? ceil((strtotime($active_package['End_time']) - ti
                                         <span class="bg-purple-100 text-purple-700 text-xs font-bold px-3 py-1 rounded-full">
                                             <i class="fas fa-hourglass-half mr-1"></i>ລໍຖ້າ
                                         </span>
-                                        <p class="text-xs text-purple-600 mt-1 font-semibold">ເລີ່ມໃນ <?= $days_until ?> ວັນ</p>
+                                        <p class="text-xs text-purple-600 mt-1 font-semibold">ເລີ່ມໃນ <?= $days_until ?> ມື້</p>
                                         <p class="text-xs text-gray-400">₭<?= number_format($qpkg['Price']) ?></p>
                                     </div>
                                 </div>
@@ -212,9 +235,9 @@ $days_left = $active_package ? ceil((strtotime($active_package['End_time']) - ti
             <div class="bg-white rounded-2xl shadow-sm p-6 mb-6">
                 <h2 class="text-xl font-bold text-gray-800 mb-2">
                     <i class="fas fa-box text-green-500 mr-2"></i>
-                    <?= $active_package ? 'ຕໍ່ອາຍຸແພັກເກດ' : ($rejection ? 'ສົ່ງໃໝ່' : 'ເລືອກແພັກເກດ') ?>
+                    <?= $active_package ? 'ຕໍ່ອາຍຸ ຫຼື ອັບເກຣດ' : ($rejection ? 'ສົ່ງໃໝ່' : 'ເລືອກແພັກເກດ') ?>
                 </h2>
-                <p class="text-gray-500 text-sm mb-6">ເລືອກແພັກເກດ ແລ້ວຄລິກ ດຳເນີນການຈ່າຍ</p>
+                <p class="text-gray-500 text-sm mb-6">ເລືອກແພັກເກດ ແລ້ວຄລິກ ດຳເນີນການຈ່າຍ.</p>
 
                 <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
                     <?php foreach ($packages as $pkg):
@@ -234,7 +257,6 @@ $days_left = $active_package ? ceil((strtotime($active_package['End_time']) - ti
                             </div>
                             <p class="font-bold text-gray-800 text-sm"><?= htmlspecialchars($pkg['Package_duration']) ?></p>
                             <p class="text-2xl font-extrabold text-green-600 mt-1">₭<?= number_format($pkg['Price']) ?></p>
-                            
                         </div>
                     <?php endforeach; ?>
                 </div>

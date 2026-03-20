@@ -34,13 +34,14 @@ if (!$booking) {
     exit;
 }
 
-// FIX: Only Unpaid and Pending can be cancelled — not Confirmed or already Cancelled
-if (in_array($booking['Status_booking'], ['Cancelled', 'Confirmed'])) {
+// Block only: already Cancelled, or booking time has already passed
+if (in_array($booking['Status_booking'], ['Cancelled', 'Completed', 'No_Show'])) {
     header('Location: /Badminton_court_Booking/customer/booking_court/my_booking.php');
     exit;
 }
 
-if (strtotime($booking['Start_time']) < time() && $booking['Status_booking'] !== 'Unpaid') {
+// Block past bookings (except Unpaid — those can always be cancelled since no real slot is blocked)
+if ($booking['Status_booking'] !== 'Unpaid' && strtotime($booking['Start_time']) < time()) {
     $_SESSION['booking_error'] = 'ບໍ່ສາມາດຍົກເລີກການຈອງທີ່ຜ່ານມາໄດ້.';
     header('Location: /Badminton_court_Booking/customer/booking_court/my_booking.php');
     exit;
@@ -115,9 +116,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <p class="text-gray-500 text-sm mt-1">ການຈອງ #<?= $book_id ?> · <?= htmlspecialchars($booking['VN_Name']) ?></p>
                 </div>
 
-                <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6 text-sm text-yellow-700">
-                    <i class="fas fa-info-circle mr-2"></i>
-                    ເມື່ອຍົກເລີກແລ້ວ ບໍ່ສາມາດຍ້ອນກັບໄດ້. ສລັອດຂອງທ່ານຈະຖືກປ່ອຍໃຫ້ຜູ້ອື່ນ.
+                <div class="bg-red-50 border-2 border-red-300 rounded-xl p-4 mb-6 text-sm text-red-700 space-y-2">
+                    <p class="font-bold flex items-center gap-2">
+                        <i class="fas fa-exclamation-triangle"></i>ກ່ອນຍົກເລີກ ກະລຸນາອ່ານ:
+                    </p>
+                    <p><i class="fas fa-times-circle mr-1 text-red-500"></i>ເງິນມັດຈຳ <strong>30%</strong> ທີ່ທ່ານຊຳລະໄວ້ <strong>ຈະບໍ່ຖືກຄືນໄດ້</strong>.</p>
+                    <p><i class="fas fa-times-circle mr-1 text-red-500"></i>ເມື່ອຍົກເລີກແລ້ວ ບໍ່ສາມາດຍ້ອນກັບໄດ້.</p>
+                    <p><i class="fas fa-check-circle mr-1 text-green-500"></i>ສລັອດຂອງທ່ານຈະຖືກປ່ອຍໃຫ້ຜູ້ອື່ນຈອງໄດ້.</p>
                 </div>
 
                 <?php if ($error): ?>

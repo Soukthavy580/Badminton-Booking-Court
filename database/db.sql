@@ -2,6 +2,10 @@ CREATE DATABASE IF NOT EXISTS badminton_booking
     CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE badminton_booking;
  
+CREATE DATABASE IF NOT EXISTS badminton_booking
+    CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE badminton_booking;
+ 
 -- ── ADMIN ────────────────────────────────────────────────────
 CREATE TABLE admin (
     Admin_ID   INT(11)      NOT NULL AUTO_INCREMENT,
@@ -50,7 +54,7 @@ CREATE TABLE package_rate (
 );
  
 -- ── PACKAGE ──────────────────────────────────────────────────
--- UPDATED: Added Reject_reason column (replaces owner_notification for packages)
+-- No Reject_reason here — stored in approve_package instead
 CREATE TABLE package (
     Package_ID       INT(11)       NOT NULL AUTO_INCREMENT,
     Status_Package   VARCHAR(50)   NOT NULL DEFAULT 'Pending'
@@ -59,8 +63,6 @@ CREATE TABLE package (
     Package_date     DATETIME      NOT NULL,
     Start_time       DATETIME,
     End_time         DATETIME,
-    Reject_reason    TEXT          DEFAULT NULL
-                     COMMENT 'Set by admin when rejecting. Cleared on resubmit.',
     VN_ID            INT(11)       DEFAULT NULL,
     CA_ID            INT(11)       NOT NULL,
     Package_rate_ID  INT(11)       NOT NULL,
@@ -80,6 +82,7 @@ CREATE TABLE advertisement_rate (
 );
  
 -- ── VENUE DATA ───────────────────────────────────────────────
+-- Reject_reason stays here (venue rejection is different — has flagged fields concept)
 CREATE TABLE Venue_data (
     VN_ID          INT(11)       NOT NULL AUTO_INCREMENT,
     VN_Name        VARCHAR(255)  NOT NULL,
@@ -93,7 +96,7 @@ CREATE TABLE Venue_data (
     VN_MapURL      VARCHAR(500),
     VN_Status      VARCHAR(50)   NOT NULL DEFAULT 'Pending',
     Reject_reason  TEXT          DEFAULT NULL
-                   COMMENT 'Set by admin when rejecting venue. Cleared on approval.',
+                   COMMENT 'Set by admin when rejecting. Cleared on approval.',
     CA_ID          INT(11)       NOT NULL,
     PRIMARY KEY (VN_ID),
     KEY CA_ID (CA_ID)
@@ -147,9 +150,9 @@ CREATE TABLE booking_detail (
  
 -- ── CANCEL BOOKING ───────────────────────────────────────────
 CREATE TABLE cancel_booking (
-    Cancel_ID   INT(11)   NOT NULL AUTO_INCREMENT,
+    Cancel_ID   INT(11) NOT NULL AUTO_INCREMENT,
     Comment     TEXT,
-    Book_ID     INT(11)   NOT NULL,
+    Book_ID     INT(11) NOT NULL,
     PRIMARY KEY (Cancel_ID),
     KEY Book_ID (Book_ID)
 );
@@ -165,17 +168,24 @@ CREATE TABLE approve_booking (
 );
  
 -- ── APPROVE PACKAGE ──────────────────────────────────────────
+-- UPDATED: Added Action, Reject_reason, actioned_at
+-- One row per admin decision. Latest row = current decision.
 CREATE TABLE approve_package (
-    AP_Package_ID  INT(11) NOT NULL AUTO_INCREMENT,
-    Package_ID     INT(11) NOT NULL,
-    Admin_ID       INT(11) NOT NULL,
+    AP_Package_ID  INT(11)      NOT NULL AUTO_INCREMENT,
+    Package_ID     INT(11)      NOT NULL,
+    Admin_ID       INT(11)      NOT NULL,
+    Action         VARCHAR(20)  NOT NULL DEFAULT 'Approved'
+                   COMMENT 'Approved or Rejected',
+    Reject_reason  TEXT         DEFAULT NULL
+                   COMMENT 'Filled when Action=Rejected. NULL when Action=Approved.',
+    actioned_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (AP_Package_ID),
     KEY Package_ID (Package_ID),
     KEY Admin_ID (Admin_ID)
 );
  
 -- ── ADVERTISEMENT ────────────────────────────────────────────
--- UPDATED: Added Reject_reason column (replaces owner_notification for ads)
+-- No Reject_reason here — stored in approve_advertisement instead
 CREATE TABLE advertisement (
     AD_ID         INT(11)      NOT NULL AUTO_INCREMENT,
     AD_date       DATETIME     NOT NULL,
@@ -184,8 +194,6 @@ CREATE TABLE advertisement (
     Slip_payment  VARCHAR(255),
     Status_AD     VARCHAR(50)  NOT NULL DEFAULT 'Pending'
                   COMMENT 'Pending, Approved, Active, Rejected',
-    Reject_reason TEXT         DEFAULT NULL
-                  COMMENT 'Set by admin when rejecting. Cleared on resubmit.',
     VN_ID         INT(11)      NOT NULL,
     AD_Rate_ID    INT(11)      NOT NULL,
     PRIMARY KEY (AD_ID),
@@ -194,10 +202,17 @@ CREATE TABLE advertisement (
 );
  
 -- ── APPROVE ADVERTISEMENT ────────────────────────────────────
+-- UPDATED: Added Action, Reject_reason, actioned_at
+-- One row per admin decision. Latest row = current decision.
 CREATE TABLE approve_advertisement (
-    AP_AD_ID  INT(11) NOT NULL AUTO_INCREMENT,
-    AD_ID     INT(11) NOT NULL,
-    Admin_ID  INT(11) NOT NULL,
+    AP_AD_ID      INT(11)      NOT NULL AUTO_INCREMENT,
+    AD_ID         INT(11)      NOT NULL,
+    Admin_ID      INT(11)      NOT NULL,
+    Action        VARCHAR(20)  NOT NULL DEFAULT 'Approved'
+                  COMMENT 'Approved or Rejected',
+    Reject_reason TEXT         DEFAULT NULL
+                  COMMENT 'Filled when Action=Rejected. NULL when Action=Approved.',
+    actioned_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (AP_AD_ID),
     KEY AD_ID (AD_ID),
     KEY Admin_ID (Admin_ID)

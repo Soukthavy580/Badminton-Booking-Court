@@ -91,7 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['save_rate']) && !iss
                     }
                     $pdo->prepare("UPDATE package SET Status_Package='Active', Start_time=?, End_time=? WHERE Package_ID=?")
                         ->execute([$start, $end, $pkg_id]);
-                    $pdo->prepare("INSERT INTO approve_package (Package_ID, Admin_ID) VALUES (?,?) ON DUPLICATE KEY UPDATE Admin_ID=VALUES(Admin_ID)")
+                    $pdo->prepare("INSERT INTO approve_package (Package_ID, Admin_ID, Action, actioned_at) VALUES (?,?,'Approved',NOW())")
                         ->execute([$pkg_id, $admin_id]);
                     $queued  = $start > date('Y-m-d H:i:s');
                     $success = $queued
@@ -101,8 +101,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['save_rate']) && !iss
                     if (empty($comment)) {
                         $error = 'ກະລຸນາຂຽນເຫດຜົນໄປຫາເຈົ້າຂອງ.';
                     } else {
-                        $pdo->prepare("UPDATE package SET Status_Package='Rejected', Reject_reason=? WHERE Package_ID=?")
-                            ->execute([$comment, $pkg_id]);
+                        $pdo->prepare("UPDATE package SET Status_Package='Rejected' WHERE Package_ID=?")
+                            ->execute([$pkg_id]);
+                        $pdo->prepare("INSERT INTO approve_package (Package_ID, Admin_ID, Action, Reject_reason, actioned_at) VALUES (?,?,'Rejected',?,NOW())")
+                            ->execute([$pkg_id, $admin_id, $comment]);
                         $success = 'ປະຕິເສດສຳເລັດ. ເຈົ້າຂອງຈະເຫັນໃນການແຈ້ງເຕືອນ.';
                     }
                 }
@@ -125,7 +127,7 @@ function get_packages($pdo, $filter) {
                co.Name AS owner_name, co.Email AS owner_email, co.Phone AS owner_phone,
                (SELECT VN_Name FROM Venue_data WHERE CA_ID=bp.CA_ID AND VN_Status!='Banned' LIMIT 1) AS VN_Name,
                (SELECT VN_ID   FROM Venue_data WHERE CA_ID=bp.CA_ID AND VN_Status!='Banned' LIMIT 1) AS VN_ID,
-               bp.Reject_reason
+               (SELECT ap.Reject_reason FROM approve_package ap WHERE ap.Package_ID=bp.Package_ID AND ap.Action='Rejected' ORDER BY ap.actioned_at DESC LIMIT 1) AS reject_reason
         FROM package bp
         INNER JOIN package_rate pr ON bp.Package_rate_ID=pr.Package_rate_ID
         INNER JOIN court_owner co  ON bp.CA_ID=co.CA_ID
@@ -221,8 +223,8 @@ try { $revenue = $pdo->query("SELECT COALESCE(SUM(pr.Price),0) FROM package bp I
                     <div class="flex items-center gap-3">
                         <div class="bg-green-100 w-9 h-9 rounded-xl flex items-center justify-center"><i class="fas fa-box text-green-500"></i></div>
                         <div class="text-left">
-                            <h2 class="font-bold text-gray-800">ເພີ່ມ ແລະ ແກ້ໄຂລາຄາແພັກເກດ</h2>
-                            <p class="text-xs text-gray-400"><?= count($pkg_rates) ?> ລາຍການ, ຄລິກເພື່ອຈັດການລາຄາ ແລະ ໄລຍະເວລາ</p>
+                            <h2 class="font-bold text-gray-800">ລາຍການລາຄາແພັກເກດ</h2>
+                            <p class="text-xs text-gray-400"><?= count($pkg_rates) ?> ລາຍການ · ຄລິກເພື່ອຈັດການລາຄາ ແລະ ໄລຍະ</p>
                         </div>
                     </div>
                     <i class="fas fa-chevron-down text-gray-400" id="ratesChevron"></i>
@@ -252,9 +254,9 @@ try { $revenue = $pdo->query("SELECT COALESCE(SUM(pr.Price),0) FROM package bp I
                                     <input type="hidden" name="is_best_value" id="best_pkg_<?= $rate['Package_rate_ID'] ?>" value="<?= $is_best ? 1 : 0 ?>">
                                     <input type="text" name="rate_duration" value="<?= htmlspecialchars($rate['Package_duration']) ?>"
                                            class="w-full text-center text-sm font-semibold text-gray-700 bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-blue-400 focus:outline-none rounded px-1 py-0.5 transition">
-                                    <input type="text" name="rate_price" value="<?= number_format($rate['Price'],0,'.','')?>"
+                                    <input type="text" name="rate_price" value="<?= number_format($rate['Price'],0,'.',',') ?>"
                                            class="w-full text-center text-2xl font-extrabold text-green-600 bg-transparent border-0 border-b border-transparent hover:border-gray-300 focus:border-blue-400 focus:outline-none rounded px-1 py-0.5 transition">
-                                    <?php if ($mo_price): ?><p class="text-xs text-gray-400">₭<?= number_format($mo_price) ?>/ເດືອນ</p><?php endif; ?>
+                                    
                                     <div class="flex gap-1.5 pt-1">
                                         <button type="submit" name="save_rate" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-1.5 rounded-xl text-xs transition"><i class="fas fa-save mr-0.5"></i>ບັນທຶກ</button>
                                         <button type="submit" name="delete_rate" onclick="return confirm('ລຶບແພລນນີ້?')" class="bg-red-50 hover:bg-red-100 text-red-500 border border-red-200 font-bold py-1.5 px-2.5 rounded-xl text-xs transition"><i class="fas fa-trash"></i></button>

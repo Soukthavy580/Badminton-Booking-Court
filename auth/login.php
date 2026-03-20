@@ -231,7 +231,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="absolute inset-0 flex items-center justify-center">
         <div class="text-center text-white p-8">
             <h2 class="text-4xl font-bold mb-4">ຈອງເດີ່ນຂອງທ່ານໄດ້ເລີຍ</h2>
-            <p class="text-xl mb-6">ສະຖານທີ່ຫຼິ້ນແບດມິນຕັນຊັ້ນນຳໃນເມືອງ</p>
+            <p class="text-xl mb-6">ຊອກຫາສະຖານທີ່ຫຼິ້ນກິລາຕີດອກປີກໄກ່ໄດ້ເລີຍງ່າຍໆທີ່ເວັບໄຊ້ຂອງພວກເຮົາ</p>
             <div class="flex justify-center gap-4 text-sm">
                 <div class="flex items-center"><i class="fas fa-check-circle mr-2"></i><span>ຈອງງ່າຍ</span></div>
                 <div class="flex items-center"><i class="fas fa-check-circle mr-2"></i><span>ຊຳລະເງິນປອດໄພ</span></div>
