@@ -2,6 +2,8 @@
 session_start();
 require_once '../../config/db.php';
 
+date_default_timezone_set('Asia/Vientiane');
+
 $venue_id    = isset($_GET['id']) ? intval($_GET['id']) : 0;
 $search_date = isset($_GET['date']) ? $_GET['date'] : date('Y-m-d');
 
@@ -49,6 +51,7 @@ function get_booked_slots($pdo, $venue_id, $date) {
             WHERE c.VN_ID = ?
             AND DATE(bd.Start_time) = ?
             AND b.Status_booking IN ('Confirmed', 'Pending')
+            -- Completed and No_Show do NOT block future bookings
         ");
         $stmt->execute([$venue_id, $date]);
         return $stmt->fetchAll();
@@ -216,7 +219,7 @@ $venue_img    = !empty($venue['VN_Image'])
                         <div class="flex items-center justify-between mb-6">
                             <h2 class="text-xl font-bold text-gray-800">
                                 <i class="fas fa-table-tennis text-green-500 mr-2"></i>
-                                ເລືອກເດີ່ນ ແລະແເວລາ
+                                ເລືອກເດີ່ນ ແລະ ສລັອດເວລາ
                             </h2>
                             <span class="text-sm text-gray-500 font-medium">
                                 <?= date('d/m/Y', strtotime($search_date)) ?>
@@ -314,7 +317,7 @@ $venue_img    = !empty($venue['VN_Image'])
 
                     <div id="summaryEmpty" class="text-center py-8">
                         <i class="fas fa-hand-pointer text-4xl text-gray-200 mb-3 block"></i>
-                        <p class="text-gray-400 text-sm">ເລືອກເດີ່ນເວລາເພື່ອເລີ່ມຈອງ</p>
+                        <p class="text-gray-400 text-sm">ເລືອກສລັອດເວລາເພື່ອເລີ່ມຈອງ</p>
                     </div>
 
                     <div id="summaryContent" class="hidden">
@@ -457,7 +460,7 @@ $venue_img    = !empty($venue['VN_Image'])
 
             list.innerHTML = html;
             total.textContent = '₭' + numberFormat(totalPrice);
-            hours.textContent = 'ເລືອກ ' + selectedSlots.length + ' ເດີ່ນ';
+            hours.textContent = 'ເລືອກ ' + selectedSlots.length + ' ສລັອດ';
         }
 
         function formatTime(time) {
@@ -471,7 +474,7 @@ $venue_img    = !empty($venue['VN_Image'])
 
         function proceedToBooking() {
             if (selectedSlots.length === 0) {
-                alert('ກະລຸນາເລືອກຢ່າງໜ້ອຍໜຶ່ງເດີ່ນ.');
+                alert('ກະລຸນາເລືອກຢ່າງໜ້ອຍໜຶ່ງສລັອດ.');
                 return;
             }
             document.getElementById('slotsJson').value = JSON.stringify(selectedSlots);

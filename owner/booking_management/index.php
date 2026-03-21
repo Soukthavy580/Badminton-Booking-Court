@@ -281,7 +281,7 @@ $today = date('Y-m-d');
                     FROM booking_detail bd
                     INNER JOIN booking b   ON bd.Book_ID = b.Book_ID
                     INNER JOIN customer cu ON b.C_ID = cu.C_ID
-                    WHERE b.Status_booking IN ('Confirmed','Pending','Completed','No_Show')
+                    WHERE b.Status_booking IN ('Confirmed','Pending')
                     AND DATE(bd.Start_time) = ?
                     AND bd.COURT_ID IN (SELECT COURT_ID FROM Court_data WHERE VN_ID = ?)
                 ");

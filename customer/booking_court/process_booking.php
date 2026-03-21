@@ -2,6 +2,8 @@
 session_start();
 require_once '../../config/db.php';
 
+date_default_timezone_set('Asia/Vientiane');
+
 if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'customer') {
     header('Location: /Badminton_court_Booking/auth/login.php');
     exit;
@@ -64,7 +66,7 @@ try {
         $check->execute([$court_id, $end_datetime, $start_datetime]);
         if ($check->fetch()['cnt'] > 0) {
             $pdo->rollBack();
-            $_SESSION['booking_error'] = 'One or more slots are already confirmed by another booking. Please select different slots.';
+            $_SESSION['booking_error'] = 'ສລັອດທີ່ທ່ານເລືອກຖືກຈອງແລ້ວ. ກະລຸນາເລືອກເວລາໃໝ່.';
             header('Location: /Badminton_court_Booking/customer/booking_court/venue_detail.php?id=' . $venue_id . '&date=' . $date);
             exit;
         }
@@ -81,7 +83,7 @@ try {
 } catch (PDOException $e) {
     $pdo->rollBack();
     error_log("Booking error: " . $e->getMessage());
-    $_SESSION['booking_error'] = 'Booking failed. Please try again.';
+    $_SESSION['booking_error'] = 'ການຈອງລົ້ມເຫລວ. ກະລຸນາລອງໃໝ່.';
     header('Location: /Badminton_court_Booking/customer/booking_court/venue_detail.php?id=' . $venue_id . '&date=' . $date);
     exit;
 }
