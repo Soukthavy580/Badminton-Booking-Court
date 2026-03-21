@@ -20,9 +20,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $new_status = $action === 'ban' ? 'Banned' : 'Active';
             $pdo->prepare("UPDATE court_owner SET Status = ? WHERE CA_ID = ?")
                 ->execute([$new_status, $ca_id]);
-            $success = $action === 'ban' ? 'Owner account has been banned.' : 'Owner account has been reinstated.';
+            $success = $action === 'ban' ? 'ລະງັບບັນຊີເຈົ້າຂອງສຳເລັດ.' : 'ຍົກເລີກການລະງັບສຳເລັດ.';
         } catch (PDOException $e) {
-            $error = 'Action failed. Please try again.';
+            $error = 'ດຳເນີນການລົ້ມເຫລວ. ກະລຸນາລອງໃໝ່.';
         }
     }
 }
@@ -44,7 +44,7 @@ function get_owners($pdo, $filter, $search) {
                  FROM booking b
                  INNER JOIN booking_detail bd ON b.Book_ID = bd.Book_ID
                  INNER JOIN Court_data c ON bd.COURT_ID = c.COURT_ID
-                 WHERE c.VN_ID = v.VN_ID AND b.Status_booking = 'Confirmed') AS total_bookings,
+                 WHERE c.VN_ID = v.VN_ID AND b.Status_booking IN ('Confirmed','Completed')) AS total_bookings,
                 (SELECT COUNT(*) FROM package bp
                  WHERE bp.CA_ID = co.CA_ID
                  AND bp.Status_Package = 'Active' AND bp.End_time > NOW()) AS has_active_package,
@@ -82,7 +82,7 @@ if (isset($_GET['view'])) {
                 (SELECT COUNT(DISTINCT b.Book_ID) FROM booking b
                  INNER JOIN booking_detail bd ON b.Book_ID = bd.Book_ID
                  INNER JOIN Court_data c ON bd.COURT_ID = c.COURT_ID
-                 WHERE c.VN_ID = v.VN_ID AND b.Status_booking = 'Confirmed') AS total_bookings,
+                 WHERE c.VN_ID = v.VN_ID AND b.Status_booking IN ('Confirmed','Completed')) AS total_bookings,
                 (SELECT COUNT(*) FROM Court_data WHERE VN_ID = v.VN_ID) AS total_courts
             FROM court_owner co
             LEFT JOIN Venue_data v ON co.CA_ID = v.CA_ID
@@ -92,7 +92,6 @@ if (isset($_GET['view'])) {
         $modal_owner = $stmt->fetch();
 
         if ($modal_owner) {
-            // FIX: packages linked to CA_ID not VN_ID
             $stmt = $pdo->prepare("
                 SELECT bp.*, pr.Package_duration, pr.Price
                 FROM package bp
@@ -104,7 +103,6 @@ if (isset($_GET['view'])) {
             $modal_packages = $stmt->fetchAll();
 
             if ($modal_owner['VN_ID']) {
-                // FIX: use correct column names from advertisement_rate table
                 $stmt = $pdo->prepare("
                     SELECT ad.*, r.Duration, r.Price
                     FROM advertisement ad
@@ -132,6 +130,7 @@ $counts = [
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ເຈົ້າຂອງ - Admin</title>
+    <link rel="icon" type="image/x-icon" href="../../assets/images/logo/Logo.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -172,9 +171,9 @@ $counts = [
             <!-- Stats -->
             <div class="grid grid-cols-3 gap-4 mb-6">
                 <?php foreach ([
-                    ['label'=>'ທັງໝົດ','value'=>$counts['all'],   'color'=>'purple','icon'=>'fa-user-tie',    'filter'=>'all'],
-                    ['label'=>'ໃຊ້ງານໄດ້',     'value'=>$counts['active'],'color'=>'green', 'icon'=>'fa-check-circle','filter'=>'active'],
-                    ['label'=>'ຖືກລະງັບ',     'value'=>$counts['banned'],'color'=>'red',   'icon'=>'fa-ban',         'filter'=>'banned'],
+                    ['label'=>'ທັງໝົດ',    'value'=>$counts['all'],   'color'=>'purple','icon'=>'fa-user-tie','filter'=>'all'],
+                    ['label'=>'ໃຊ້ງານໄດ້', 'value'=>$counts['active'],'color'=>'green', 'icon'=>'fa-check-circle','filter'=>'active'],
+                    ['label'=>'ຖືກລະງັບ', 'value'=>$counts['banned'],'color'=>'red',   'icon'=>'fa-ban','filter'=>'banned'],
                 ] as $sc): ?>
                     <a href="?filter=<?= $sc['filter'] ?>"
                        class="bg-white rounded-2xl p-5 shadow-sm border-2 <?= $filter===$sc['filter'] ? 'border-'.$sc['color'].'-400' : 'border-transparent' ?> hover:shadow-md transition block">
@@ -228,7 +227,6 @@ $counts = [
                                     </div>
                                     <div>
                                         <div class="flex items-center gap-2 mb-1">
-                                            <!-- FIX: Removed Surname -->
                                             <h3 class="font-bold text-gray-800"><?= htmlspecialchars($owner['Name']) ?></h3>
                                             <span class="<?= $status_cfg['badge_bg'] ?> <?= $status_cfg['badge_text'] ?> text-xs font-bold px-2 py-0.5 rounded-full">
                                                 <?= $is_banned ? '🚫 ຖືກລະງັບ' : '✓ ໃຊ້ງານໄດ້' ?>
@@ -254,7 +252,7 @@ $counts = [
                                                 <?php if ($owner['has_active_ad']): ?><span class="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full font-semibold"><i class="fas fa-bullhorn mr-1"></i>ໂຄສະນາ</span><?php endif; ?>
                                             </div>
                                         </div>
-                                        <p class="text-xs text-gray-400 text-right"><i class="fas fa-calendar-check mr-1 text-green-400"></i><?= $owner['total_bookings'] ?> ຢືນຢັນ bookings</p>
+                                        <p class="text-xs text-gray-400 text-right"><i class="fas fa-calendar-check mr-1 text-green-400"></i><?= $owner['total_bookings'] ?> ການຈອງ</p>
                                     <?php else: ?>
                                         <div class="bg-gray-50 rounded-xl px-4 py-2 text-gray-400 text-xs"><i class="fas fa-store mr-1"></i>ຍັງບໍ່ໄດ້ສ້າງສະຖານທີ່</div>
                                     <?php endif; ?>
@@ -262,19 +260,19 @@ $counts = [
                                 <div class="flex flex-col gap-2 flex-shrink-0">
                                     <a href="?filter=<?= $filter ?><?= $search ? '&search='.urlencode($search) : '' ?>&view=<?= $owner['CA_ID'] ?>"
                                        class="bg-blue-50 hover:bg-blue-100 text-blue-700 px-4 py-2 rounded-xl text-sm font-semibold transition text-center">
-                                        <i class="fas fa-eye mr-1"></i>View Details
+                                        <i class="fas fa-eye mr-1"></i>ເບິ່ງລາຍລະອຽດ
                                     </a>
                                     <?php if ($is_banned): ?>
                                         <form method="POST"><input type="hidden" name="ca_id" value="<?= $owner['CA_ID'] ?>"><input type="hidden" name="action" value="unban">
                                             <button type="submit" class="w-full bg-green-50 hover:bg-green-100 text-green-600 px-4 py-2 rounded-xl text-sm font-bold transition border border-green-200">
-                                                <i class="fas fa-check-circle mr-1"></i>Unban
+                                                <i class="fas fa-check-circle mr-1"></i>ຍົກເລີກການລະງັບ
                                             </button>
                                         </form>
                                     <?php else: ?>
-                                        <form method="POST" onsubmit="return confirm('Ban <?= htmlspecialchars(addslashes($owner["Name"])) ?>?')">
+                                        <form method="POST" onsubmit="return confirm('ລະງັບ <?= htmlspecialchars(addslashes($owner["Name"])) ?>?')">
                                             <input type="hidden" name="ca_id" value="<?= $owner['CA_ID'] ?>"><input type="hidden" name="action" value="ban">
                                             <button type="submit" class="w-full bg-red-50 hover:bg-red-100 text-red-600 px-4 py-2 rounded-xl text-sm font-bold transition border border-red-200">
-                                                <i class="fas fa-ban mr-1"></i>Ban
+                                                <i class="fas fa-ban mr-1"></i>ລະງັບ
                                             </button>
                                         </form>
                                     <?php endif; ?>
@@ -307,11 +305,10 @@ $counts = [
                     <?= strtoupper(substr($modal_owner['Name'], 0, 1)) ?>
                 </div>
                 <div class="text-white">
-                    <!-- FIX: Removed Surname -->
                     <h2 class="text-2xl font-extrabold"><?= htmlspecialchars($modal_owner['Name']) ?></h2>
                     <p class="text-purple-200 text-sm">@<?= htmlspecialchars($modal_owner['Username']) ?></p>
                     <span class="inline-block mt-1 bg-white bg-opacity-20 text-white text-xs font-bold px-3 py-0.5 rounded-full">
-                        <?= htmlspecialchars($modal_owner['Status']==='Banned' ? 'ຖືກລະງັບ' : 'ໃຊ້ງານໄດ້') ?>
+                        <?= $modal_owner['Status']==='Banned' ? 'ຖືກລະງັບ' : 'ໃຊ້ງານໄດ້' ?>
                     </span>
                 </div>
             </div>
@@ -319,8 +316,8 @@ $counts = [
         <div class="p-6">
             <div class="grid grid-cols-2 gap-3 mb-6 text-sm">
                 <?php foreach ([
-                    ['icon'=>'fa-envelope','color'=>'blue', 'label'=>'Email','value'=>$modal_owner['Email']],
-                    ['icon'=>'fa-phone',   'color'=>'green','label'=>'Phone','value'=>$modal_owner['Phone']],
+                    ['icon'=>'fa-envelope','color'=>'blue', 'label'=>'ອີເມລ໌','value'=>$modal_owner['Email']],
+                    ['icon'=>'fa-phone',   'color'=>'green','label'=>'ໂທ',     'value'=>$modal_owner['Phone']],
                 ] as $f): ?>
                     <div class="bg-gray-50 rounded-xl p-3 flex items-center gap-3">
                         <i class="fas <?= $f['icon'] ?> text-<?= $f['color'] ?>-400 w-4"></i>
@@ -336,11 +333,11 @@ $counts = [
                         <?php foreach ([
                             ['label'=>'ຊື່ສະຖານທີ່','value'=>$modal_owner['VN_Name']],
                             ['label'=>'ສະຖານະ',    'value'=>$modal_owner['VN_Status']],
-                            ['label'=>'ທີ່ຢູ່',   'value'=>$modal_owner['VN_Address']],
-                            ['label'=>'ເວລາ',     'value'=>date('H:i', strtotime($modal_owner['Open_time'])) . ' - ' . date('H:i', strtotime($modal_owner['Close_time']))],
+                            ['label'=>'ທີ່ຢູ່',    'value'=>$modal_owner['VN_Address']],
+                            ['label'=>'ເວລາ',      'value'=>date('H:i', strtotime($modal_owner['Open_time'])) . ' - ' . date('H:i', strtotime($modal_owner['Close_time']))],
                             ['label'=>'ລາຄາ/ຊມ',  'value'=>'₭'.number_format(preg_replace('/[^0-9]/', '', $modal_owner['Price_per_hour']))],
-                            ['label'=>'ເດີ່ນ',    'value'=>$modal_owner['total_courts'].' ເດີ່ນ'],
-                            ['label'=>'ການຈອງ',  'value'=>$modal_owner['total_bookings'].' ຢືນຢັນ'],
+                            ['label'=>'ເດີ່ນ',     'value'=>$modal_owner['total_courts'].' ເດີ່ນ'],
+                            ['label'=>'ການຈອງ',   'value'=>$modal_owner['total_bookings'].' ຢືນຢັນ'],
                         ] as $f): ?>
                             <div class="bg-white rounded-xl p-2.5">
                                 <p class="text-xs text-gray-400"><?= $f['label'] ?></p>
@@ -351,25 +348,25 @@ $counts = [
                 </div>
             <?php endif; ?>
 
-            <!-- ປະຫວັດແພັກເກດ -->
             <div class="mb-6">
                 <h3 class="font-bold text-gray-800 mb-3"><i class="fas fa-box text-purple-500 mr-2"></i>ປະຫວັດແພັກເກດ</h3>
                 <?php if (!empty($modal_packages)): ?>
                     <div class="space-y-2">
                         <?php foreach ($modal_packages as $pkg):
                             $pc = match($pkg['Status_Package']) { 'Active'=>'green','Pending'=>'yellow','Rejected'=>'red', default=>'gray' };
+                            $pl = match($pkg['Status_Package']) { 'Active'=>'ໃຊ້ງານໄດ້','Pending'=>'ລໍຖ້າ','Rejected'=>'ຖືກປະຕິເສດ', default=>$pkg['Status_Package'] };
                         ?>
                             <div class="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 text-sm">
                                 <div class="flex items-center gap-3">
                                     <div class="bg-<?= $pc ?>-100 p-1.5 rounded-lg"><i class="fas fa-box text-<?= $pc ?>-500 text-xs"></i></div>
                                     <div>
                                         <p class="font-semibold text-gray-800"><?= htmlspecialchars($pkg['Package_duration']) ?></p>
-                                        <p class="text-gray-400 text-xs"><?= date('M d, Y', strtotime($pkg['Package_date'])) ?></p>
+                                        <p class="text-gray-400 text-xs"><?= date('d/m/Y', strtotime($pkg['Package_date'])) ?></p>
                                     </div>
                                 </div>
                                 <div class="text-right">
                                     <p class="font-bold text-gray-700">₭<?= number_format($pkg['Price']) ?></p>
-                                    <span class="bg-<?= $pc ?>-100 text-<?= $pc ?>-700 text-xs font-bold px-2 py-0.5 rounded-full"><?= $pkg['Status_Package'] ?></span>
+                                    <span class="bg-<?= $pc ?>-100 text-<?= $pc ?>-700 text-xs font-bold px-2 py-0.5 rounded-full"><?= $pl ?></span>
                                 </div>
                             </div>
                         <?php endforeach; ?>
@@ -379,25 +376,25 @@ $counts = [
                 <?php endif; ?>
             </div>
 
-            <!-- Ad History -->
             <div class="mb-6">
                 <h3 class="font-bold text-gray-800 mb-3"><i class="fas fa-bullhorn text-blue-500 mr-2"></i>ປະຫວັດໂຄສະນາ</h3>
                 <?php if (!empty($modal_ads)): ?>
                     <div class="space-y-2">
                         <?php foreach ($modal_ads as $ad):
                             $ac = match($ad['Status_AD']) { 'Approved','Active'=>'blue','Pending'=>'yellow','Rejected'=>'red', default=>'gray' };
+                            $al = match($ad['Status_AD']) { 'Approved','Active'=>'ໃຊ້ງານໄດ້','Pending'=>'ລໍຖ້າ','Rejected'=>'ຖືກປະຕິເສດ', default=>$ad['Status_AD'] };
                         ?>
                             <div class="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 text-sm">
                                 <div class="flex items-center gap-3">
                                     <div class="bg-<?= $ac ?>-100 p-1.5 rounded-lg"><i class="fas fa-bullhorn text-<?= $ac ?>-500 text-xs"></i></div>
                                     <div>
                                         <p class="font-semibold text-gray-800"><?= htmlspecialchars($ad['Duration']) ?></p>
-                                        <p class="text-gray-400 text-xs"><?= date('M d, Y', strtotime($ad['AD_date'])) ?><?php if ($ad['End_time']): ?> · ຮອດ <?= date('M d, Y', strtotime($ad['End_time'])) ?><?php endif; ?></p>
+                                        <p class="text-gray-400 text-xs"><?= date('d/m/Y', strtotime($ad['AD_date'])) ?><?php if ($ad['End_time']): ?> · ຮອດ <?= date('d/m/Y', strtotime($ad['End_time'])) ?><?php endif; ?></p>
                                     </div>
                                 </div>
                                 <div class="text-right">
                                     <p class="font-bold text-gray-700">₭<?= number_format($ad['Price']) ?></p>
-                                    <span class="bg-<?= $ac ?>-100 text-<?= $ac ?>-700 text-xs font-bold px-2 py-0.5 rounded-full"><?= $ad['Status_AD'] ?></span>
+                                    <span class="bg-<?= $ac ?>-100 text-<?= $ac ?>-700 text-xs font-bold px-2 py-0.5 rounded-full"><?= $al ?></span>
                                 </div>
                             </div>
                         <?php endforeach; ?>
@@ -408,14 +405,14 @@ $counts = [
             </div>
 
             <div class="pt-4 border-t border-gray-100">
-                <?php if (($modal_owner['Status']==='Banned' ? 'ຖືກລະງັບ' : 'ໃຊ້ງານໄດ້') === 'Banned'): ?>
+                <?php if ($modal_owner['Status'] === 'Banned'): ?>
                     <form method="POST"><input type="hidden" name="ca_id" value="<?= $modal_owner['CA_ID'] ?>"><input type="hidden" name="action" value="unban">
                         <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition">
                             <i class="fas fa-check-circle mr-2"></i>ຍົກເລີກການລະງັບ
                         </button>
                     </form>
                 <?php else: ?>
-                    <form method="POST" onsubmit="return confirm('Ban <?= htmlspecialchars(addslashes($modal_owner["Name"])) ?>?')">
+                    <form method="POST" onsubmit="return confirm('ລະງັບ <?= htmlspecialchars(addslashes($modal_owner["Name"])) ?>?')">
                         <input type="hidden" name="ca_id" value="<?= $modal_owner['CA_ID'] ?>"><input type="hidden" name="action" value="ban">
                         <button type="submit" class="w-full bg-red-50 hover:bg-red-100 text-red-600 font-bold py-3 rounded-xl border border-red-200 transition">
                             <i class="fas fa-ban mr-2"></i>ລະງັບເຈົ້າຂອງນີ້
