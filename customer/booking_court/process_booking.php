@@ -24,17 +24,45 @@ if (!$venue_id || !$date || !$slots_json) {
     exit;
 }
 
+if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || $date < date('Y-m-d')) {
+    $_SESSION['booking_error'] = 'ວັນທີບໍ່ຖືກຕ້ອງ.';
+    header('Location: /Badminton_court_Booking/customer/booking_court/venue_detail.php?id=' . $venue_id . '&date=' . $date);
+    exit;
+}
+
 $slots = json_decode($slots_json, true);
 if (!$slots || count($slots) === 0) {
     header('Location: /Badminton_court_Booking/customer/booking_court/venue_detail.php?id=' . $venue_id . '&date=' . $date);
     exit;
 }
 
+// Server-side deduplicate by court+start+end
+$seen  = [];
+$slots = array_filter($slots, function($slot) use (&$seen) {
+    $key = ($slot['courtId'] ?? '') . '_' . ($slot['start'] ?? '') . '_' . ($slot['end'] ?? '');
+    if (isset($seen[$key])) return false;
+    $seen[$key] = true;
+    return true;
+});
+$slots = array_values($slots);
+
+if (count($slots) === 0) {
+    header('Location: /Badminton_court_Booking/customer/booking_court/venue_detail.php?id=' . $venue_id . '&date=' . $date);
+    exit;
+}
+
+// Cancel ALL Unpaid bookings for this customer
+try {
+    $pdo->prepare("
+        UPDATE booking
+        SET Status_booking = 'Cancelled'
+        WHERE C_ID = ? AND Status_booking = 'Unpaid'
+    ")->execute([$customer_id]);
+} catch (PDOException $e) {}
+
 try {
     $pdo->beginTransaction();
 
-    // Create booking with 'Unpaid' status — NOT sent to owner yet
-    // Slot is NOT blocked until owner confirms
     $stmt = $pdo->prepare("
         INSERT INTO booking (Booking_date, Slip_payment, Status_booking, C_ID)
         VALUES (NOW(), '', 'Unpaid', ?)
@@ -42,7 +70,7 @@ try {
     $stmt->execute([$customer_id]);
     $book_id = $pdo->lastInsertId();
 
-    $stmt = $pdo->prepare("
+    $insert_stmt = $pdo->prepare("
         INSERT INTO booking_detail (Start_time, End_time, Book_ID, COURT_ID)
         VALUES (?, ?, ?, ?)
     ");
@@ -52,8 +80,13 @@ try {
         $end_datetime   = $date . ' ' . $slot['end']   . ':00';
         $court_id       = intval($slot['courtId']);
 
-        // Block if slot is Confirmed OR Pending (Pending = slip uploaded, real booking)
-        // Unpaid bookings don't block — customer hasn't committed yet
+        if (strtotime($start_datetime) >= strtotime($end_datetime)) {
+            $pdo->rollBack();
+            $_SESSION['booking_error'] = 'ເວລາສລັອດບໍ່ຖືກຕ້ອງ.';
+            header('Location: /Badminton_court_Booking/customer/booking_court/venue_detail.php?id=' . $venue_id . '&date=' . $date);
+            exit;
+        }
+
         $check = $pdo->prepare("
             SELECT COUNT(*) AS cnt
             FROM booking_detail bd
@@ -71,10 +104,13 @@ try {
             exit;
         }
 
-        $stmt->execute([$start_datetime, $end_datetime, $book_id, $court_id]);
+        $insert_stmt->execute([$start_datetime, $end_datetime, $book_id, $court_id]);
     }
 
     $pdo->commit();
+
+    $_SESSION['current_booking_id'] = $book_id;
+    $_SESSION['current_booking_ts'] = time();
 
     // Redirect to payment page
     header('Location: /Badminton_court_Booking/customer/payment/index.php?booking_id=' . $book_id);

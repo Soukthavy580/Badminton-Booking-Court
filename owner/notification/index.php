@@ -81,7 +81,7 @@ $type_config = [
             <div class="flex items-center justify-between">
                 <div>
                     <h1 class="text-xl font-bold text-gray-800">ການແຈ້ງເຕືອນ</h1>
-                    <p class="text-sm text-gray-500">ຄຳຕິຊົມຈາກແອດມິນ — ແກ້ໄຂ ແລະ ສົ່ງໃໝ່ເພື່ອລຶບໃຫ້ຫາຍ</p>
+                    <p class="text-sm text-gray-500">ການແຈ້ງເຕືອນຈາກແອດມິນເພື່ອແກ້ໄຂຂໍ້ມູນທີ່ຜິດພາດ</p>
                 </div>
                 <?php if (!empty($notifications)): ?>
                     <span class="bg-red-500 text-white font-bold px-4 py-2 rounded-full text-sm">

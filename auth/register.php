@@ -259,7 +259,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <label for="confirm_password" class="block text-gray-700 font-medium mb-2">ຢືນຢັນລະຫັດຜ່ານ</label>
                     <div class="relative">
                         <input type="password" id="confirm_password" name="confirm_password"
-                               placeholder="ກ້ຳລະຫັດຜ່ານ"
+                               placeholder="ຢືນຢັນລະຫັດຜ່ານ"
                                class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-green-500 transition-colors"
                                oninput="checkPasswordMatch()" required>
                         <i class="fas fa-eye password-toggle absolute right-4 top-4 text-gray-400"

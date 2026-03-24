@@ -146,7 +146,7 @@ function sidebar_class($path) {
 
         <?php if ($is_active): ?>
             <a href="/Badminton_court_Booking/owner/manage_court/" class="<?= sidebar_class('/manage_court/') ?>">
-                <i class="fas fa-store w-5"></i>ສະຖານທີ່ ແລະ ເດີ່ນ
+                <i class="fas fa-store w-5"></i>ສະຖານທີ່ ແລະ ຄອດ
             </a>
             
             <a href="/Badminton_court_Booking/owner/booking_management/" class="<?= sidebar_class('/booking_management/') ?>">

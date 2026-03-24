@@ -86,8 +86,8 @@ $total_pending = $pending_venues + $pending_packages + $pending_ads;
         <header class="bg-white shadow-sm px-6 py-4 sticky top-0 z-40">
             <div class="flex items-center justify-between">
                 <div>
-                    <h1 class="text-xl font-bold text-gray-800">ສະວັດດີ, <?= htmlspecialchars($_SESSION['user_name'] ?? 'Admin') ?> 👋</h1>
-                    <p class="text-sm text-gray-500"><?= date('l, d F Y') ?> · ພາບລວມທົ່ວທັງລະບົບ</p>
+                    <h1 class="text-xl font-bold text-gray-800"><?= htmlspecialchars($_SESSION['user_name'] ?? 'Admin') ?> </h1>
+                    <p class="text-sm text-gray-500"><?= date('l, d F Y') ?> · ພາບລວມຂອງລະບົບ</p>
                 </div>
                 <?php if ($total_pending > 0): ?>
                     <div class="flex items-center gap-2 bg-red-50 border border-red-200 px-4 py-2 rounded-xl animate-pulse">

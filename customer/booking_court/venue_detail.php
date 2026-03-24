@@ -51,7 +51,6 @@ function get_booked_slots($pdo, $venue_id, $date) {
             WHERE c.VN_ID = ?
             AND DATE(bd.Start_time) = ?
             AND b.Status_booking IN ('Confirmed', 'Pending')
-            -- Completed and No_Show do NOT block future bookings
         ");
         $stmt->execute([$venue_id, $date]);
         return $stmt->fetchAll();
@@ -77,7 +76,6 @@ function generate_time_slots($open_time, $close_time, $interval_minutes = 60) {
 }
 
 function is_slot_booked($booked_slots, $court_id, $slot_start, $slot_end, $date) {
-    // Returns: false | 'Confirmed' | 'Pending'
     foreach ($booked_slots as $booked) {
         if ($booked['COURT_ID'] != $court_id) continue;
         $booked_start = strtotime($booked['Start_time']);
@@ -219,7 +217,7 @@ $venue_img    = !empty($venue['VN_Image'])
                         <div class="flex items-center justify-between mb-6">
                             <h2 class="text-xl font-bold text-gray-800">
                                 <i class="fas fa-table-tennis text-green-500 mr-2"></i>
-                                ເລືອກເດີ່ນ ແລະ ສລັອດເວລາ
+                                ເລືອກເດີ່ນ ແລະ ເວລາ
                             </h2>
                             <span class="text-sm text-gray-500 font-medium">
                                 <?= date('d/m/Y', strtotime($search_date)) ?>
@@ -402,6 +400,7 @@ $venue_img    = !empty($venue['VN_Image'])
                 document.getElementById('loginModal').classList.remove('hidden');
                 return;
             }
+
             const courtId   = btn.dataset.courtId;
             const courtName = btn.dataset.courtName;
             const start     = btn.dataset.start;
@@ -411,13 +410,17 @@ $venue_img    = !empty($venue['VN_Image'])
             const key       = `${courtId}_${start}_${end}`;
 
             if (btn.classList.contains('selected')) {
+                // DESELECT — remove from array
                 btn.classList.remove('selected');
                 btn.classList.add('available', 'bg-green-50', 'border', 'border-green-200', 'text-green-800');
                 selectedSlots = selectedSlots.filter(s => s.key !== key);
             } else {
-                btn.classList.add('selected');
-                btn.classList.remove('available', 'bg-green-50', 'border', 'border-green-200', 'text-green-800');
-                selectedSlots.push({ key, courtId, courtName, start, end, date, price });
+                // SELECT — only add if not already in array (prevents duplicates on fast clicks)
+                if (!selectedSlots.find(s => s.key === key)) {
+                    btn.classList.add('selected');
+                    btn.classList.remove('available', 'bg-green-50', 'border', 'border-green-200', 'text-green-800');
+                    selectedSlots.push({ key, courtId, courtName, start, end, date, price });
+                }
             }
             updateSummary();
         }
@@ -477,7 +480,9 @@ $venue_img    = !empty($venue['VN_Image'])
                 alert('ກະລຸນາເລືອກຢ່າງໜ້ອຍໜຶ່ງສລັອດ.');
                 return;
             }
-            document.getElementById('slotsJson').value = JSON.stringify(selectedSlots);
+            // Deduplicate by key before submitting — final safety net
+            const unique = [...new Map(selectedSlots.map(s => [s.key, s])).values()];
+            document.getElementById('slotsJson').value = JSON.stringify(unique);
             document.getElementById('bookingForm').submit();
         }
     </script>

@@ -7,6 +7,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'customer') {
     exit;
 }
 
+// STEP 1: Define variables first
 $booking_id  = intval($_GET['booking_id'] ?? 0);
 $customer_id = $_SESSION['c_id'];
 
@@ -15,6 +16,7 @@ if (!$booking_id) {
     exit;
 }
 
+// STEP 2: Fetch booking
 try {
     $stmt = $pdo->prepare("
         SELECT b.*,
@@ -32,12 +34,13 @@ if (!$booking) {
     exit;
 }
 
-// FIX: Allow access if Unpaid (not yet paid) or Pending (uploaded but waiting)
+// STEP 3: Only allow Unpaid or Pending
 if (!in_array($booking['Status_booking'], ['Unpaid', 'Pending'])) {
     header('Location: /Badminton_court_Booking/customer/booking_court/my_booking.php');
     exit;
 }
 
+// STEP 4: Fetch booking details
 try {
     $stmt = $pdo->prepare("
         SELECT bd.*, c.COURT_Name, v.VN_Name, v.VN_ID, v.Price_per_hour,
@@ -93,14 +96,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['slip'])) {
             $filepath = $upload_dir . $filename;
             if (move_uploaded_file($file['tmp_name'], $filepath)) {
                 try {
-                    // FIX: Change status from Unpaid -> Pending when slip uploaded
-                    // NOW the booking appears in owner's review queue
                     $pdo->prepare("
                         UPDATE booking SET Slip_payment = ?, Status_booking = 'Pending'
                         WHERE Book_ID = ? AND C_ID = ?
                     ")->execute([$filename, $booking_id, $customer_id]);
-                    $success = 'Payment slip uploaded! Waiting for owner confirmation.';
-                    $booking['Slip_payment']    = $filename;
+                    $success = 'ອັບໂຫລດສຳເລັດ! ລໍຖ້າເຈົ້າຂອງສະຖານທີ່ຢືນຢັນ.';
+                    $booking['Slip_payment']   = $filename;
                     $booking['Status_booking'] = 'Pending';
                 } catch (PDOException $e) {
                     $error = 'Failed to save slip. Please try again.';
@@ -112,12 +113,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['slip'])) {
     }
 }
 
-// Fetch venue QR payment image
-$qr_image = !empty($venue['VN_QR_Payment'])
+$qr_image     = !empty($venue['VN_QR_Payment'])
     ? '/Badminton_court_Booking/assets/images/qr/' . basename($venue['VN_QR_Payment'])
     : '';
-
-$booking_date = date('F j, Y', strtotime($details[0]['Start_time']));
+$booking_date  = date('d/m/Y', strtotime($details[0]['Start_time']));
 $slip_uploaded = !empty($booking['Slip_payment']);
 ?>
 <!DOCTYPE html>
@@ -230,7 +229,7 @@ $slip_uploaded = !empty($booking['Slip_payment']);
             <!-- RIGHT: Payment Panel -->
             <div class="lg:col-span-2 space-y-5">
 
-                <!-- QR Code from venue owner -->
+                <!-- QR Code -->
                 <?php if ($qr_image): ?>
                     <div class="bg-white rounded-2xl shadow-sm p-5 text-center">
                         <h3 class="font-bold text-gray-700 mb-3 flex items-center justify-center gap-2">
@@ -276,8 +275,7 @@ $slip_uploaded = !empty($booking['Slip_payment']);
                         <p class="text-green-600 text-sm mb-4">ໃບຮັບເງິນຂອງທ່ານຖືກສົ່ງແລ້ວ. ລໍຖ້າເຈົ້າຂອງສະຖານທີ່ຢືນຢັນ.</p>
                         <?php
                         $ext = strtolower(pathinfo($booking['Slip_payment'], PATHINFO_EXTENSION));
-                        if ($ext !== 'pdf'):
-                        ?>
+                        if ($ext !== 'pdf'): ?>
                             <img src="/Badminton_court_Booking/assets/images/slips/<?= htmlspecialchars($booking['Slip_payment']) ?>"
                                  class="w-full rounded-xl border border-green-200 mb-4 max-h-48 object-contain"
                                  onerror="this.style.display='none'">

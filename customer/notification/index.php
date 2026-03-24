@@ -261,7 +261,7 @@ function status_label($s) {
                                     <?php if (in_array($status, ['Unpaid','Pending']) && empty($booking['Slip_payment'])): ?>
                                         <a href="/Badminton_court_Booking/customer/payment/index.php?booking_id=<?= $booking['Book_ID'] ?>"
                                            class="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg font-medium transition">
-                                            <i class="fas fa-upload mr-1"></i>ອັບໂຫລດໃບຮັບເງິນ
+                                            <i class="fas fa-upload mr-1"></i>ອັບໂຫລດຫຼັກຖານການໂອນ
                                         </a>
                                     <?php endif; ?>
                                     <?php if ($status === 'Confirmed' && $is_past): ?>

@@ -126,7 +126,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_venue'])) {
                     $pdo->prepare("
                         INSERT INTO Venue_data
                             (VN_Name,VN_Address,VN_Description,Open_time,Close_time,Price_per_hour,VN_MapURL,VN_Image,VN_QR_Payment,VN_Status,CA_ID)
-                        VALUES (?,?,?,?,?,?,?,?,?,'Pending',?)
+                        VALUES (?,?,?,?,?,?,?,?,?,'Active',?)
                     ")->execute([$vn_name,$vn_address,$vn_desc,$open_time,$close_time,$price,$map_url,$vn_image,$vn_qr,$ca_id]);
                     $vn_id = $pdo->lastInsertId();
                     $pdo->prepare("UPDATE package SET VN_ID=? WHERE CA_ID=? AND VN_ID IS NULL")
@@ -135,9 +135,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_venue'])) {
                 $stmt = $pdo->prepare("SELECT * FROM Venue_data WHERE CA_ID=? LIMIT 1");
                 $stmt->execute([$ca_id]);
                 $venue   = $stmt->fetch();
-                $success = $venue['VN_Status'] === 'Pending'
-                    ? 'ບັນທຶກສຳເລັດ! ກາລຸນາລໍຖ້າການອະນຸມັດຈາກແອດມິນ.'
-                    : 'ອັບເດດສະຖານທີ່ສຳເລັດ!';
+                $success = 'ສ້າງສະຖານທີ່ສຳເລັດ! ສະຖານທີ່ຂອງທ່ານໃຊ້ງານໄດ້ແລ້ວ.';
                 $tab = 'venue';
             }
         } catch (PDOException $e) {
@@ -247,16 +245,7 @@ $courts_locked = !$is_active;
 
             <!-- Venue Status Banner -->
             <?php if ($venue): ?>
-                <?php if ($venue['VN_Status'] === 'Pending'): ?>
-                    <div class="bg-yellow-50 border border-yellow-300 rounded-2xl p-4 mb-6 flex items-center gap-3">
-                        <i class="fas fa-clock text-yellow-500 text-xl flex-shrink-0"></i>
-                        <div>
-                            <p class="font-bold text-yellow-800">ສະຖານທີ່ລໍຖ້າການອະນຸມັດ</p>
-                            <p class="text-yellow-600 text-sm">ສະຖານທີ່ຂອງທ່ານກຳລັງຖືກກວດສອບໂດຍແອດມິນ.</p>
-                        </div>
-                    </div>
-
-                <?php elseif ($venue['VN_Status'] === 'Active'): ?>
+                <?php if ($venue['VN_Status'] === 'Active'): ?>
                     <div class="bg-green-50 border border-green-300 rounded-2xl p-4 mb-6 flex items-center gap-3">
                         <i class="fas fa-check-circle text-green-500 text-xl flex-shrink-0"></i>
                         <div>
@@ -327,7 +316,7 @@ $courts_locked = !$is_active;
                                <?= $courts_locked ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600' ?>
                                <?= (!$courts_locked && $tab==='courts') ? 'active' : '' ?>">
                     <i class="fas fa-<?= $courts_locked ? 'lock' : 'table-tennis' ?> mr-2"></i>
-                    ເດີ່ນ
+                    ຄອດ
                     <?php if (!$courts_locked && count($courts) > 0): ?>
                         <span class="ml-1 bg-green-100 text-green-700 text-xs rounded-full px-2"><?= count($courts) ?></span>
                     <?php endif; ?>
@@ -529,7 +518,7 @@ $courts_locked = !$is_active;
                     <div class="bg-white rounded-2xl shadow-sm p-6 mb-6">
                         <h2 class="font-bold text-gray-800 text-lg mb-4">
                             <i class="fas fa-plus-circle text-green-500 mr-2"></i>
-                            <span id="courtFormTitle">ເພີ່ມເດີ່ນໃໝ່</span>
+                            <span id="courtFormTitle">ເພີ່ມຄອດໃໝ່</span>
                         </h2>
                         <form method="POST">
                             <input type="hidden" name="court_id" id="courtIdInput" value="0">
@@ -537,12 +526,12 @@ $courts_locked = !$is_active;
                                 <div class="md:col-span-3">
                                     <label class="block text-sm font-bold text-gray-700 mb-2">ຊື່ເດີ່ນ <span class="text-red-500">*</span></label>
                                     <input type="text" name="court_name" id="courtNameInput"
-                                           placeholder="ຕົວຢ່າງ: ເດີ່ນ A, ເດີ່ນ 1"
+                                           placeholder="ຕົວຢ່າງ: ຄອດ A, ຄອດ 1"
                                            class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-green-500 transition" required>
                                 </div>
                                 <div>
                                     <label class="block text-sm font-bold text-gray-700 mb-2">
-                                        <i class="fas fa-door-open text-green-500 mr-1"></i>ເດີ່ນເປີດ
+                                        <i class="fas fa-door-open text-green-500 mr-1"></i>ຄອດເປີດ
                                     </label>
                                     <input type="time" name="court_open" id="courtOpenInput" value=""
                                            class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-green-500 transition">
@@ -550,7 +539,7 @@ $courts_locked = !$is_active;
                                 </div>
                                 <div>
                                     <label class="block text-sm font-bold text-gray-700 mb-2">
-                                        <i class="fas fa-door-closed text-red-500 mr-1"></i>ເດີ່ນປິດ
+                                        <i class="fas fa-door-closed text-red-500 mr-1"></i>ຄອດປິດ
                                     </label>
                                     <input type="time" name="court_close" id="courtCloseInput" value=""
                                            class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-green-500 transition">
@@ -559,14 +548,14 @@ $courts_locked = !$is_active;
                                 <div class="flex items-end">
                                     <div class="bg-blue-50 border border-blue-200 rounded-xl p-3 w-full">
                                         <p class="text-xs font-bold text-blue-600 mb-1"><i class="fas fa-info-circle mr-1"></i>ໝາຍເຫດ</p>
-                                        <p class="text-xs text-blue-500">ເວລາເດີ່ນສາມາດຕ່າງຈາກເວລາສະຖານທີ່ໄດ້.</p>
+                                        <p class="text-xs text-blue-500">ເວລາຄອດສາມາດຕ່າງຈາກເວລາສະຖານທີ່ໄດ້.</p>
                                     </div>
                                 </div>
                             </div>
                             <div class="flex gap-3">
                                 <button type="submit" name="save_court"
                                         class="bg-green-600 hover:bg-green-700 text-white font-bold px-6 py-3 rounded-xl transition">
-                                    <i class="fas fa-save mr-1"></i><span id="courtBtnText">ເພີ່ມເດີ່ນ</span>
+                                    <i class="fas fa-save mr-1"></i><span id="courtBtnText">ເພີ່ມຄອດ</span>
                                 </button>
                                 <button type="button" onclick="resetCourtForm()" id="cancelCourtBtn"
                                         class="hidden bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-4 py-3 rounded-xl transition">
@@ -580,7 +569,7 @@ $courts_locked = !$is_active;
                     <?php if (!empty($courts)): ?>
                         <div class="bg-white rounded-2xl shadow-sm p-6">
                             <h2 class="font-bold text-gray-800 text-lg mb-4">
-                                <i class="fas fa-list text-blue-500 mr-2"></i>ເດີ່ນຂອງທ່ານ (<?= count($courts) ?>)
+                                <i class="fas fa-list text-blue-500 mr-2"></i>ຄອດຂອງທ່ານ (<?= count($courts) ?>)
                             </h2>
                             <div class="space-y-3">
                                 <?php foreach ($courts as $court):
@@ -701,8 +690,8 @@ function resetCourtForm() {
     document.getElementById('courtNameInput').value  = '';
     document.getElementById('courtOpenInput').value  = '';
     document.getElementById('courtCloseInput').value = '';
-    document.getElementById('courtFormTitle').textContent = 'ເພີ່ມເດີ່ນໃໝ່';
-    document.getElementById('courtBtnText').textContent   = 'ເພີ່ມເດີ່ນ';
+    document.getElementById('courtFormTitle').textContent = 'ເພີ່ມຄອດໃໝ່';
+    document.getElementById('courtBtnText').textContent   = 'ເພີ່ມຄອດ';
     document.getElementById('cancelCourtBtn').classList.add('hidden');
 }
 </script>

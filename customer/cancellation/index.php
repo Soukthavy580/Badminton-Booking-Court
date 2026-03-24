@@ -121,9 +121,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <p class="font-bold flex items-center gap-2">
                         <i class="fas fa-exclamation-triangle"></i>ກ່ອນຍົກເລີກ ກະລຸນາອ່ານ:
                     </p>
-                    <p><i class="fas fa-times-circle mr-1 text-red-500"></i>ເງິນມັດຈຳ <strong>30%</strong> ທີ່ທ່ານຊຳລະໄວ້ <strong>ຈະບໍ່ຖືກຄືນໄດ້</strong>.</p>
-                    <p><i class="fas fa-times-circle mr-1 text-red-500"></i>ເມື່ອຍົກເລີກແລ້ວ ບໍ່ສາມາດຍ້ອນກັບໄດ້.</p>
-                    <p><i class="fas fa-check-circle mr-1 text-green-500"></i>ສລັອດຂອງທ່ານຈະຖືກປ່ອຍໃຫ້ຜູ້ອື່ນຈອງໄດ້.</p>
+                    <p><i class="fas fa-times-circle mr-1 text-red-500"></i>ເງິນມັດຈຳ <strong>30%</strong> ທີ່ທ່ານຊຳລະໄວ້ <strong>ຈະບໍ່ໄດ້ຄືນ</strong>.</p>
+                    <p><i class="fas fa-check-circle mr-1 text-green-500"></i>ຊ່ວງເວລາທີ່ທ່ານຈອງຈະຖືກປ່ອຍໃຫ້ຜູ້ອື່ນຈອງໄດ້.</p>
                 </div>
 
                 <?php if ($error): ?>

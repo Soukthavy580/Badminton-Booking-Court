@@ -6,7 +6,6 @@ CREATE DATABASE IF NOT EXISTS badminton_booking
     CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE badminton_booking;
  
--- ── ADMIN ────────────────────────────────────────────────────
 CREATE TABLE admin (
     Admin_ID   INT(11)      NOT NULL AUTO_INCREMENT,
     Name       VARCHAR(100) NOT NULL,

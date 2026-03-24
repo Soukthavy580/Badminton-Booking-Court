@@ -44,10 +44,7 @@ function admin_sidebar_class($path) {
 
     <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
 
-        <!-- ── ການຈັດການ ── -->
-        <div class="pt-1 pb-1">
-            <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">ການຈັດການ</p>
-        </div>
+        <!-- ── ໜ້າຫຼັກ ── -->
         <a href="/Badminton_court_Booking/admin/" class="<?= admin_sidebar_class('/admin/index') ?>">
             <i class="fas fa-home w-5"></i>ໜ້າຫຼັກ
             <?php if ($total_pending > 0): ?>
@@ -55,32 +52,43 @@ function admin_sidebar_class($path) {
             <?php endif; ?>
         </a>
 
-        <!-- ── ຜູ້ໃຊ້ ── -->
+        <!-- ── ຈັດການຜູ້ໃຊ້ ── -->
         <div class="pt-3 pb-1">
-            <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">ຜູ້ໃຊ້</p>
+            <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">ຈັດການຜູ້ໃຊ້</p>
         </div>
+        <a href="/Badminton_court_Booking/admin/customers/" class="<?= admin_sidebar_class('/admin/customers/') ?>">
+            <i class="fas fa-users w-5"></i>ຈັດການລູກຄ້າ
+        </a>
         <a href="/Badminton_court_Booking/admin/owners/" class="<?= admin_sidebar_class('/admin/owners/') ?>">
-            <i class="fas fa-user-tie w-5"></i>ເຈົ້າຂອງ
+            <i class="fas fa-user-tie w-5"></i>ຈັດການເຈົ້າຂອງ
+        </a>
+        <a href="/Badminton_court_Booking/admin/admins/" class="<?= admin_sidebar_class('/admin/admins/') ?>">
+            <i class="fas fa-user-shield w-5"></i>ຈັດການແອດມິນ
+        </a>
+
+        <!-- ── ຈັດການສະຖານທີ່ ── -->
+        <div class="pt-3 pb-1">
+            <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">ຈັດການສະຖານທີ່</p>
+        </div>
+        <a href="/Badminton_court_Booking/admin/venues/" class="<?= admin_sidebar_class('/admin/venues/') ?>">
+            <i class="fas fa-store w-5"></i>ເດີ່ນ ແລະ ຄອດ
+            <?php if ($pending_venues > 0): ?>
+                <span class="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5"><?= $pending_venues ?></span>
+            <?php endif; ?>
         </a>
 
         <!-- ── ການອະນຸມັດ ── -->
         <div class="pt-3 pb-1">
             <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">ການອະນຸມັດ</p>
         </div>
-        <a href="/Badminton_court_Booking/admin/venues/" class="<?= admin_sidebar_class('/admin/venues/') ?>">
-            <i class="fas fa-store w-5"></i>ສະຖານທີ່
-            <?php if ($pending_venues > 0): ?>
-                <span class="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5"><?= $pending_venues ?></span>
-            <?php endif; ?>
-        </a>
         <a href="/Badminton_court_Booking/admin/packages/" class="<?= admin_sidebar_class('/admin/packages/') ?>">
-            <i class="fas fa-box w-5"></i>ແພັກເກດ
+            <i class="fas fa-box w-5"></i>ຈັດການແພັກເກດ
             <?php if ($pending_packages > 0): ?>
                 <span class="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5"><?= $pending_packages ?></span>
             <?php endif; ?>
         </a>
         <a href="/Badminton_court_Booking/admin/advertisements/" class="<?= admin_sidebar_class('/admin/advertisements/') ?>">
-            <i class="fas fa-bullhorn w-5"></i>ໂຄສະນາ
+            <i class="fas fa-bullhorn w-5"></i>ຈັດການໂຄສະນາ
             <?php if ($pending_ads > 0): ?>
                 <span class="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5"><?= $pending_ads ?></span>
             <?php endif; ?>
