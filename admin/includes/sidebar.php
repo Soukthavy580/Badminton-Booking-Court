@@ -23,6 +23,30 @@ function admin_sidebar_class($path) {
         : 'flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-blue-50 hover:text-blue-700 font-medium transition';
 }
 ?>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    window.BBCAlert = window.BBCAlert || {};
+    window.BBCAlert.modal = function (icon, title, text) {
+        if (typeof Swal === 'undefined') return;
+        Swal.fire({
+            icon,
+            title,
+            text,
+            draggable: true,
+            confirmButtonText: "ຕົກລົງ"
+        });
+    };
+</script>
+<?php if (empty($swal_flash_handled) && (!empty($error) || !empty($success))): ?>
+    <script>
+        (function () {
+            const errorMsg = <?= json_encode($error ?? '', JSON_UNESCAPED_UNICODE) ?>;
+            const successMsg = <?= json_encode($success ?? '', JSON_UNESCAPED_UNICODE) ?>;
+            if (errorMsg) return window.BBCAlert.modal('error', 'ລົ້ມເຫລວ', errorMsg);
+            if (successMsg) return window.BBCAlert.modal('success', 'ສຳເລັດ', successMsg);
+        })();
+    </script>
+<?php endif; ?>
 <aside class="w-64 bg-white shadow-md flex-shrink-0 hidden md:flex flex-col sticky top-0 h-screen">
 
     <!-- Logo -->
@@ -87,7 +111,9 @@ function admin_sidebar_class($path) {
                 <span class="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5"><?= $pending_packages ?></span>
             <?php endif; ?>
         </a>
-        <a href="/Badminton_court_Booking/admin/advertisements/" class="<?= admin_sidebar_class('/admin/advertisements/') ?>">
+        <a href="/Badminton_court_Booking/admin/advertisements/" class="<?= admin_sidebar_class('/
+        3
+        /advertisements/') ?>">
             <i class="fas fa-bullhorn w-5"></i>ຈັດການໂຄສະນາ
             <?php if ($pending_ads > 0): ?>
                 <span class="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5"><?= $pending_ads ?></span>

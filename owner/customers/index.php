@@ -9,7 +9,6 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'owner') {
 
 $ca_id = $_SESSION['ca_id'];
 
-// Get venue
 try {
     $stmt = $pdo->prepare("SELECT * FROM Venue_data WHERE CA_ID = ? LIMIT 1");
     $stmt->execute([$ca_id]);
@@ -24,27 +23,27 @@ if (!$venue) {
 $vn_id  = $venue['VN_ID'];
 $search = trim($_GET['search'] ?? '');
 
-// Fetch ONLY customers who have booked this venue
 try {
     $sql = "
         SELECT
             cu.C_ID, cu.Name, cu.Phone, cu.Email, cu.Gender,
             COUNT(DISTINCT b.Book_ID) AS total_bookings,
-            SUM(CASE WHEN b.Status_booking = 'Confirmed' THEN 1 ELSE 0 END) AS confirmed,
-            SUM(CASE WHEN b.Status_booking = 'Cancelled' THEN 1 ELSE 0 END) AS cancelled,
-            SUM(CASE WHEN b.Status_booking IN ('Pending','Unpaid') THEN 1 ELSE 0 END) AS pending,
+            SUM(CASE WHEN b.Status_booking = 'Confirmed'  THEN 1 ELSE 0 END) AS confirmed,
+            SUM(CASE WHEN b.Status_booking = 'Completed'  THEN 1 ELSE 0 END) AS completed,
+            SUM(CASE WHEN b.Status_booking = 'Cancelled'  THEN 1 ELSE 0 END) AS cancelled,
+            SUM(CASE WHEN b.Status_booking = 'Pending'    THEN 1 ELSE 0 END) AS pending,
             MAX(b.Booking_date) AS last_booking
         FROM customer cu
         INNER JOIN booking b ON cu.C_ID = b.C_ID
         INNER JOIN booking_detail bd ON b.Book_ID = bd.Book_ID
         INNER JOIN Court_data c ON bd.COURT_ID = c.COURT_ID
-        WHERE c.VN_ID = ?
+        WHERE c.VN_ID = ? AND b.Status_booking != 'Unpaid'
     ";
     $params = [$vn_id];
     if (!empty($search)) {
         $sql .= " AND (cu.Name LIKE ? OR cu.Phone LIKE ? OR cu.Email LIKE ?)";
         $t = "%{$search}%";
-        $params = array_merge($params, [$t,$t,$t]);
+        $params = array_merge($params, [$t, $t, $t]);
     }
     $sql .= " GROUP BY cu.C_ID ORDER BY last_booking DESC";
     $stmt = $pdo->prepare($sql);
@@ -52,7 +51,7 @@ try {
     $customers = $stmt->fetchAll();
 } catch (PDOException $e) { $customers = []; }
 
-// Modal: booking history for one customer at this venue
+// Modal: booking history for one customer
 $modal_customer = null;
 $modal_bookings = [];
 if (isset($_GET['view'])) {
@@ -61,7 +60,6 @@ if (isset($_GET['view'])) {
         $stmt = $pdo->prepare("SELECT * FROM customer WHERE C_ID = ?");
         $stmt->execute([$view_id]);
         $modal_customer = $stmt->fetch();
-
         if ($modal_customer) {
             $stmt = $pdo->prepare("
                 SELECT b.Book_ID, b.Booking_date, b.Status_booking,
@@ -69,7 +67,7 @@ if (isset($_GET['view'])) {
                 FROM booking b
                 INNER JOIN booking_detail bd ON b.Book_ID = bd.Book_ID
                 INNER JOIN Court_data c ON bd.COURT_ID = c.COURT_ID
-                WHERE b.C_ID = ? AND c.VN_ID = ?
+                WHERE b.C_ID = ? AND c.VN_ID = ? AND b.Status_booking != 'Unpaid'
                 ORDER BY b.Booking_date DESC LIMIT 20
             ");
             $stmt->execute([$view_id, $vn_id]);
@@ -95,8 +93,6 @@ if (isset($_GET['view'])) {
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        .customer-card { transition: all 0.3s ease; }
-        .customer-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.08); }
         .detail-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:100; align-items:center; justify-content:center; }
         .detail-modal.open { display:flex; }
     </style>
@@ -105,6 +101,7 @@ if (isset($_GET['view'])) {
 <div class="flex min-h-screen">
     <?php include '../includes/sidebar.php'; ?>
     <div class="flex-1 flex flex-col">
+
         <header class="bg-white shadow-sm px-6 py-4 sticky top-0 z-40">
             <div class="flex items-center justify-between">
                 <div>
@@ -133,57 +130,85 @@ if (isset($_GET['view'])) {
                 <?php endif; ?>
             </form>
 
-            <!-- Customers List -->
+            <!-- Customers Table -->
             <?php if (!empty($customers)): ?>
-                <div class="space-y-3">
-                    <?php foreach ($customers as $cu): ?>
-                        <div class="customer-card bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-                            <div class="flex flex-col md:flex-row justify-between gap-4">
-                                <!-- Info -->
-                                <div class="flex items-start gap-4">
-                                    <div class="w-12 h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
-                                        <?= strtoupper(substr($cu['Name'], 0, 1)) ?>
-                                    </div>
-                                    <div>
-                                        <h3 class="font-bold text-gray-800"><?= htmlspecialchars($cu['Name']) ?></h3>
-                                        <p class="text-sm text-gray-500"><i class="fas fa-phone mr-1 text-green-400"></i><?= htmlspecialchars($cu['Phone']) ?></p>
-                                        <p class="text-sm text-gray-500"><i class="fas fa-envelope mr-1 text-blue-400"></i><?= htmlspecialchars($cu['Email']) ?></p>
-                                        <?php if ($cu['Gender']): ?>
-                                            <p class="text-sm text-gray-500"><i class="fas fa-venus-mars mr-1 text-purple-400"></i>
-                                                <?= $cu['Gender'] === 'Male' ? 'ຊາຍ' : 'ຍິງ' ?>
-                                            </p>
-                                        <?php endif; ?>
-                                        <p class="text-xs text-gray-400 mt-1">
-                                            <i class="fas fa-clock mr-1"></i>ຈອງຫຼ້າສຸດ: <?= date('d/m/Y', strtotime($cu['last_booking'])) ?>
-                                        </p>
-                                    </div>
-                                </div>
+                <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b-2 border-gray-100 bg-gray-50">
+                                    <th class="text-left py-3 px-4 text-xs font-bold text-gray-500 uppercase">#</th>
+                                    <th class="text-left py-3 px-4 text-xs font-bold text-gray-500 uppercase">ລູກຄ້າ</th>
+                                    <th class="text-left py-3 px-4 text-xs font-bold text-gray-500 uppercase">ຕິດຕໍ່</th>
+                                    <th class="text-center py-3 px-4 text-xs font-bold text-gray-500 uppercase">ທັງໝົດ</th>
+                                    <th class="text-center py-3 px-4 text-xs font-bold text-gray-500 uppercase">ຢືນຢັນ</th>
+                                    <th class="text-center py-3 px-4 text-xs font-bold text-gray-500 uppercase">ສຳເລັດ</th>
+                                    <th class="text-center py-3 px-4 text-xs font-bold text-gray-500 uppercase">ຍົກເລີກ</th>
+                                    <th class="text-center py-3 px-4 text-xs font-bold text-gray-500 uppercase">ລໍຖ້າ</th>
+                                    <th class="text-left py-3 px-4 text-xs font-bold text-gray-500 uppercase">ຈອງຫຼ້າສຸດ</th>
+                                    <th class="text-center py-3 px-4 text-xs font-bold text-gray-500 uppercase">ດຳເນີນການ</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-50">
+                                <?php foreach ($customers as $i => $cu): ?>
+                                    <tr class="hover:bg-gray-50 transition">
+                                        <td class="py-3 px-4 text-gray-400 text-xs"><?= $i + 1 ?></td>
 
-                                <!-- Booking Stats -->
-                                <div class="flex gap-3 text-center flex-shrink-0">
-                                    <?php foreach ([
-                                        ['label'=>'ທັງໝົດ',    'value'=>$cu['total_bookings'],'color'=>'blue'],
-                                        ['label'=>'ຢືນຢັນ',    'value'=>$cu['confirmed'],     'color'=>'green'],
-                                        ['label'=>'ຍົກເລີກ',   'value'=>$cu['cancelled'],     'color'=>'red'],
-                                        ['label'=>'ລໍຖ້າ',     'value'=>$cu['pending'],       'color'=>'yellow'],
-                                    ] as $bs): ?>
-                                        <div class="bg-<?= $bs['color'] ?>-50 border border-<?= $bs['color'] ?>-100 rounded-xl px-3 py-2 min-w-[55px]">
-                                            <p class="text-xl font-extrabold text-<?= $bs['color'] ?>-600"><?= $bs['value'] ?? 0 ?></p>
-                                            <p class="text-xs text-<?= $bs['color'] ?>-400"><?= $bs['label'] ?></p>
-                                        </div>
-                                    <?php endforeach; ?>
-                                </div>
+                                        <!-- Name + Avatar -->
+                                        <td class="py-3 px-4">
+                                            <div class="flex items-center gap-3">
+                                                <div class="w-9 h-9 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                                                    <?= strtoupper(substr($cu['Name'], 0, 1)) ?>
+                                                </div>
+                                                <div>
+                                                    <p class="font-semibold text-gray-800"><?= htmlspecialchars($cu['Name']) ?></p>
+                                                    <?php if ($cu['Gender']): ?>
+                                                        <p class="text-xs text-gray-400"><?= $cu['Gender']==='Male' ? 'ຊາຍ' : 'ຍິງ' ?></p>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </div>
+                                        </td>
 
-                                <!-- Action -->
-                                <div class="flex-shrink-0">
-                                    <a href="?<?= $search ? 'search='.urlencode($search).'&' : '' ?>view=<?= $cu['C_ID'] ?>"
-                                       class="bg-blue-50 hover:bg-blue-100 text-blue-700 px-4 py-2 rounded-xl text-sm font-semibold transition">
-                                        <i class="fas fa-eye mr-1"></i>ເບິ່ງ
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
+                                        <!-- Contact -->
+                                        <td class="py-3 px-4">
+                                            <p class="text-xs text-gray-600"><i class="fas fa-phone mr-1 text-green-400"></i><?= htmlspecialchars($cu['Phone']) ?></p>
+                                            <p class="text-xs text-gray-400"><i class="fas fa-envelope mr-1 text-blue-400"></i><?= htmlspecialchars($cu['Email']) ?></p>
+                                        </td>
+
+                                        <!-- Stats -->
+                                        <td class="py-3 px-4 text-center">
+                                            <span class="bg-blue-100 text-blue-700 text-xs font-extrabold px-2 py-1 rounded-full"><?= $cu['total_bookings'] ?></span>
+                                        </td>
+                                        <td class="py-3 px-4 text-center">
+                                            <span class="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-full"><?= $cu['confirmed'] ?? 0 ?></span>
+                                        </td>
+                                        <td class="py-3 px-4 text-center">
+                                            <span class="bg-emerald-100 text-emerald-700 text-xs font-bold px-2 py-1 rounded-full"><?= $cu['completed'] ?? 0 ?></span>
+                                        </td>
+                                        <td class="py-3 px-4 text-center">
+                                            <span class="bg-red-100 text-red-600 text-xs font-bold px-2 py-1 rounded-full"><?= $cu['cancelled'] ?? 0 ?></span>
+                                        </td>
+                                        <td class="py-3 px-4 text-center">
+                                            <span class="bg-yellow-100 text-yellow-700 text-xs font-bold px-2 py-1 rounded-full"><?= $cu['pending'] ?? 0 ?></span>
+                                        </td>
+
+                                        <!-- Last booking -->
+                                        <td class="py-3 px-4 text-xs text-gray-500">
+                                            <?= date('d/m/Y', strtotime($cu['last_booking'])) ?>
+                                        </td>
+
+                                        <!-- Action -->
+                                        <td class="py-3 px-4 text-center">
+                                            <a href="?<?= $search ? 'search='.urlencode($search).'&' : '' ?>view=<?= $cu['C_ID'] ?>"
+                                               class="bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition">
+                                                <i class="fas fa-eye mr-1"></i>ເບິ່ງ
+                                            </a>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
             <?php else: ?>
@@ -233,13 +258,13 @@ if (isset($_GET['view'])) {
                         <i class="fas <?= $f['icon'] ?> text-<?= $f['color'] ?>-400 w-4"></i>
                         <div>
                             <p class="text-xs text-gray-400"><?= $f['label'] ?></p>
-                            <p class="font-semibold text-gray-700"><?= htmlspecialchars($f['value']) ?></p>
+                            <p class="font-semibold text-gray-700"><?= htmlspecialchars($f['value'] ?? '—') ?></p>
                         </div>
                     </div>
                 <?php endforeach; ?>
             </div>
 
-            <!-- Booking History at this venue -->
+            <!-- Booking History -->
             <div>
                 <h3 class="font-bold text-gray-800 mb-3">
                     <i class="fas fa-calendar-check text-blue-500 mr-2"></i>ປະຫວັດການຈອງທີ່ <?= htmlspecialchars($venue['VN_Name']) ?>
@@ -247,8 +272,14 @@ if (isset($_GET['view'])) {
                 <?php if (!empty($modal_bookings)): ?>
                     <div class="space-y-2 max-h-64 overflow-y-auto">
                         <?php foreach ($modal_bookings as $bk):
-                            $bc = match($bk['Status_booking']) { 'Confirmed'=>'green','Cancelled'=>'red', default=>'yellow' };
-                            $bl = match($bk['Status_booking']) { 'Confirmed'=>'ຢືນຢັນ','Cancelled'=>'ຍົກເລີກ',default=>'ລໍຖ້າ' };
+                            $bc = match($bk['Status_booking']) {
+                                'Confirmed'=>'green','Completed'=>'emerald',
+                                'Cancelled'=>'red','No_Show'=>'orange',default=>'yellow'
+                            };
+                            $bl = match($bk['Status_booking']) {
+                                'Confirmed'=>'ຢືນຢັນ','Completed'=>'ສຳເລັດ',
+                                'Cancelled'=>'ຍົກເລີກ','No_Show'=>'ບໍ່ໄດ້ມາ',default=>'ລໍຖ້າ'
+                            };
                         ?>
                             <div class="bg-gray-50 rounded-xl px-4 py-3 text-sm">
                                 <div class="flex items-center justify-between mb-1">

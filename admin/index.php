@@ -123,31 +123,6 @@ $total_pending = $pending_venues + $pending_packages + $pending_ads;
                     </<?= $tag ?>>
                 <?php endforeach; ?>
             </div>
-
-            <!-- Today's Bookings -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 col-span-2 md:col-span-1">
-                    <p class="text-xs text-gray-400 font-semibold uppercase mb-1">ຈອງມື້ນີ້</p>
-                    <p class="text-3xl font-extrabold text-gray-800"><?= number_format($today_bookings['total'] ?? 0) ?></p>
-                    <p class="text-xs text-gray-400 mt-1">ການຈອງທັງໝົດ</p>
-                </div>
-                <?php foreach ([
-                    ['label'=>'ລໍຖ້າ',   'key'=>'pending',   'color'=>'yellow', 'icon'=>'fa-clock'],
-                    ['label'=>'ຢືນຢັນ',  'key'=>'confirmed', 'color'=>'green',  'icon'=>'fa-check-circle'],
-                    ['label'=>'ສຳເລັດ',  'key'=>'completed', 'color'=>'emerald','icon'=>'fa-trophy'],
-                ] as $tb): ?>
-                    <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-                        <div class="flex items-center gap-2 mb-2">
-                            <div class="bg-<?= $tb['color'] ?>-100 w-8 h-8 rounded-lg flex items-center justify-center">
-                                <i class="fas <?= $tb['icon'] ?> text-<?= $tb['color'] ?>-500 text-sm"></i>
-                            </div>
-                            <span class="text-xs text-gray-500 font-semibold"><?= $tb['label'] ?></span>
-                        </div>
-                        <p class="text-2xl font-extrabold text-gray-800"><?= number_format($today_bookings[$tb['key']] ?? 0) ?></p>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-
             <!-- Quick Actions -->
             <?php if ($total_pending > 0): ?>
             <div class="bg-white rounded-2xl shadow-sm p-6 mb-6">

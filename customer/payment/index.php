@@ -341,7 +341,7 @@ $slip_uploaded = !empty($booking['Slip_payment']);
                 <?php if (!$slip_uploaded): ?>
                     <div class="text-center">
                         <a href="/Badminton_court_Booking/customer/cancellation/index.php?id=<?= $booking_id ?>"
-                           onclick="return confirm('ຍົກເລີກການຈອງນີ້? ບໍ່ສາມາດຍ້ອນກັບໄດ້.')"
+                           onclick="return confirmCancelPayment(event, '<?= (int)$booking_id ?>')"
                            class="text-sm text-red-400 hover:text-red-600 transition underline">
                             <i class="fas fa-times-circle mr-1"></i>ຍົກເລີກການຈອງນີ້
                         </a>
@@ -355,6 +355,22 @@ $slip_uploaded = !empty($booking['Slip_payment']);
     <?php include '../includes/footer.php'; ?>
 
     <script>
+        async function confirmCancelPayment(e, bookingId) {
+            e.preventDefault();
+            const ok = await (window.BBCAlert && window.BBCAlert.confirm
+                ? window.BBCAlert.confirm({
+                    icon: 'warning',
+                    title: 'ຢືນຢັນ',
+                    text: 'ຍົກເລີກການຈອງນີ້? ບໍ່ສາມາດຍ້ອນກັບໄດ້.',
+                    confirmButtonText: 'ຢືນຢັນ',
+                    cancelButtonText: 'ຍົກເລີກ'
+                })
+                : Promise.resolve(confirm('ຍົກເລີກການຈອງນີ້? ບໍ່ສາມາດຍ້ອນກັບໄດ້.'))
+            );
+            if (ok) window.location.href = '/Badminton_court_Booking/customer/cancellation/index.php?id=' + bookingId;
+            return false;
+        }
+
         function previewFile(input) {
             const file = input.files[0];
             if (!file) return;
@@ -398,5 +414,6 @@ $slip_uploaded = !empty($booking['Slip_payment']);
             }
         });
     </script>
+    
 </body>
 </html>

@@ -36,9 +36,9 @@ function nav_class($path) {
     global $current_path;
     $check = rtrim($path, '/');
     // Home: exact match only
-    // Others: starts-with match so sub-pages also highlight
+    // Others: starts-with match so sub-pages also highlight-
     $active = ($check === '/Badminton_court_Booking/customer')
-        ? ($current_path === $check || $current_path === $check . '/index.php')
+        ? ($current_path === $check || $current_path === $check . '/')
         : str_starts_with($current_path, $check);
     return $active
         ? 'text-green-600 font-semibold flex items-center gap-1 border-b-2 border-green-600 pb-1'
@@ -48,7 +48,7 @@ function mobile_class($path) {
     global $current_path;
     $check  = rtrim($path, '/');
     $active = ($check === '/Badminton_court_Booking/customer')
-        ? ($current_path === $check || $current_path === $check . '/index.php')
+        ? ($current_path === $check || $current_path === $check . '/')
         : str_starts_with($current_path, $check);
     return $active
         ? 'block py-2 px-4 text-green-600 font-semibold bg-green-50 rounded'
@@ -56,6 +56,44 @@ function mobile_class($path) {
 }
 ?>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    window.BBCAlert = window.BBCAlert || {};
+    window.BBCAlert.toast = function (icon, title) {
+        if (typeof Swal === 'undefined') return;
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon,
+            title,
+            showConfirmButton: false,
+            timer: 2200,
+            timerProgressBar: true
+        });
+    };
+    window.BBCAlert.confirm = function (opts) {
+        if (typeof Swal === 'undefined') return Promise.resolve(window.confirm((opts && opts.text) ? opts.text : 'Confirm?'));
+        return Swal.fire({
+            icon: (opts && opts.icon) ? opts.icon : 'question',
+            title: (opts && opts.title) ? opts.title : 'ຢືນຢັນ',
+            text: (opts && opts.text) ? opts.text : '',
+            showCancelButton: true,
+            confirmButtonText: (opts && opts.confirmButtonText) ? opts.confirmButtonText : 'ຕົກລົງ',
+            cancelButtonText: (opts && opts.cancelButtonText) ? opts.cancelButtonText : 'ຍົກເລີກ',
+            draggable: true
+        }).then(r => !!r.isConfirmed);
+    };
+</script>
+<?php if (empty($swal_flash_handled) && (!empty($error) || !empty($success))): ?>
+    <script>
+        (function () {
+            const errorMsg = <?= json_encode($error ?? '', JSON_UNESCAPED_UNICODE) ?>;
+            const successMsg = <?= json_encode($success ?? '', JSON_UNESCAPED_UNICODE) ?>;
+            if (errorMsg) return window.BBCAlert.toast('error', errorMsg);
+            if (successMsg) return window.BBCAlert.toast('success', successMsg);
+        })();
+    </script>
+<?php endif; ?>
 <nav class="bg-white shadow-md sticky top-0 z-50">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center h-16">
@@ -122,9 +160,9 @@ function mobile_class($path) {
                                class="block px-4 py-2 text-sm <?= str_starts_with($current_path, '/Badminton_court_Booking/customer/profile') ? 'text-green-600 bg-green-50 font-semibold' : 'text-gray-700 hover:bg-green-50 hover:text-green-600' ?> transition">
                                 <i class="fas fa-user mr-2"></i> ໂປຣໄຟລ໌
                             </a>
-                            <a href="/Badminton_court_Booking/customer/booking_court/my_booking.php"
+                            <a href="/Badminton_court_Booking/customer/booking_court/my_booking"
                                class="block px-4 py-2 text-sm <?= str_contains($current_path, 'my_booking') ? 'text-green-600 bg-green-50 font-semibold' : 'text-gray-700 hover:bg-green-50 hover:text-green-600' ?> transition">
-                                <i class="fas fa-calendar-check mr-2"></i> ການຈອງຂອງຂ້ອຍ
+                                <i class="fas fa-calendar-check mr-2"></i> ໃບບິນ
                             </a>
                             <a href="/Badminton_court_Booking/customer/notification/"
                                class="block px-4 py-2 text-sm <?= str_starts_with($current_path, '/Badminton_court_Booking/customer/notification') ? 'text-green-600 bg-green-50 font-semibold' : 'text-gray-700 hover:bg-green-50 hover:text-green-600' ?> transition">
@@ -144,11 +182,11 @@ function mobile_class($path) {
                     </div>
 
                 <?php else: ?>
-                    <a href="/Badminton_court_Booking/auth/login.php"
+                    <a href="/Badminton_court_Booking/auth/login"
                        class="text-gray-700 hover:text-green-600 font-medium transition">
                         <i class="fas fa-sign-in-alt mr-1"></i> ເຂົ້າສູ່ລະບົບ
                     </a>
-                    <a href="/Badminton_court_Booking/auth/register.php"
+                    <a href="/Badminton_court_Booking/auth/register"
                        class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition">
                         ສະໝັກໃຊ້
                     </a>
@@ -170,7 +208,7 @@ function mobile_class($path) {
                 <i class="fas fa-table-tennis mr-2"></i> ຈອງເດີ່ນ
             </a>
             <?php if ($is_logged_in): ?>
-                <a href="/Badminton_court_Booking/customer/booking_court/my_booking.php" class="<?= mobile_class('/Badminton_court_Booking/customer/booking_court/my_booking') ?>">
+                <a href="/Badminton_court_Booking/customer/booking_court/my_booking" class="<?= mobile_class('/Badminton_court_Booking/customer/booking_court/my_booking') ?>">
                     <i class="fas fa-calendar-alt mr-2"></i> ການຈອງຂອງຂ້ອຍ
                 </a>
                 <a href="/Badminton_court_Booking/customer/notification/" class="<?= mobile_class('/Badminton_court_Booking/customer/notification/') ?>">
@@ -187,11 +225,11 @@ function mobile_class($path) {
                     <i class="fas fa-sign-out-alt mr-2"></i> ອອກຈາກລະບົບ
                 </a>
             <?php else: ?>
-                <a href="/Badminton_court_Booking/auth/login.php"
+                <a href="/Badminton_court_Booking/auth/login"
                    class="block py-2 px-4 text-gray-700 hover:text-green-600 hover:bg-green-50 rounded transition">
                     <i class="fas fa-sign-in-alt mr-2"></i> ເຂົ້າສູ່ລະບົບ
                 </a>
-                <a href="/Badminton_court_Booking/auth/register.php"
+                <a href="/Badminton_court_Booking/auth/register"
                    class="block py-2 px-4 text-green-600 font-semibold hover:bg-green-50 rounded transition">
                     <i class="fas fa-user-plus mr-2"></i> ສະໝັກໃຊ້
                 </a>

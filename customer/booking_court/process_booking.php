@@ -38,7 +38,7 @@ if (!$slots || count($slots) === 0) {
 
 // Server-side deduplicate by court+start+end
 $seen  = [];
-$slots = array_filter($slots, function($slot) use (&$seen) {
+$slots = array_filter($slots, function ($slot) use (&$seen) {
     $key = ($slot['courtId'] ?? '') . '_' . ($slot['start'] ?? '') . '_' . ($slot['end'] ?? '');
     if (isset($seen[$key])) return false;
     $seen[$key] = true;
@@ -51,18 +51,24 @@ if (count($slots) === 0) {
     exit;
 }
 
-// Cancel ALL Unpaid bookings for this customer
+// Clean up: delete booking_detail rows for old Unpaid bookings, then cancel them
+// Unpaid = customer selected but never paid — safe to delete
 try {
-    $pdo->prepare("
-        UPDATE booking
-        SET Status_booking = 'Cancelled'
-        WHERE C_ID = ? AND Status_booking = 'Unpaid'
-    ")->execute([$customer_id]);
-} catch (PDOException $e) {}
+    $stmt = $pdo->prepare("SELECT Book_ID FROM booking WHERE C_ID = ? AND Status_booking = 'Unpaid'");
+    $stmt->execute([$customer_id]);
+    $old_ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    if (!empty($old_ids)) {
+        $ph = implode(',', array_fill(0, count($old_ids), '?'));
+        $pdo->prepare("DELETE FROM booking_detail WHERE Book_ID IN ($ph)")->execute($old_ids);
+        $pdo->prepare("DELETE FROM booking WHERE Book_ID IN ($ph)")->execute($old_ids);
+    }
+} catch (PDOException $e) {
+}
 
 try {
     $pdo->beginTransaction();
 
+    // Create booking as 'Unpaid' — will become 'Pending' only after slip is uploaded
     $stmt = $pdo->prepare("
         INSERT INTO booking (Booking_date, Slip_payment, Status_booking, C_ID)
         VALUES (NOW(), '', 'Unpaid', ?)
@@ -87,6 +93,7 @@ try {
             exit;
         }
 
+        // Block only Confirmed or Pending slots
         $check = $pdo->prepare("
             SELECT COUNT(*) AS cnt
             FROM booking_detail bd
@@ -112,10 +119,8 @@ try {
     $_SESSION['current_booking_id'] = $book_id;
     $_SESSION['current_booking_ts'] = time();
 
-    // Redirect to payment page
     header('Location: /Badminton_court_Booking/customer/payment/index.php?booking_id=' . $book_id);
     exit;
-
 } catch (PDOException $e) {
     $pdo->rollBack();
     error_log("Booking error: " . $e->getMessage());
@@ -123,4 +128,3 @@ try {
     header('Location: /Badminton_court_Booking/customer/booking_court/venue_detail.php?id=' . $venue_id . '&date=' . $date);
     exit;
 }
-?>

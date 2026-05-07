@@ -11,7 +11,6 @@ date_default_timezone_set('Asia/Vientiane');
 
 $error   = '';
 $success = '';
-
 // Ban / Unban customer
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $c_id   = intval($_POST['c_id'] ?? 0);

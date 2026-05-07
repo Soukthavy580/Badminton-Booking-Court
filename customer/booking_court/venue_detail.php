@@ -14,15 +14,16 @@ if (!$venue_id) {
 
 try {
     $stmt = $pdo->prepare("
-        SELECT v.*, co.Name AS owner_name, co.Phone AS owner_phone
-        FROM Venue_data v
-        LEFT JOIN court_owner co ON v.CA_ID = co.CA_ID
-        WHERE v.VN_ID = ? AND v.VN_Status = 'Active'
-        LIMIT 1
-    ");
+    SELECT v.*
+    FROM Venue_data v
+    WHERE v.VN_ID = ? AND v.VN_Status = 'Active'
+    LIMIT 1
+");
     $stmt->execute([$venue_id]);
     $venue = $stmt->fetch();
-} catch (PDOException $e) { $venue = null; }
+} catch (PDOException $e) {
+    $venue = null;
+}
 
 if (!$venue) {
     header('Location: /Badminton_court_Booking/customer/booking_court/index.php');
@@ -33,15 +34,20 @@ try {
     $stmt = $pdo->prepare("SELECT * FROM Court_data WHERE VN_ID = ? AND Court_Status = 'Active' ORDER BY COURT_Name");
     $stmt->execute([$venue_id]);
     $courts = $stmt->fetchAll();
-} catch (PDOException $e) { $courts = []; }
+} catch (PDOException $e) {
+    $courts = [];
+}
 
 try {
     $stmt = $pdo->prepare("SELECT * FROM facilities WHERE VN_ID = ?");
     $stmt->execute([$venue_id]);
     $facilities = $stmt->fetchAll();
-} catch (PDOException $e) { $facilities = []; }
+} catch (PDOException $e) {
+    $facilities = [];
+}
 
-function get_booked_slots($pdo, $venue_id, $date) {
+function get_booked_slots($pdo, $venue_id, $date)
+{
     try {
         $stmt = $pdo->prepare("
             SELECT bd.COURT_ID, bd.Start_time, bd.End_time, b.Status_booking
@@ -54,10 +60,13 @@ function get_booked_slots($pdo, $venue_id, $date) {
         ");
         $stmt->execute([$venue_id, $date]);
         return $stmt->fetchAll();
-    } catch (PDOException $e) { return []; }
+    } catch (PDOException $e) {
+        return [];
+    }
 }
 
-function generate_time_slots($open_time, $close_time, $interval_minutes = 60) {
+function generate_time_slots($open_time, $close_time, $interval_minutes = 60)
+{
     $slots = [];
     $start = strtotime($open_time);
     $end   = strtotime($close_time);
@@ -75,7 +84,8 @@ function generate_time_slots($open_time, $close_time, $interval_minutes = 60) {
     return $slots;
 }
 
-function is_slot_booked($booked_slots, $court_id, $slot_start, $slot_end, $date) {
+function is_slot_booked($booked_slots, $court_id, $slot_start, $slot_end, $date)
+{
     foreach ($booked_slots as $booked) {
         if ($booked['COURT_ID'] != $court_id) continue;
         $booked_start = strtotime($booked['Start_time']);
@@ -97,6 +107,7 @@ $venue_img    = !empty($venue['VN_Image'])
 ?>
 <!DOCTYPE html>
 <html lang="lo">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -105,33 +116,86 @@ $venue_img    = !empty($venue['VN_Image'])
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        .slot-btn { transition: all 0.2s ease; cursor: pointer; user-select: none; }
-        .slot-btn.available:hover { background-color: #bbf7d0; border-color: #16a34a; transform: scale(1.03); }
-        .slot-btn.selected { background-color: #16a34a !important; color: white !important; border-color: #15803d !important; transform: scale(1.03); }
-        .slot-btn.booked { background-color: #fee2e2; color: #991b1b; cursor: not-allowed; opacity: 0.7; }
-        .slot-btn.pending-slot { background-color: #fef9c3; color: #92400e; border-color: #fcd34d; cursor: not-allowed; opacity: 0.8; }
-        .slot-btn.past { background-color: #f3f4f6; color: #9ca3af; cursor: not-allowed; opacity: 0.6; }
-        .summary-box { position: sticky; top: 80px; }
-        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-slide-in { animation: slideIn 0.3s ease forwards; }
+        .slot-btn {
+            transition: all 0.2s ease;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .slot-btn.available:hover {
+            background-color: #bbf7d0;
+            border-color: #16a34a;
+            transform: scale(1.03);
+        }
+
+        .slot-btn.selected {
+            background-color: #16a34a !important;
+            color: white !important;
+            border-color: #15803d !important;
+            transform: scale(1.03);
+        }
+
+        .slot-btn.booked {
+            background-color: #fee2e2;
+            color: #991b1b;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .slot-btn.pending-slot {
+            background-color: #fef9c3;
+            color: #92400e;
+            border-color: #fcd34d;
+            cursor: not-allowed;
+            opacity: 0.8;
+        }
+
+        .slot-btn.past {
+            background-color: #f3f4f6;
+            color: #9ca3af;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .summary-box {
+            position: sticky;
+            top: 80px;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-slide-in {
+            animation: slideIn 0.3s ease forwards;
+        }
     </style>
 </head>
+
 <body class="bg-gray-50">
     <?php include '../includes/header.php'; ?>
 
     <div class="max-w-7xl mx-auto px-4 py-8">
 
         <a href="/Badminton_court_Booking/customer/booking_court/index.php?date=<?= $search_date ?>"
-           class="inline-flex items-center gap-2 text-gray-600 hover:text-blue-600 mb-6 transition font-medium">
+            class="inline-flex items-center gap-2 text-gray-600 hover:text-blue-600 mb-6 transition font-medium">
             <i class="fas fa-arrow-left"></i> ກັບໄປລາຍການເດີ່ນ
         </a>
 
         <!-- Venue Hero -->
         <div class="relative rounded-2xl overflow-hidden mb-8 h-64 md:h-80 shadow-lg">
             <img src="<?= htmlspecialchars($venue_img) ?>"
-                 alt="<?= htmlspecialchars($venue['VN_Name']) ?>"
-                 class="w-full h-full object-cover"
-                 onerror="this.src='/Badminton_court_Booking/assets/images/BookingBG.png'">
+                alt="<?= htmlspecialchars($venue['VN_Name']) ?>"
+                class="w-full h-full object-cover"
+                onerror="this.src='/Badminton_court_Booking/assets/images/BookingBG.png'">
             <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
             <div class="absolute bottom-0 left-0 p-6 text-white">
                 <h1 class="text-3xl md:text-4xl font-extrabold mb-1"><?= htmlspecialchars($venue['VN_Name']) ?></h1>
@@ -152,38 +216,71 @@ $venue_img    = !empty($venue['VN_Image'])
             <div class="lg:col-span-2 space-y-6">
 
                 <!-- Venue Info -->
+                <!-- Venue Info -->
                 <div class="bg-white rounded-2xl shadow-sm p-6">
-                    <h2 class="text-xl font-bold mb-4 text-gray-800">ກ່ຽວກັບສະຖານທີ່ນີ້</h2>
-                    <p class="text-gray-600 mb-4"><?= htmlspecialchars($venue['VN_Description']) ?></p>
-                    <div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-                        <div class="flex items-center gap-2 text-gray-600">
-                            <i class="fas fa-clock text-blue-500 w-4"></i>
-                            <span><?= date('H:i', strtotime($venue['Open_time'])) ?> - <?= date('H:i', strtotime($venue['Close_time'])) ?></span>
+                    <h2 class="text-xl font-bold mb-5 text-gray-800 flex items-center gap-2">
+                        <i class="fas fa-info-circle text-blue-500"></i>ກ່ຽວກັບສະຖານທີ່ນີ້
+                    </h2>
+
+                    <?php if (!empty($venue['VN_Description'])): ?>
+                        <p class="text-gray-600 mb-5 leading-relaxed"><?= htmlspecialchars($venue['VN_Description']) ?></p>
+                    <?php endif; ?>
+
+                    <!-- Info Grid — 2 cols top row, price full width below -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+
+                        <!-- Opening hours -->
+                        <div class="bg-blue-50 border border-blue-100 rounded-xl p-4">
+                            <p class="text-xs font-bold text-blue-600 uppercase tracking-wide mb-2">ເວລາເປີດ</p>
+                            <p class="text-xl font-extrabold text-gray-800"><?= date('H:i', strtotime($venue['Open_time'])) ?></p>
+                            <p class="text-xs text-gray-500 mt-0.5">
+                                ຫາ <?= date('H:i', strtotime($venue['Close_time'])) ?>
+                                <?php
+                                $diff = (strtotime($venue['Close_time']) - strtotime($venue['Open_time'])) / 3600;
+                                if ($diff > 0) echo ' · ' . intval($diff) . ' ຊົ່ວໂມງ/ວັນ';
+                                ?>
+                            </p>
                         </div>
-                        <div class="flex items-center gap-2 text-gray-600">
-                            <i class="fas fa-table-tennis text-green-500 w-4"></i>
-                            <span><?= count($courts) ?> ເດີ່ນທີ່ມີ</span>
+
+                        <!-- Courts count -->
+                        <div class="bg-green-50 border border-green-100 rounded-xl p-4">
+                            <p class="text-xs font-bold text-green-600 uppercase tracking-wide mb-2">ຄອດ</p>
+                            <p class="text-xl font-extrabold text-gray-800"><?= count($courts) ?> ຄອດ</p>
+                            <p class="text-xs text-gray-500 mt-0.5">ໃຊ້ງານໄດ້ທັງໝົດ</p>
                         </div>
-                        <div class="flex items-center gap-2 text-gray-600">
-                            <i class="fas fa-user text-purple-500 w-4"></i>
-                            <span><?= htmlspecialchars($venue['owner_name']) ?></span>
-                        </div>
-                        <?php if (!empty($venue['VN_MapURL'])): ?>
-                        <div class="flex items-center gap-2 col-span-2 md:col-span-3">
-                            <i class="fas fa-map text-red-500 w-4"></i>
-                            <a href="<?= htmlspecialchars($venue['VN_MapURL']) ?>" target="_blank"
-                               class="text-blue-600 hover:underline">ເບິ່ງໃນ Google Maps</a>
-                        </div>
-                        <?php endif; ?>
+
                     </div>
 
+                    <!-- Price — full width -->
+                    <div class="bg-yellow-50 border border-yellow-100 rounded-xl p-4 flex items-center justify-between mb-4">
+                        <div>
+                            <p class="text-xs font-bold text-yellow-600 uppercase tracking-wide mb-1">ລາຄາຕໍ່ຊົ່ວໂມງ</p>
+                            <p class="text-xs text-gray-500">ມັດຈຳ 30% ຈ່າຍກ່ອນ</p>
+                        </div>
+                        <p class="text-2xl font-extrabold text-gray-800">₭<?= number_format($price_clean) ?></p>
+                    </div>
+
+                    <!-- Map link if available -->
+                    <?php if (!empty($venue['VN_MapURL'])): ?>
+                        <div class="bg-red-50 border border-red-100 rounded-xl p-4 mb-4">
+                            <p class="text-xs font-bold text-red-600 uppercase tracking-wide mb-1">ທີ່ຕັ້ງ</p>
+                            <p class="text-xs text-gray-600 mb-2"><?= htmlspecialchars($venue['VN_Address']) ?></p>
+                            <a href="<?= htmlspecialchars($venue['VN_MapURL']) ?>" target="_blank"
+                                class="inline-flex items-center gap-1 text-xs text-red-600 hover:text-red-700 font-semibold">
+                                <i class="fas fa-external-link-alt text-xs"></i>ເບິ່ງໃນ Google Maps
+                            </a>
+                        </div>
+                    <?php endif; ?>
+
                     <?php if (!empty($facilities)): ?>
-                        <div class="mt-4 pt-4 border-t border-gray-100">
-                            <h3 class="text-sm font-bold text-gray-700 mb-3">ສິ່ງອຳນວຍຄວາມສະດວກ</h3>
+                        <div class="pt-4 border-t border-gray-100">
+                            <h3 class="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                                <i class="fas fa-star text-yellow-400"></i>ສິ່ງອຳນວຍຄວາມສະດວກ
+                            </h3>
                             <div class="flex flex-wrap gap-2">
                                 <?php foreach ($facilities as $fac): ?>
-                                    <span class="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-medium">
-                                        <i class="fas fa-check mr-1"></i><?= htmlspecialchars($fac['Fac_Name']) ?>
+                                    <span class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 text-blue-700 px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1">
+                                        <i class="fas fa-check-circle text-blue-400"></i><?= htmlspecialchars($fac['Fac_Name']) ?>
                                     </span>
                                 <?php endforeach; ?>
                             </div>
@@ -200,12 +297,12 @@ $venue_img    = !empty($venue['VN_Image'])
                         <input type="hidden" name="id" value="<?= $venue_id ?>">
                         <div class="flex-1">
                             <input type="date" name="date"
-                                   value="<?= htmlspecialchars($search_date) ?>"
-                                   min="<?= date('Y-m-d') ?>"
-                                   class="w-full border-2 border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 transition">
+                                value="<?= htmlspecialchars($search_date) ?>"
+                                min="<?= date('Y-m-d') ?>"
+                                class="w-full border-2 border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 transition">
                         </div>
                         <button type="submit"
-                                class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-semibold transition">
+                            class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-semibold transition">
                             ກວດສອບ
                         </button>
                     </form>
@@ -217,7 +314,7 @@ $venue_img    = !empty($venue['VN_Image'])
                         <div class="flex items-center justify-between mb-6">
                             <h2 class="text-xl font-bold text-gray-800">
                                 <i class="fas fa-table-tennis text-green-500 mr-2"></i>
-                                ເລືອກເດີ່ນ ແລະ ເວລາ
+                                ເລືອກຄອດ ແລະ ເວລາ
                             </h2>
                             <span class="text-sm text-gray-500 font-medium">
                                 <?= date('d/m/Y', strtotime($search_date)) ?>
@@ -229,7 +326,7 @@ $venue_img    = !empty($venue['VN_Image'])
                             <span class="flex items-center gap-1"><span class="w-4 h-4 rounded bg-green-100 border border-green-300 inline-block"></span> ວ່າງ</span>
                             <span class="flex items-center gap-1"><span class="w-4 h-4 rounded bg-green-600 inline-block"></span> ເລືອກແລ້ວ</span>
                             <span class="flex items-center gap-1"><span class="w-4 h-4 rounded bg-red-100 border border-red-300 inline-block"></span> ຈອງແລ້ວ</span>
-                            <span class="flex items-center gap-1"><span class="w-4 h-4 rounded bg-yellow-100 border border-yellow-300 inline-block"></span> ລໍຖ້າ</span>
+                            <span class="flex items-center gap-1"><span class="w-4 h-4 rounded bg-yellow-100 border border-yellow-300 inline-block"></span> ກຳລັງດຳເນີນການ</span>
                             <span class="flex items-center gap-1"><span class="w-4 h-4 rounded bg-gray-200 inline-block"></span> ຜ່ານແລ້ວ</span>
                         </div>
 
@@ -273,20 +370,20 @@ $venue_img    = !empty($venue['VN_Image'])
                                         }
                                     ?>
                                         <button type="button"
-                                                class="slot-btn <?= $slot_class ?> rounded-lg px-2 py-3 text-xs font-medium text-center"
-                                                data-court-id="<?= $court['COURT_ID'] ?>"
-                                                data-court-name="<?= htmlspecialchars($court['COURT_Name']) ?>"
-                                                data-start="<?= $slot['start'] ?>"
-                                                data-end="<?= $slot['end'] ?>"
-                                                data-date="<?= $search_date ?>"
-                                                data-price="<?= $price_clean ?>"
-                                                <?= $disabled ?>
-                                                onclick="toggleSlot(this)">
+                                            class="slot-btn <?= $slot_class ?> rounded-lg px-2 py-3 text-xs font-medium text-center"
+                                            data-court-id="<?= $court['COURT_ID'] ?>"
+                                            data-court-name="<?= htmlspecialchars($court['COURT_Name']) ?>"
+                                            data-start="<?= $slot['start'] ?>"
+                                            data-end="<?= $slot['end'] ?>"
+                                            data-date="<?= $search_date ?>"
+                                            data-price="<?= $price_clean ?>"
+                                            <?= $disabled ?>
+                                            onclick="toggleSlot(this)">
                                             <?= $slot['label'] ?>
                                             <?php if ($booked_status === 'Confirmed'): ?>
                                                 <br><span class="text-red-500 text-xs">ຈອງແລ້ວ</span>
                                             <?php elseif ($booked_status === 'Pending'): ?>
-                                                <br><span class="text-yellow-600 text-xs">ລໍຖ້າ</span>
+                                                <br><span class="text-yellow-600 text-xs">ກຳລັງດຳເນີນການ</span>
                                             <?php elseif ($is_past_slot): ?>
                                                 <br><span class="text-gray-400 text-xs">ຜ່ານແລ້ວ</span>
                                             <?php else: ?>
@@ -340,12 +437,12 @@ $venue_img    = !empty($venue['VN_Image'])
 
                         <?php if (isset($_SESSION['user_id'])): ?>
                             <button onclick="proceedToBooking()"
-                                    class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-xl transition shadow-lg text-lg">
+                                class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-xl transition shadow-lg text-lg">
                                 <i class="fas fa-calendar-check mr-2"></i>ຢືນຢັນການຈອງ
                             </button>
                         <?php else: ?>
                             <a href="/Badminton_court_Booking/auth/login.php"
-                               class="w-full block text-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl transition shadow-lg text-lg">
+                                class="w-full block text-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl transition shadow-lg text-lg">
                                 <i class="fas fa-sign-in-alt mr-2"></i>ເຂົ້າສູ່ລະບົບເພື່ອຈອງ
                             </a>
                         <?php endif; ?>
@@ -357,34 +454,34 @@ $venue_img    = !empty($venue['VN_Image'])
 
     <!-- Login Modal -->
     <?php if (!isset($_SESSION['user_id'])): ?>
-    <div id="loginModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onclick="if(event.target===this)closeLoginModal()">
-        <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center">
-            <div class="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                <i class="fas fa-lock text-blue-600 text-2xl"></i>
-            </div>
-            <h3 class="text-xl font-extrabold text-gray-800 mb-2">ຕ້ອງເຂົ້າສູ່ລະບົບ</h3>
-            <p class="text-gray-500 text-sm mb-6">ທ່ານຕ້ອງເຂົ້າສູ່ລະບົບກ່ອນຈຶ່ງຈອງເດີ່ນໄດ້.</p>
-            <div class="flex flex-col gap-3">
-                <a id="loginRedirectBtn"
-                   href="/Badminton_court_Booking/auth/login.php?redirect=<?= urlencode($_SERVER['REQUEST_URI']) ?>"
-                   class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition shadow">
-                    <i class="fas fa-sign-in-alt mr-2"></i>ເຂົ້າສູ່ລະບົບ
-                </a>
-                <a href="/Badminton_court_Booking/auth/register.php"
-                   class="w-full bg-white border-2 border-gray-200 hover:border-blue-400 text-gray-700 hover:text-blue-600 font-bold py-3 rounded-xl transition">
-                    <i class="fas fa-user-plus mr-2"></i>ສ້າງບັນຊີ
-                </a>
-                <button onclick="closeLoginModal()" class="text-sm text-gray-400 hover:text-gray-600 transition mt-1">
-                    ພາຍຫຼັງ
-                </button>
+        <div id="loginModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onclick="if(event.target===this)closeLoginModal()">
+            <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center">
+                <div class="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-lock text-blue-600 text-2xl"></i>
+                </div>
+                <h3 class="text-xl font-extrabold text-gray-800 mb-2">ຕ້ອງເຂົ້າສູ່ລະບົບ</h3>
+                <p class="text-gray-500 text-sm mb-6">ທ່ານຕ້ອງເຂົ້າສູ່ລະບົບກ່ອນຈຶ່ງຈອງເດີ່ນໄດ້.</p>
+                <div class="flex flex-col gap-3">
+                    <a id="loginRedirectBtn"
+                        href="/Badminton_court_Booking/auth/login.php?redirect=<?= urlencode($_SERVER['REQUEST_URI']) ?>"
+                        class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition shadow">
+                        <i class="fas fa-sign-in-alt mr-2"></i>ເຂົ້າສູ່ລະບົບ
+                    </a>
+                    <a href="/Badminton_court_Booking/auth/register.php"
+                        class="w-full bg-white border-2 border-gray-200 hover:border-blue-400 text-gray-700 hover:text-blue-600 font-bold py-3 rounded-xl transition">
+                        <i class="fas fa-user-plus mr-2"></i>ສ້າງບັນຊີ
+                    </a>
+                    <button onclick="closeLoginModal()" class="text-sm text-gray-400 hover:text-gray-600 transition mt-1">
+                        ພາຍຫຼັງ
+                    </button>
+                </div>
             </div>
         </div>
-    </div>
     <?php endif; ?>
 
     <form id="bookingForm" method="POST" action="/Badminton_court_Booking/customer/booking_court/process_booking.php" class="hidden">
-        <input type="hidden" name="venue_id"   value="<?= $venue_id ?>">
-        <input type="hidden" name="date"       value="<?= $search_date ?>">
+        <input type="hidden" name="venue_id" value="<?= $venue_id ?>">
+        <input type="hidden" name="date" value="<?= $search_date ?>">
         <input type="hidden" name="slots_json" id="slotsJson">
     </form>
 
@@ -401,13 +498,13 @@ $venue_img    = !empty($venue['VN_Image'])
                 return;
             }
 
-            const courtId   = btn.dataset.courtId;
+            const courtId = btn.dataset.courtId;
             const courtName = btn.dataset.courtName;
-            const start     = btn.dataset.start;
-            const end       = btn.dataset.end;
-            const date      = btn.dataset.date;
-            const price     = parseFloat(btn.dataset.price);
-            const key       = `${courtId}_${start}_${end}`;
+            const start = btn.dataset.start;
+            const end = btn.dataset.end;
+            const date = btn.dataset.date;
+            const price = parseFloat(btn.dataset.price);
+            const key = `${courtId}_${start}_${end}`;
 
             if (btn.classList.contains('selected')) {
                 // DESELECT — remove from array
@@ -419,7 +516,15 @@ $venue_img    = !empty($venue['VN_Image'])
                 if (!selectedSlots.find(s => s.key === key)) {
                     btn.classList.add('selected');
                     btn.classList.remove('available', 'bg-green-50', 'border', 'border-green-200', 'text-green-800');
-                    selectedSlots.push({ key, courtId, courtName, start, end, date, price });
+                    selectedSlots.push({
+                        key,
+                        courtId,
+                        courtName,
+                        start,
+                        end,
+                        date,
+                        price
+                    });
                 }
             }
             updateSummary();
@@ -429,14 +534,16 @@ $venue_img    = !empty($venue['VN_Image'])
             document.getElementById('loginModal')?.classList.add('hidden');
         }
 
-        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLoginModal(); });
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeLoginModal();
+        });
 
         function updateSummary() {
-            const empty   = document.getElementById('summaryEmpty');
+            const empty = document.getElementById('summaryEmpty');
             const content = document.getElementById('summaryContent');
-            const list    = document.getElementById('selectedSlotsList');
-            const total   = document.getElementById('totalPrice');
-            const hours   = document.getElementById('totalHours');
+            const list = document.getElementById('selectedSlotsList');
+            const total = document.getElementById('totalPrice');
+            const hours = document.getElementById('totalHours');
 
             if (selectedSlots.length === 0) {
                 empty.classList.remove('hidden');
@@ -473,11 +580,19 @@ $venue_img    = !empty($venue['VN_Image'])
             return `${hour}:${m.toString().padStart(2, '0')} ${ampm}`;
         }
 
-        function numberFormat(n) { return Math.round(n).toLocaleString(); }
+        function numberFormat(n) {
+            return Math.round(n).toLocaleString();
+        }
 
         function proceedToBooking() {
             if (selectedSlots.length === 0) {
-                alert('ກະລຸນາເລືອກຢ່າງໜ້ອຍໜຶ່ງສລັອດ.');
+                if (window.BBCAlert && typeof window.BBCAlert.toast === 'function') {
+                    window.BBCAlert.toast('warning', 'ກະລຸນາເລືອກຢ່າງໜ້ອຍໜຶ່ງສລັອດ.');
+                } else if (typeof Swal !== 'undefined') {
+                    Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'ກະລຸນາເລືອກຢ່າງໜ້ອຍໜຶ່ງສລັອດ.', showConfirmButton: false, timer: 2200, timerProgressBar: true });
+                } else {
+                    alert('ກະລຸນາເລືອກຢ່າງໜ້ອຍໜຶ່ງສລັອດ.');
+                }
                 return;
             }
             // Deduplicate by key before submitting — final safety net
@@ -487,4 +602,5 @@ $venue_img    = !empty($venue['VN_Image'])
         }
     </script>
 </body>
+
 </html>

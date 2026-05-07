@@ -97,6 +97,44 @@ function sidebar_class($path) {
         : 'flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-green-50 hover:text-green-700 font-medium transition';
 }
 ?>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    window.BBCAlert = window.BBCAlert || {};
+    window.BBCAlert.toast = function (icon, title) {
+        if (typeof Swal === 'undefined') return;
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon,
+            title,
+            showConfirmButton: false,
+            timer: 2500,
+            timerProgressBar: true
+        });
+    };
+    window.BBCAlert.confirm = function (opts) {
+        if (typeof Swal === 'undefined') return Promise.resolve(window.confirm((opts && opts.text) ? opts.text : 'Confirm?'));
+        return Swal.fire({
+            icon: (opts && opts.icon) ? opts.icon : 'question',
+            title: (opts && opts.title) ? opts.title : 'ຢືນຢັນ',
+            text: (opts && opts.text) ? opts.text : '',
+            showCancelButton: true,
+            confirmButtonText: (opts && opts.confirmButtonText) ? opts.confirmButtonText : 'ຕົກລົງ',
+            cancelButtonText: (opts && opts.cancelButtonText) ? opts.cancelButtonText : 'ຍົກເລີກ',
+            draggable: true
+        }).then(r => !!r.isConfirmed);
+    };
+</script>
+<?php if (empty($swal_flash_handled) && (!empty($error) || !empty($success))): ?>
+    <script>
+        (function () {
+            const errorMsg = <?= json_encode($error ?? '', JSON_UNESCAPED_UNICODE) ?>;
+            const successMsg = <?= json_encode($success ?? '', JSON_UNESCAPED_UNICODE) ?>;
+            if (errorMsg) return window.BBCAlert.toast('error', errorMsg);
+            if (successMsg) return window.BBCAlert.toast('success', successMsg);
+        })();
+    </script>
+<?php endif; ?>
 <aside class="w-64 bg-white shadow-md flex-shrink-0 hidden md:flex flex-col sticky top-0 h-screen">
 
     <!-- Logo -->
@@ -190,7 +228,7 @@ function sidebar_class($path) {
         </a>
 
         <!-- ── ການແຈ້ງເຕືອນ ── -->
-        <div class="pt-3 pb-1">
+       <!-- <div class="pt-3 pb-1">
             <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">ການແຈ້ງເຕືອນ</p>
         </div>
         <a href="/Badminton_court_Booking/owner/notification/" class="<?= sidebar_class('/notification/') ?>">
@@ -200,7 +238,7 @@ function sidebar_class($path) {
                     <?= $notif_count ?>
                 </span>
             <?php endif; ?>
-        </a>
+        </a> -->
 
         <!-- ── ບັນຊີ ── -->
         <div class="pt-3 pb-1">

@@ -267,7 +267,7 @@ try {
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                     <?php foreach (
                         [
-                            ['label' => 'ໃຊ້ງານໄດ້', 'value' => $counts['active'],  'color' => 'green', 'icon' => 'fa-check-circle', 'filter' => 'active'],
+                            ['label' => 'ກຳລັງໃຊ້ງານ', 'value' => $counts['active'],  'color' => 'green', 'icon' => 'fa-check-circle', 'filter' => 'active'],
                             ['label' => 'ລໍຖ້າ',      'value' => $counts['pending'], 'color' => 'yellow', 'icon' => 'fa-clock',       'filter' => 'pending'],
                             ['label' => 'ໝົດອາຍຸ',   'value' => $counts['expired'], 'color' => 'gray',  'icon' => 'fa-history',     'filter' => 'expired'],
                             ['label' => 'ຖືກປະຕິເສດ', 'value' => $counts['rejected'], 'color' => 'red',   'icon' => 'fa-times-circle', 'filter' => 'rejected'],
@@ -372,7 +372,7 @@ try {
                     <?php foreach (
                         [
                             'pending' => ['label' => 'ລໍຖ້າກວດສອບ', 'icon' => 'fa-clock',       'color' => 'yellow'],
-                            'active'  => ['label' => 'ໃຊ້ງານໄດ້',  'icon' => 'fa-check-circle', 'color' => 'green'],
+                            'active'  => ['label' => 'ກຳລັງໃຊ້ງານ',  'icon' => 'fa-check-circle', 'color' => 'green'],
                             'expired' => ['label' => 'ໝົດອາຍຸ',    'icon' => 'fa-history',     'color' => 'gray'],
                             'rejected' => ['label' => 'ຖືກປະຕິເສດ', 'icon' => 'fa-times-circle', 'color' => 'red'],
                         ] as $key => $t
@@ -403,7 +403,7 @@ try {
                             };
                             $display_status = match (true) {
                                 $is_queued => 'ຈັດຄິວ',
-                                $pkg['Status_Package'] === 'Active'   => 'ໃຊ້ງານໄດ້',
+                                $pkg['Status_Package'] === 'Active'   => 'ກຳລັງໃຊ້ງານ',
                                 $pkg['Status_Package'] === 'Rejected' => 'ຖືກປະຕິເສດ',
                                 $pkg['Status_Package'] === 'Expired'  => 'ໝົດອາຍຸ',
                                 default => 'ລໍຖ້າ',

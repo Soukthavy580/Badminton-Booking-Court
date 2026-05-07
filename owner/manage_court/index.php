@@ -660,7 +660,17 @@ function switchTab(tab) {
         document.getElementById('tab_'+t).classList.toggle('active', t===tab);
     });
 }
-function showLockedMsg() { alert('ທ່ານຕ້ອງການແພັກເກດທີ່ໃຊ້ງານໄດ້ເພື່ອຈັດການເດີ່ນ.'); }
+function showLockedMsg() {
+    if (window.BBCAlert && typeof window.BBCAlert.toast === 'function') {
+        window.BBCAlert.toast('warning', 'ທ່ານຕ້ອງການແພັກເກດທີ່ໃຊ້ງານໄດ້ເພື່ອຈັດການເດີ່ນ.');
+        return;
+    }
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({ icon: 'warning', title: 'ແຈ້ງເຕືອນ', text: 'ທ່ານຕ້ອງການແພັກເກດທີ່ໃຊ້ງານໄດ້ເພື່ອຈັດການເດີ່ນ.', draggable: true });
+        return;
+    }
+    alert('ທ່ານຕ້ອງການແພັກເກດທີ່ໃຊ້ງານໄດ້ເພື່ອຈັດການເດີ່ນ.');
+}
 function previewImg(input, previewId, wrapId) {
     const file = input.files[0];
     if (!file) return;

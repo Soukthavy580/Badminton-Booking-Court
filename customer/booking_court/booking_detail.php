@@ -272,10 +272,18 @@ $status_config = match($status) {
     <?php include '../includes/footer.php'; ?>
 
     <script>
-        function confirmCancel(id) {
-            if (confirm('ທ່ານແນ່ໃຈບໍ່ວ່າຕ້ອງການຍົກເລີກການຈອງນີ້?')) {
-                window.location.href = '/Badminton_court_Booking/customer/cancellation/index.php?id=' + id;
-            }
+        async function confirmCancel(id) {
+            const ok = await (window.BBCAlert && window.BBCAlert.confirm
+                ? window.BBCAlert.confirm({
+                    icon: 'warning',
+                    title: 'ຢືນຢັນ',
+                    text: 'ທ່ານແນ່ໃຈບໍ່ວ່າຕ້ອງການຍົກເລີກການຈອງນີ້?',
+                    confirmButtonText: 'ຢືນຢັນ',
+                    cancelButtonText: 'ຍົກເລີກ'
+                })
+                : Promise.resolve(confirm('ທ່ານແນ່ໃຈບໍ່ວ່າຕ້ອງການຍົກເລີກການຈອງນີ້?'))
+            );
+            if (ok) window.location.href = '/Badminton_court_Booking/customer/cancellation/index.php?id=' + id;
         }
     </script>
 </body>

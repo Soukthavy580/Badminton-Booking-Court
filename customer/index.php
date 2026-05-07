@@ -118,11 +118,12 @@ $is_logged_in    = isset($_SESSION['user_id']);
         <div class="absolute inset-0 hero-overlay"></div>
         <div class="relative z-10 w-full animate-fade-in-up">
             <div class="max-w-4xl mx-auto px-4 text-center">
-                <h1 class="text-5xl md:text-7xl font-extrabold mb-4 leading-tight drop-shadow-lg">
-                    ອອກກຳລັງກາຍໄປກັບພວກເຮົາ<br>
-                    <span class="text-yellow-400">ຈອງເດີ່ນໄດ້ເລີຍຕອນນີ້</span>
+            <h1 class="text-5xl md:text-7xl font-extrabold mb-4 leading-[1.3] drop-shadow-lg">
+                 ອອກກຳລັງກາຍໄປກັບພວກເຮົາ<br>
+                    
                 </h1>
-                <p class="text-xl text-gray-200 mb-10 max-w-2xl mx-auto">
+                <span class="text-yellow-400 md:text-6xl font-extrabold mb-10">ຈອງເດີ່ນໄດ້ເລີຍຕອນນີ້</span>
+                <p class="text-xl text-gray-200 mb-8 max-w-2xl mx-auto">
                     ຄົ້ນຫາ ແລະ ຈອງເດີ່ນທີ່ທ່ານຕ້ອງການໄດ້ງ່າຍໆທີ່ເວັບໄຊ້ຂອງພວກເຮົາ
                 </p>
 
