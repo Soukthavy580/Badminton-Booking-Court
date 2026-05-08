@@ -5,6 +5,7 @@ require_once '../../config/db.php';
 if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'admin') {
     header('Location: /Badminton_court_Booking/auth/login.php');
     exit;
+    
 }
 
 date_default_timezone_set('Asia/Vientiane');
