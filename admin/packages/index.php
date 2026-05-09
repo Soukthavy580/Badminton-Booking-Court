@@ -471,7 +471,7 @@ try {
                                     <?php if ($slip_url): ?>
                                         <button onclick="viewSlip('<?= htmlspecialchars($slip_url) ?>', <?= $pkg['Package_ID'] ?>, '<?= htmlspecialchars($pkg['Status_Package']) ?>')"
                                             class="bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-xl text-sm font-semibold transition">
-                                            <i class="fas fa-receipt mr-1"></i>ເບິ່ງໃບຮັບເງິນ
+                                            <i class="fas fa-receipt mr-1"></i>ເບິ່ງຫຼັກຖານການໂອນ
                                         </button>
                                     <?php else: ?>
                                         <span class="bg-gray-100 text-gray-400 px-3 py-2 rounded-xl text-sm"><i class="fas fa-clock mr-1"></i>ຍັງບໍ່ໄດ້ອັບໂຫລດ</span>
@@ -523,7 +523,7 @@ try {
     <div class="slip-modal" id="slipModal">
         <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-lg w-full mx-4 relative">
             <button onclick="closeSlip()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-xl"><i class="fas fa-times"></i></button>
-            <h3 class="font-bold text-gray-800 text-lg mb-4"><i class="fas fa-receipt text-blue-500 mr-2"></i>ໃບຮັບເງິນ — ແພັກເກດ #<span id="modalPkgId"></span></h3>
+            <h3 class="font-bold text-gray-800 text-lg mb-4"><i class="fas fa-receipt text-blue-500 mr-2"></i>ຫຼັກຖານການໂອນ — ແພັກເກດ #<span id="modalPkgId"></span></h3>
             <img id="modalSlipImg" src="" alt="Payment Slip" class="w-full max-h-96 object-contain rounded-xl border border-gray-200 mb-4">
             <div class="flex gap-3" id="modalActions"></div>
         </div>
@@ -538,7 +538,7 @@ try {
             <form method="POST">
                 <input type="hidden" name="pkg_id" id="rejectPkgId">
                 <input type="hidden" name="action" value="reject">
-                <textarea name="comment" rows="4" required placeholder="ຕົວຢ່າງ: ໃບຮັບເງິນບໍ່ຊັດ ກະລຸນາສົ່ງໃໝ່."
+                <textarea name="comment" rows="4" required placeholder="ຕົວຢ່າງ: ຫຼັກຖານການໂອນບໍ່ຊັດ ກະລຸນາສົ່ງໃໝ່."
                     class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-red-400 transition resize-none text-sm mb-4"></textarea>
                 <div class="flex gap-3">
                     <button type="button" onclick="closeReject()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 rounded-xl transition">ຍົກເລີກ</button>

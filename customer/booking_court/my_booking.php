@@ -222,8 +222,8 @@ function status_config($status) {
                                             <p class="font-bold text-gray-800"><?= $play_date ?></p>
                                         </div>
                                         <div>
-                                            <p class="text-xs text-gray-400 uppercase tracking-wide">ສລັອດ</p>
-                                            <p class="font-bold text-gray-800"><?= count($slots) ?> ສລັອດ</p>
+                                            <p class="text-xs text-gray-400 uppercase tracking-wide">ເວລາ</p>
+                                            <p class="font-bold text-gray-800"><?= count($slots) ?> ເວລາ</p>
                                         </div>
                                         <div>
                                             <p class="text-xs text-gray-400 uppercase tracking-wide">ລາຄາ</p>

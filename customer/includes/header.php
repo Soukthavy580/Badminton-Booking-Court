@@ -8,22 +8,27 @@ $customer_email = $_SESSION['user_email'] ?? '';
 $c_id           = $_SESSION['c_id']       ?? 0;
 $is_logged_in   = isset($_SESSION['user_id']);
 
+// ── Notification badge count (unread + recent within 7 days) ──
 $notification_count = 0;
 if ($c_id && isset($pdo)) {
     try {
-        // FIX: Exclude 'Unpaid' — those are not real alerts
         $stmt = $pdo->prepare("
-            SELECT CONCAT(b.Book_ID, '_', b.Status_booking)
+            SELECT b.Book_ID, b.Status_booking, b.Booking_date
             FROM booking b
             WHERE b.C_ID = ?
-            AND b.Status_booking NOT IN ('Unpaid', 'Completed')
-            GROUP BY b.Book_ID, b.Status_booking
+            ORDER BY b.Booking_date DESC
         ");
         $stmt->execute([$c_id]);
-        $current_keys = $stmt->fetchAll(PDO::FETCH_COLUMN);
-        $seen_keys = $_SESSION['notif_seen'] ?? [];
-        // Only count keys not yet seen
-        $notification_count = count(array_diff($current_keys, $seen_keys));
+        $notif_rows = $stmt->fetchAll();
+
+        $seen = $_SESSION['notif_seen'] ?? [];
+        foreach ($notif_rows as $r) {
+            $key       = $r['Book_ID'] . '_' . $r['Status_booking'];
+            $is_recent = (time() - strtotime($r['Booking_date'])) < (7 * 24 * 3600);
+            if (!in_array($key, $seen) && $is_recent) {
+                $notification_count++;
+            }
+        }
     } catch (PDOException $e) {
         $notification_count = 0;
     }
@@ -34,9 +39,7 @@ $current_path = rtrim(parse_url($current, PHP_URL_PATH), '/');
 
 function nav_class($path) {
     global $current_path;
-    $check = rtrim($path, '/');
-    // Home: exact match only
-    // Others: starts-with match so sub-pages also highlight-
+    $check  = rtrim($path, '/');
     $active = ($check === '/Badminton_court_Booking/customer')
         ? ($current_path === $check || $current_path === $check . '/')
         : str_starts_with($current_path, $check);
@@ -44,6 +47,7 @@ function nav_class($path) {
         ? 'text-green-600 font-semibold flex items-center gap-1 border-b-2 border-green-600 pb-1'
         : 'text-gray-700 hover:text-green-600 font-medium transition flex items-center gap-1';
 }
+
 function mobile_class($path) {
     global $current_path;
     $check  = rtrim($path, '/');
@@ -59,60 +63,54 @@ function mobile_class($path) {
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     window.BBCAlert = window.BBCAlert || {};
-    window.BBCAlert.toast = function (icon, title) {
+    window.BBCAlert.toast = function(icon, title) {
         if (typeof Swal === 'undefined') return;
         Swal.fire({
-            toast: true,
-            position: 'top-end',
-            icon,
-            title,
+            toast: true, position: 'top-end',
+            icon, title,
             showConfirmButton: false,
-            timer: 2200,
-            timerProgressBar: true
+            timer: 2200, timerProgressBar: true
         });
     };
-    window.BBCAlert.confirm = function (opts) {
-        if (typeof Swal === 'undefined') return Promise.resolve(window.confirm((opts && opts.text) ? opts.text : 'Confirm?'));
+    window.BBCAlert.confirm = function(opts) {
+        if (typeof Swal === 'undefined')
+            return Promise.resolve(window.confirm((opts && opts.text) ? opts.text : 'Confirm?'));
         return Swal.fire({
-            icon: (opts && opts.icon) ? opts.icon : 'question',
-            title: (opts && opts.title) ? opts.title : 'ຢືນຢັນ',
-            text: (opts && opts.text) ? opts.text : '',
-            showCancelButton: true,
+            icon:              (opts && opts.icon)              ? opts.icon              : 'question',
+            title:             (opts && opts.title)             ? opts.title             : 'ຢືນຢັນ',
+            text:              (opts && opts.text)              ? opts.text              : '',
+            showCancelButton:  true,
             confirmButtonText: (opts && opts.confirmButtonText) ? opts.confirmButtonText : 'ຕົກລົງ',
-            cancelButtonText: (opts && opts.cancelButtonText) ? opts.cancelButtonText : 'ຍົກເລີກ',
+            cancelButtonText:  (opts && opts.cancelButtonText)  ? opts.cancelButtonText  : 'ຍົກເລີກ',
             draggable: true
         }).then(r => !!r.isConfirmed);
     };
 </script>
 <?php if (empty($swal_flash_handled) && (!empty($error) || !empty($success))): ?>
     <script>
-        (function () {
-            const errorMsg = <?= json_encode($error ?? '', JSON_UNESCAPED_UNICODE) ?>;
+        (function() {
+            const errorMsg   = <?= json_encode($error   ?? '', JSON_UNESCAPED_UNICODE) ?>;
             const successMsg = <?= json_encode($success ?? '', JSON_UNESCAPED_UNICODE) ?>;
-            if (errorMsg) return window.BBCAlert.toast('error', errorMsg);
+            if (errorMsg)   return window.BBCAlert.toast('error',   errorMsg);
             if (successMsg) return window.BBCAlert.toast('success', successMsg);
         })();
     </script>
 <?php endif; ?>
+
 <nav class="bg-white shadow-md sticky top-0 z-50">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center h-16">
 
             <!-- Logo -->
-            <div class="flex items-center">
-                <a href="/Badminton_court_Booking/customer/" class="flex items-center gap-2">
-                    <img src="/Badminton_court_Booking/assets/images/logo/Logo.png"
-                         alt="Badminton Booking Court"
-                         class="h-14 w-auto object-contain"
-                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
-                    <span style="display:none" class="items-center gap-2">
-                        <i class="fas fa-table-tennis text-green-600 text-2xl"></i>
-                    </span>
-                    <span class="text-sm font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent leading-tight">
-                        Badminton<br>Booking Court
-                    </span>
-                </a>
-            </div>
+            <a href="/Badminton_court_Booking/customer/" class="flex items-center gap-2">
+                <img src="/Badminton_court_Booking/assets/images/logo/Logo.png"
+                     alt="Badminton Booking Court"
+                     class="h-14 w-auto object-contain"
+                     onerror="this.style.display='none'">
+                <span class="text-sm font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent leading-tight">
+                    Badminton<br>Booking Court
+                </span>
+            </a>
 
             <!-- Desktop Nav -->
             <div class="hidden md:flex items-center space-x-6">
@@ -129,7 +127,8 @@ function mobile_class($path) {
             <!-- Right Side -->
             <div class="flex items-center space-x-4">
                 <?php if ($is_logged_in): ?>
-                    <!-- ກະດິ່ງການແຈ້ງເຕືອນ -->
+
+                    <!-- Bell -->
                     <a href="/Badminton_court_Booking/customer/notification/"
                        class="relative <?= str_starts_with($current_path, '/Badminton_court_Booking/customer/notification') ? 'text-green-600' : 'text-gray-600 hover:text-green-600' ?> transition">
                         <i class="fas fa-bell text-xl"></i>
@@ -151,7 +150,8 @@ function mobile_class($path) {
                             <i class="fas fa-chevron-down text-sm"></i>
                         </button>
 
-                        <div id="userDropdown" class="hidden absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-100 py-2 z-50">
+                        <div id="userDropdown"
+                             class="hidden absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-100 py-2 z-50">
                             <div class="px-4 py-3 border-b border-gray-100">
                                 <p class="text-sm font-semibold text-gray-800"><?= htmlspecialchars($customer_name) ?></p>
                                 <p class="text-xs text-gray-500 truncate"><?= htmlspecialchars($customer_email) ?></p>
@@ -174,7 +174,7 @@ function mobile_class($path) {
                                 <?php endif; ?>
                             </a>
                             <div class="border-t border-gray-100 my-1"></div>
-                            <a href="/Badminton_court_Booking/auth/logout.php"
+                            <a href="/Badminton_court_Booking/auth/logout"
                                class="block px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition">
                                 <i class="fas fa-sign-out-alt mr-2"></i> ອອກຈາກລະບົບ
                             </a>
@@ -201,26 +201,33 @@ function mobile_class($path) {
 
         <!-- Mobile Menu -->
         <div id="mobileMenu" class="hidden md:hidden pb-4 border-t border-gray-100 mt-2">
-            <a href="/Badminton_court_Booking/customer/" class="<?= mobile_class('/Badminton_court_Booking/customer/') ?>">
+            <a href="/Badminton_court_Booking/customer/"
+               class="<?= mobile_class('/Badminton_court_Booking/customer/') ?>">
                 <i class="fas fa-home mr-2"></i> ໜ້າຫຼັກ
             </a>
-            <a href="/Badminton_court_Booking/customer/booking_court/" class="<?= mobile_class('/Badminton_court_Booking/customer/booking_court/') ?>">
+            <a href="/Badminton_court_Booking/customer/booking_court/"
+               class="<?= mobile_class('/Badminton_court_Booking/customer/booking_court/') ?>">
                 <i class="fas fa-table-tennis mr-2"></i> ຈອງເດີ່ນ
             </a>
             <?php if ($is_logged_in): ?>
-                <a href="/Badminton_court_Booking/customer/booking_court/my_booking" class="<?= mobile_class('/Badminton_court_Booking/customer/booking_court/my_booking') ?>">
+                <a href="/Badminton_court_Booking/customer/booking_court/my_booking"
+                   class="<?= mobile_class('/Badminton_court_Booking/customer/booking_court/my_booking') ?>">
                     <i class="fas fa-calendar-alt mr-2"></i> ການຈອງຂອງຂ້ອຍ
                 </a>
-                <a href="/Badminton_court_Booking/customer/notification/" class="<?= mobile_class('/Badminton_court_Booking/customer/notification/') ?>">
+                <a href="/Badminton_court_Booking/customer/notification/"
+                   class="<?= mobile_class('/Badminton_court_Booking/customer/notification/') ?>">
                     <i class="fas fa-bell mr-2"></i> ການແຈ້ງເຕືອນ
                     <?php if ($notification_count > 0): ?>
-                        <span class="ml-1 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 font-bold"><?= $notification_count ?></span>
+                        <span class="ml-1 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 font-bold">
+                            <?= $notification_count ?>
+                        </span>
                     <?php endif; ?>
                 </a>
-                <a href="/Badminton_court_Booking/customer/profile/" class="<?= mobile_class('/Badminton_court_Booking/customer/profile/') ?>">
+                <a href="/Badminton_court_Booking/customer/profile/"
+                   class="<?= mobile_class('/Badminton_court_Booking/customer/profile/') ?>">
                     <i class="fas fa-user mr-2"></i> ໂປຣໄຟລ໌
                 </a>
-                <a href="/Badminton_court_Booking/auth/logout.php"
+                <a href="/Badminton_court_Booking/auth/logout"
                    class="block py-2 px-4 text-red-600 hover:bg-red-50 rounded transition">
                     <i class="fas fa-sign-out-alt mr-2"></i> ອອກຈາກລະບົບ
                 </a>
@@ -239,17 +246,15 @@ function mobile_class($path) {
 </nav>
 
 <script>
-function toggleUserMenu() {
-    document.getElementById('userDropdown').classList.toggle('hidden');
-}
-function toggleMobileMenu() {
-    document.getElementById('mobileMenu').classList.toggle('hidden');
-}
-document.addEventListener('click', function(event) {
-    const dropdown = document.getElementById('userDropdown');
-    const button = event.target.closest('button[onclick="toggleUserMenu()"]');
-    if (!button && !dropdown?.contains(event.target)) {
-        dropdown?.classList.add('hidden');
+    function toggleUserMenu() {
+        document.getElementById('userDropdown').classList.toggle('hidden');
     }
-});
+    function toggleMobileMenu() {
+        document.getElementById('mobileMenu').classList.toggle('hidden');
+    }
+    document.addEventListener('click', function(e) {
+        const dropdown = document.getElementById('userDropdown');
+        const btn = e.target.closest('button[onclick="toggleUserMenu()"]');
+        if (!btn && !dropdown?.contains(e.target)) dropdown?.classList.add('hidden');
+    });
 </script>

@@ -222,7 +222,7 @@ $status_config = match($status) {
         <?php if ($slip_img): ?>
             <div class="bg-white rounded-2xl shadow-sm p-6 mb-6">
                 <h3 class="font-bold text-gray-800 mb-4">
-                    <i class="fas fa-receipt text-blue-500 mr-2"></i>ໃບຮັບເງິນ
+                    <i class="fas fa-receipt text-blue-500 mr-2"></i>ຫຼັກຖານການໂອນ
                 </h3>
                 <img src="<?= htmlspecialchars($slip_img) ?>"
                      class="max-h-48 rounded-xl border border-gray-200 mx-auto block"
@@ -251,7 +251,7 @@ $status_config = match($status) {
             <?php if ($status === 'Pending' && empty($booking['Slip_payment'])): ?>
                 <a href="/Badminton_court_Booking/customer/payment/index.php?booking_id=<?= $book_id ?>"
                    class="flex-1 text-center bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition">
-                    <i class="fas fa-upload mr-2"></i>ອັບໂຫລດໃບຮັບເງິນ
+                    <i class="fas fa-upload mr-2"></i>ອັບໂຫລດຫຼັກຖານການໂອນ
                 </a>
             <?php endif; ?>
             <?php if ($is_upcoming && $status !== 'Cancelled'): ?>

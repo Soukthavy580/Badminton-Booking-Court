@@ -92,7 +92,7 @@ $success = false;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $file = $_FILES['slip_payment'] ?? null;
     if (!$file || $file['error'] !== UPLOAD_ERR_OK) {
-        $error = 'ກະລຸນາອັບໂຫລດໃບຮັບເງິນ.';
+        $error = 'ກະລຸນາອັບໂຫລດຫຼັກຖານການໂອນ.';
     } elseif (!in_array($file['type'], ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'])) {
         $error = 'ຮອງຮັບເຉພາະ JPG, PNG, WEBP.';
     } elseif ($file['size'] > 5 * 1024 * 1024) {
@@ -187,7 +187,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <i class="fas fa-check-circle text-green-500 text-4xl"></i>
                         </div>
                         <h2 class="text-2xl font-extrabold text-gray-800 mb-2">ສົ່ງສຳເລັດ!</h2>
-                        <p class="text-gray-500 mb-2">ໃບຮັບເງິນໂຄສະນາຂອງທ່ານຖືກສົ່ງສຳເລັດ.</p>
+                        <p class="text-gray-500 mb-2">ຫຼັກຖານການໂອນໂຄສະນາຂອງທ່ານຖືກສົ່ງສຳເລັດ.</p>
                         <p class="text-gray-400 text-sm mb-6">ແອດມິນຈະກວດສອບ ແລະ ອະນຸມັດພາຍໃນ 24 ຊົ່ວໂມງ.</p>
                         <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 text-left">
                             <p class="text-sm font-bold text-blue-800 mb-1"><?= htmlspecialchars($rate['Duration']) ?> ໂຄສະນາ</p>
@@ -260,7 +260,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
 
                     <div class="bg-white rounded-2xl shadow-sm p-6">
-                        <h3 class="font-bold text-gray-800 mb-4"><i class="fas fa-upload text-blue-500 mr-2"></i>ອັບໂຫລດໃບຮັບເງິນ</h3>
+                        <h3 class="font-bold text-gray-800 mb-4"><i class="fas fa-upload text-blue-500 mr-2"></i>ອັບໂຫລດຫຼັກຖານການໂອນ</h3>
                         <form method="POST" enctype="multipart/form-data">
                             <div class="upload-area rounded-xl p-8 text-center cursor-pointer mb-6" id="uploadArea"
                                 onclick="document.getElementById('slipFile').click()"
@@ -276,7 +276,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             </div>
                             <input type="file" id="slipFile" name="slip_payment" accept="image/jpeg,image/png,image/webp" class="hidden" onchange="previewFile(this)" required>
                             <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl transition shadow-lg text-lg">
-                                <i class="fas fa-paper-plane mr-2"></i>ສົ່ງໃບຮັບເງິນໂຄສະນາ
+                                <i class="fas fa-paper-plane mr-2"></i>ສົ່ງຫຼັກຖານການໂອນໂຄສະນາ
                             </button>
                         </form>
                     </div>

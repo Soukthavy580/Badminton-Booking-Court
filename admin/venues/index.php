@@ -200,7 +200,7 @@ if (isset($_GET['view'])) {
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                     <?php foreach (
                         [
-                            ['label' => 'ໃຊ້ງານໄດ້',  'value' => $counts['active'],     'color' => 'green', 'icon' => 'fa-check-circle', 'filter' => 'active'],
+                            ['label' => 'ກຳລັງໃຊ້ງານ',  'value' => $counts['active'],     'color' => 'green', 'icon' => 'fa-check-circle', 'filter' => 'active'],
                             ['label' => 'ປິດໃຊ້ງານ',  'value' => $counts['inactive'],   'color' => 'red',   'icon' => 'fa-ban',         'filter' => 'inactive'],
                             ['label' => 'ສ້ອມແປງ',    'value' => $counts['maintaining'], 'color' => 'orange', 'icon' => 'fa-tools',       'filter' => 'maintaining'],
                         ] as $sc
@@ -220,7 +220,7 @@ if (isset($_GET['view'])) {
                 <div class="flex gap-2 mb-6 flex-wrap">
                     <?php foreach (
                         [
-                            'active'     => ['label' => 'ໃຊ້ງານໄດ້',   'icon' => 'fa-check-circle', 'color' => 'green'],
+                            'active'     => ['label' => 'ກຳລັງໃຊ້ງານ',   'icon' => 'fa-check-circle', 'color' => 'green'],
                             'inactive'   => ['label' => 'ປິດໃຊ້ງານ',   'icon' => 'fa-ban',         'color' => 'red'],
                             'maintaining' => ['label' => 'ສ້ອມແປງ',     'icon' => 'fa-tools',       'color' => 'orange'],
                         ] as $key => $t
@@ -243,7 +243,7 @@ if (isset($_GET['view'])) {
                         <?php foreach ($venues as $venue):
                             $venue_img  = !empty($venue['VN_Image']) ? '/Badminton_court_Booking/assets/images/venues/' . basename($venue['VN_Image']) : '';
                             $status_cfg = match ($venue['VN_Status']) {
-                                'Active'      => ['border' => 'border-green-400', 'badge_bg' => 'bg-green-100', 'badge_text' => 'text-green-700', 'icon' => 'fa-check-circle', 'label' => 'ໃຊ້ງານໄດ້'],
+                                'Active'      => ['border' => 'border-green-400', 'badge_bg' => 'bg-green-100', 'badge_text' => 'text-green-700', 'icon' => 'fa-check-circle', 'label' => 'ກຳລັງໃຊ້ງານ'],
                                 'Inactive'    => ['border' => 'border-red-400',   'badge_bg' => 'bg-red-100',   'badge_text' => 'text-red-700',   'icon' => 'fa-ban',         'label' => 'ປິດໃຊ້ງານ'],
                                 'Maintaining' => ['border' => 'border-orange-400', 'badge_bg' => 'bg-orange-100', 'badge_text' => 'text-orange-700', 'icon' => 'fa-tools',       'label' => 'ສ້ອມແປງ'],
                                 default       => ['border' => 'border-yellow-400', 'badge_bg' => 'bg-yellow-100', 'badge_text' => 'text-yellow-700', 'icon' => 'fa-clock',       'label' => 'ລໍຖ້າ'],
@@ -370,7 +370,7 @@ if (isset($_GET['view'])) {
                     <?php
                     $ms = $modal_venue['VN_Status'];
                     $ms_label = match ($ms) {
-                        'Active' => 'ໃຊ້ງານໄດ້',
+                        'Active' => 'ກຳລັງໃຊ້ງານ',
                         'Inactive' => 'ປິດໃຊ້ງານ',
                         'Maintaining' => 'ສ້ອມແປງ',
                         'Pending' => 'ລໍຖ້າ',

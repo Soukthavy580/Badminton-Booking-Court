@@ -12,13 +12,19 @@ if (!$venue_id) {
     exit;
 }
 
+// Show expired message if redirected back from timeout
+$expired_msg = '';
+if (isset($_GET['expired']) && $_GET['expired'] == 1) {
+    $expired_msg = 'ທ່ານໄດ້ຢູ່ໜ້ານີ້ກາຍ 10 ນາທີ ແລ້ວຍັງບໍ່ຈ່າຍເງິນ ກາລູນາຈອງໃຫມ່';
+}
+
 try {
     $stmt = $pdo->prepare("
-    SELECT v.*
-    FROM Venue_data v
-    WHERE v.VN_ID = ? AND v.VN_Status = 'Active'
-    LIMIT 1
-");
+        SELECT v.*
+        FROM Venue_data v
+        WHERE v.VN_ID = ? AND v.VN_Status = 'Active'
+        LIMIT 1
+    ");
     $stmt->execute([$venue_id]);
     $venue = $stmt->fetch();
 } catch (PDOException $e) {
@@ -67,6 +73,8 @@ function get_booked_slots($pdo, $venue_id, $date)
 
 function generate_time_slots($open_time, $close_time, $interval_minutes = 60)
 {
+    $open_time  = date('H:i', strtotime($open_time));
+    $close_time = date('H:i', strtotime($close_time));
     $slots = [];
     $start = strtotime($open_time);
     $end   = strtotime($close_time);
@@ -76,7 +84,7 @@ function generate_time_slots($open_time, $close_time, $interval_minutes = 60)
             $slots[] = [
                 'start' => date('H:i', $start),
                 'end'   => date('H:i', $slot_end),
-                'label' => date('g:i A', $start) . ' - ' . date('g:i A', $slot_end),
+                'label' => date('H:i', $start) . ' - ' . date('H:i', $slot_end),
             ];
         }
         $start += $interval_minutes * 60;
@@ -116,72 +124,43 @@ $venue_img    = !empty($venue['VN_Image'])
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        .slot-btn {
-            transition: all 0.2s ease;
-            cursor: pointer;
-            user-select: none;
-        }
-
-        .slot-btn.available:hover {
-            background-color: #bbf7d0;
-            border-color: #16a34a;
-            transform: scale(1.03);
-        }
-
-        .slot-btn.selected {
-            background-color: #16a34a !important;
-            color: white !important;
-            border-color: #15803d !important;
-            transform: scale(1.03);
-        }
-
-        .slot-btn.booked {
-            background-color: #fee2e2;
-            color: #991b1b;
-            cursor: not-allowed;
-            opacity: 0.7;
-        }
-
-        .slot-btn.pending-slot {
-            background-color: #fef9c3;
-            color: #92400e;
-            border-color: #fcd34d;
-            cursor: not-allowed;
-            opacity: 0.8;
-        }
-
-        .slot-btn.past {
-            background-color: #f3f4f6;
-            color: #9ca3af;
-            cursor: not-allowed;
-            opacity: 0.6;
-        }
-
-        .summary-box {
-            position: sticky;
-            top: 80px;
-        }
-
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .animate-slide-in {
-            animation: slideIn 0.3s ease forwards;
-        }
+        .slot-btn { transition: all 0.2s ease; cursor: pointer; user-select: none; }
+        .slot-btn.available:hover { background-color: #bbf7d0; border-color: #16a34a; transform: scale(1.03); }
+        .slot-btn.selected { background-color: #16a34a !important; color: white !important; border-color: #15803d !important; transform: scale(1.03); }
+        .slot-btn.booked   { background-color: #fee2e2; color: #991b1b; cursor: not-allowed; opacity: 0.7; }
+        .slot-btn.pending-slot { background-color: #fef9c3; color: #92400e; border-color: #fcd34d; cursor: not-allowed; opacity: 0.85; }
+        .slot-btn.past     { background-color: #f3f4f6; color: #9ca3af; cursor: not-allowed; opacity: 0.6; }
+        .summary-box { position: sticky; top: 80px; }
+        @keyframes slideIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+        .animate-slide-in { animation: slideIn 0.3s ease forwards; }
     </style>
 </head>
 
 <body class="bg-gray-50">
     <?php include '../includes/header.php'; ?>
+
+    <?php if ($expired_msg): ?>
+    <!-- Auto-dismiss expired notification -->
+    <div id="expiredBanner"
+         class="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-red-600 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 max-w-lg w-full mx-4">
+        <i class="fas fa-clock text-xl flex-shrink-0"></i>
+        <p class="font-semibold text-sm"><?= htmlspecialchars($expired_msg) ?></p>
+        <button onclick="document.getElementById('expiredBanner').remove()" class="ml-auto flex-shrink-0 text-white/70 hover:text-white">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    <script>setTimeout(() => { const b = document.getElementById('expiredBanner'); if(b) b.remove(); }, 6000);</script>
+    <?php endif; ?>
+
+    <?php if (!empty($_SESSION['booking_error'])): ?>
+    <div id="errBanner"
+         class="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-orange-500 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 max-w-lg w-full mx-4">
+        <i class="fas fa-exclamation-circle text-xl flex-shrink-0"></i>
+        <p class="font-semibold text-sm"><?= htmlspecialchars($_SESSION['booking_error']) ?></p>
+    </div>
+    <?php unset($_SESSION['booking_error']); ?>
+    <script>setTimeout(() => { const b = document.getElementById('errBanner'); if(b) b.remove(); }, 5000);</script>
+    <?php endif; ?>
 
     <div class="max-w-7xl mx-auto px-4 py-8">
 
@@ -216,42 +195,31 @@ $venue_img    = !empty($venue['VN_Image'])
             <div class="lg:col-span-2 space-y-6">
 
                 <!-- Venue Info -->
-                <!-- Venue Info -->
                 <div class="bg-white rounded-2xl shadow-sm p-6">
                     <h2 class="text-xl font-bold mb-5 text-gray-800 flex items-center gap-2">
                         <i class="fas fa-info-circle text-blue-500"></i>ກ່ຽວກັບສະຖານທີ່ນີ້
                     </h2>
-
                     <?php if (!empty($venue['VN_Description'])): ?>
                         <p class="text-gray-600 mb-5 leading-relaxed"><?= htmlspecialchars($venue['VN_Description']) ?></p>
                     <?php endif; ?>
 
-                    <!-- Info Grid — 2 cols top row, price full width below -->
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
-
-                        <!-- Opening hours -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
                         <div class="bg-blue-50 border border-blue-100 rounded-xl p-4">
                             <p class="text-xs font-bold text-blue-600 uppercase tracking-wide mb-2">ເວລາເປີດ</p>
                             <p class="text-xl font-extrabold text-gray-800"><?= date('H:i', strtotime($venue['Open_time'])) ?></p>
                             <p class="text-xs text-gray-500 mt-0.5">
                                 ຫາ <?= date('H:i', strtotime($venue['Close_time'])) ?>
-                                <?php
-                                $diff = (strtotime($venue['Close_time']) - strtotime($venue['Open_time'])) / 3600;
-                                if ($diff > 0) echo ' · ' . intval($diff) . ' ຊົ່ວໂມງ/ວັນ';
-                                ?>
+                                <?php $diff = (strtotime($venue['Close_time']) - strtotime($venue['Open_time'])) / 3600;
+                                if ($diff > 0) echo ' · ' . intval($diff) . ' ຊົ່ວໂມງ/ວັນ'; ?>
                             </p>
                         </div>
-
-                        <!-- Courts count -->
                         <div class="bg-green-50 border border-green-100 rounded-xl p-4">
                             <p class="text-xs font-bold text-green-600 uppercase tracking-wide mb-2">ຄອດ</p>
                             <p class="text-xl font-extrabold text-gray-800"><?= count($courts) ?> ຄອດ</p>
                             <p class="text-xs text-gray-500 mt-0.5">ໃຊ້ງານໄດ້ທັງໝົດ</p>
                         </div>
-
                     </div>
 
-                    <!-- Price — full width -->
                     <div class="bg-yellow-50 border border-yellow-100 rounded-xl p-4 flex items-center justify-between mb-4">
                         <div>
                             <p class="text-xs font-bold text-yellow-600 uppercase tracking-wide mb-1">ລາຄາຕໍ່ຊົ່ວໂມງ</p>
@@ -260,7 +228,6 @@ $venue_img    = !empty($venue['VN_Image'])
                         <p class="text-2xl font-extrabold text-gray-800">₭<?= number_format($price_clean) ?></p>
                     </div>
 
-                    <!-- Map link if available -->
                     <?php if (!empty($venue['VN_MapURL'])): ?>
                         <div class="bg-red-50 border border-red-100 rounded-xl p-4 mb-4">
                             <p class="text-xs font-bold text-red-600 uppercase tracking-wide mb-1">ທີ່ຕັ້ງ</p>
@@ -331,8 +298,8 @@ $venue_img    = !empty($venue['VN_Image'])
                         </div>
 
                         <?php foreach ($courts as $court):
-                            $court_open  = !empty($court['Open_time'])  ? $court['Open_time']  : ($venue['Open_time']  ?? null);
-                            $court_close = !empty($court['Close_time']) ? $court['Close_time'] : ($venue['Close_time'] ?? null);
+                            $court_open  = $venue['Open_time'];
+                            $court_close = $venue['Close_time'];
                             if (empty($court_open) || empty($court_close)) continue;
                             $court_slots = generate_time_slots($court_open, $court_close);
                         ?>
@@ -343,10 +310,7 @@ $venue_img    = !empty($venue['VN_Image'])
                                     </span>
                                     <span class="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-lg">
                                         <i class="fas fa-clock mr-1"></i>
-                                        <?= date('g:i A', strtotime($court_open)) ?> – <?= date('g:i A', strtotime($court_close)) ?>
-                                        <?php if (empty($court['Open_time'])): ?>
-                                            <span class="text-gray-300 ml-1">(ເວລາສະຖານທີ່)</span>
-                                        <?php endif; ?>
+                                        <?= date('H:i', strtotime($court_open)) ?> – <?= date('H:i', strtotime($court_close)) ?>
                                     </span>
                                 </h3>
                                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
@@ -383,7 +347,7 @@ $venue_img    = !empty($venue['VN_Image'])
                                             <?php if ($booked_status === 'Confirmed'): ?>
                                                 <br><span class="text-red-500 text-xs">ຈອງແລ້ວ</span>
                                             <?php elseif ($booked_status === 'Pending'): ?>
-                                                <br><span class="text-yellow-600 text-xs">ກຳລັງດຳເນີນການ</span>
+                                                <br><span class="text-yellow-600 text-xs font-bold">ກຳລັງດຳເນີນການ</span>
                                             <?php elseif ($is_past_slot): ?>
                                                 <br><span class="text-gray-400 text-xs">ຜ່ານແລ້ວ</span>
                                             <?php else: ?>
@@ -412,7 +376,7 @@ $venue_img    = !empty($venue['VN_Image'])
 
                     <div id="summaryEmpty" class="text-center py-8">
                         <i class="fas fa-hand-pointer text-4xl text-gray-200 mb-3 block"></i>
-                        <p class="text-gray-400 text-sm">ເລືອກສລັອດເວລາເພື່ອເລີ່ມຈອງ</p>
+                        <p class="text-gray-400 text-sm">ເລືອກເວລາເພື່ອເລີ່ມຈອງ</p>
                     </div>
 
                     <div id="summaryContent" class="hidden">
@@ -462,8 +426,7 @@ $venue_img    = !empty($venue['VN_Image'])
                 <h3 class="text-xl font-extrabold text-gray-800 mb-2">ຕ້ອງເຂົ້າສູ່ລະບົບ</h3>
                 <p class="text-gray-500 text-sm mb-6">ທ່ານຕ້ອງເຂົ້າສູ່ລະບົບກ່ອນຈຶ່ງຈອງເດີ່ນໄດ້.</p>
                 <div class="flex flex-col gap-3">
-                    <a id="loginRedirectBtn"
-                        href="/Badminton_court_Booking/auth/login.php?redirect=<?= urlencode($_SERVER['REQUEST_URI']) ?>"
+                    <a href="/Badminton_court_Booking/auth/login.php?redirect=<?= urlencode($_SERVER['REQUEST_URI']) ?>"
                         class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition shadow">
                         <i class="fas fa-sign-in-alt mr-2"></i>ເຂົ້າສູ່ລະບົບ
                     </a>
@@ -471,9 +434,7 @@ $venue_img    = !empty($venue['VN_Image'])
                         class="w-full bg-white border-2 border-gray-200 hover:border-blue-400 text-gray-700 hover:text-blue-600 font-bold py-3 rounded-xl transition">
                         <i class="fas fa-user-plus mr-2"></i>ສ້າງບັນຊີ
                     </a>
-                    <button onclick="closeLoginModal()" class="text-sm text-gray-400 hover:text-gray-600 transition mt-1">
-                        ພາຍຫຼັງ
-                    </button>
+                    <button onclick="closeLoginModal()" class="text-sm text-gray-400 hover:text-gray-600 transition mt-1">ພາຍຫຼັງ</button>
                 </div>
             </div>
         </div>
@@ -497,34 +458,23 @@ $venue_img    = !empty($venue['VN_Image'])
                 document.getElementById('loginModal').classList.remove('hidden');
                 return;
             }
-
-            const courtId = btn.dataset.courtId;
+            const courtId   = btn.dataset.courtId;
             const courtName = btn.dataset.courtName;
-            const start = btn.dataset.start;
-            const end = btn.dataset.end;
-            const date = btn.dataset.date;
-            const price = parseFloat(btn.dataset.price);
-            const key = `${courtId}_${start}_${end}`;
+            const start     = btn.dataset.start;
+            const end       = btn.dataset.end;
+            const date      = btn.dataset.date;
+            const price     = parseFloat(btn.dataset.price);
+            const key       = `${courtId}_${start}_${end}`;
 
             if (btn.classList.contains('selected')) {
-                // DESELECT — remove from array
                 btn.classList.remove('selected');
                 btn.classList.add('available', 'bg-green-50', 'border', 'border-green-200', 'text-green-800');
                 selectedSlots = selectedSlots.filter(s => s.key !== key);
             } else {
-                // SELECT — only add if not already in array (prevents duplicates on fast clicks)
                 if (!selectedSlots.find(s => s.key === key)) {
                     btn.classList.add('selected');
                     btn.classList.remove('available', 'bg-green-50', 'border', 'border-green-200', 'text-green-800');
-                    selectedSlots.push({
-                        key,
-                        courtId,
-                        courtName,
-                        start,
-                        end,
-                        date,
-                        price
-                    });
+                    selectedSlots.push({ key, courtId, courtName, start, end, date, price });
                 }
             }
             updateSummary();
@@ -533,24 +483,20 @@ $venue_img    = !empty($venue['VN_Image'])
         function closeLoginModal() {
             document.getElementById('loginModal')?.classList.add('hidden');
         }
-
-        document.addEventListener('keydown', e => {
-            if (e.key === 'Escape') closeLoginModal();
-        });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLoginModal(); });
 
         function updateSummary() {
-            const empty = document.getElementById('summaryEmpty');
+            const empty   = document.getElementById('summaryEmpty');
             const content = document.getElementById('summaryContent');
-            const list = document.getElementById('selectedSlotsList');
-            const total = document.getElementById('totalPrice');
-            const hours = document.getElementById('totalHours');
+            const list    = document.getElementById('selectedSlotsList');
+            const total   = document.getElementById('totalPrice');
+            const hours   = document.getElementById('totalHours');
 
             if (selectedSlots.length === 0) {
                 empty.classList.remove('hidden');
                 content.classList.add('hidden');
                 return;
             }
-
             empty.classList.add('hidden');
             content.classList.remove('hidden');
 
@@ -562,45 +508,27 @@ $venue_img    = !empty($venue['VN_Image'])
                     <div class="flex justify-between items-center bg-gray-50 rounded-lg px-3 py-2 text-sm animate-slide-in">
                         <div>
                             <p class="font-semibold text-gray-800">${slot.courtName}</p>
-                            <p class="text-gray-500 text-xs">${formatTime(slot.start)} - ${formatTime(slot.end)}</p>
+                            <p class="text-gray-500 text-xs">${slot.start} - ${slot.end}</p>
                         </div>
-                        <span class="text-green-600 font-bold">₭${numberFormat(slot.price)}</span>
+                        <span class="text-green-600 font-bold">₭${Math.round(slot.price).toLocaleString()}</span>
                     </div>`;
             });
-
             list.innerHTML = html;
-            total.textContent = '₭' + numberFormat(totalPrice);
-            hours.textContent = 'ເລືອກ ' + selectedSlots.length + ' ສລັອດ';
-        }
-
-        function formatTime(time) {
-            const [h, m] = time.split(':').map(Number);
-            const ampm = h >= 12 ? 'PM' : 'AM';
-            const hour = h % 12 || 12;
-            return `${hour}:${m.toString().padStart(2, '0')} ${ampm}`;
-        }
-
-        function numberFormat(n) {
-            return Math.round(n).toLocaleString();
+            total.textContent = '₭' + Math.round(totalPrice).toLocaleString();
+            hours.textContent = 'ເລືອກ ' + selectedSlots.length + ' ເວລາ';
         }
 
         function proceedToBooking() {
             if (selectedSlots.length === 0) {
-                if (window.BBCAlert && typeof window.BBCAlert.toast === 'function') {
-                    window.BBCAlert.toast('warning', 'ກະລຸນາເລືອກຢ່າງໜ້ອຍໜຶ່ງສລັອດ.');
-                } else if (typeof Swal !== 'undefined') {
-                    Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'ກະລຸນາເລືອກຢ່າງໜ້ອຍໜຶ່ງສລັອດ.', showConfirmButton: false, timer: 2200, timerProgressBar: true });
-                } else {
-                    alert('ກະລຸນາເລືອກຢ່າງໜ້ອຍໜຶ່ງສລັອດ.');
-                }
+                if (window.BBCAlert && window.BBCAlert.toast) {
+                    window.BBCAlert.toast('warning', 'ກະລຸນາເລືອກຢ່າງໜ້ອຍໜຶ່ງເວລາ.');
+                } else { alert('ກະລຸນາເລືອກຢ່າງໜ້ອຍໜຶ່ງເວລາ.'); }
                 return;
             }
-            // Deduplicate by key before submitting — final safety net
             const unique = [...new Map(selectedSlots.map(s => [s.key, s])).values()];
             document.getElementById('slotsJson').value = JSON.stringify(unique);
             document.getElementById('bookingForm').submit();
         }
     </script>
 </body>
-
 </html>

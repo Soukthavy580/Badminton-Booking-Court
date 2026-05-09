@@ -128,7 +128,7 @@ $venues = get_all_active_venues($pdo, $search_query, $sort_by);
         <div class="relative z-10 w-full animate-fade-in-up">
             <div class="max-w-3xl mx-auto px-4 text-center">
                 <h1 class="text-4xl md:text-6xl font-extrabold mb-4 leading-tight drop-shadow-lg">
-                    ຊອກຫາ <span class="text-yellow-400">ເດີ່ນ</span> ຂອງທ່ານ
+                    ຊອກຫາ <span class="text-yellow-400">ຄອດ</span> ຂອງທ່ານ
                 </h1>
                 <p class="text-lg text-gray-200 mb-8">ຄົ້ນຫາດ້ວຍຊື່ສະຖານທີ່ ຫຼື ທີ່ຢູ່</p>
 
@@ -172,7 +172,7 @@ $venues = get_all_active_venues($pdo, $search_query, $sort_by);
                     <h2 class="text-2xl font-extrabold text-gray-800">
                         <?= $is_searching ? 'ຜົນການຄົ້ນຫາ' : 'ເດີ່ນທັງໝົດ' ?>
                     </h2>
-                    <p class="text-gray-500 text-sm mt-1">ພົບ <?= count($venues) ?> ສະຖານທີ່</p>
+                    <p class="text-gray-500 text-sm mt-1">ມີ <?= count($venues) ?> ສະຖານທີ່</p>
                 </div>
                 <?php if ($is_searching): ?>
                     <a href="index.php" class="text-sm text-blue-600 hover:underline">ເບິ່ງເດີ່ນທັງໝົດ</a>
@@ -223,7 +223,7 @@ $venues = get_all_active_venues($pdo, $search_query, $sort_by);
                                 <?php endif; ?>
 
                                 <div class="flex items-center gap-3 text-xs text-gray-500 mb-4">
-                                    <span><i class="fas fa-table-tennis mr-1 text-green-500"></i><?= $venue['total_courts'] ?> ເດີ່ນ</span>
+                                    <span><i class="fas fa-table-tennis mr-1 text-green-500"></i><?= $venue['total_courts'] ?> ຄອດ</span>
                                     <span><i class="fas fa-clock mr-1 text-blue-500"></i><?= $venue['Open_time'] ?> - <?= $venue['Close_time'] ?></span>
                                 </div>
                                 <div class="flex items-center justify-between pt-3 border-t border-gray-100">

@@ -185,7 +185,7 @@ $is_logged_in    = isset($_SESSION['user_id']);
                                         <i class="fas fa-map-marker-alt text-red-400"></i><?= htmlspecialchars($venue['VN_Address']) ?>
                                     </p>
                                     <div class="flex items-center gap-3 text-xs text-gray-500 mb-4">
-                                        <span><i class="fas fa-table-tennis mr-1 text-green-500"></i><?= $venue['total_courts'] ?> ເດີ່ນ</span>
+                                        <span><i class="fas fa-table-tennis mr-1 text-green-500"></i><?= $venue['total_courts'] ?> ຄອດ</span>
                                         <span><i class="fas fa-clock mr-1 text-blue-500"></i><?= date('H:i', strtotime($venue['Open_time'])) ?> - <?= date('H:i', strtotime($venue['Close_time'])) ?></span>
                                     </div>
                                     <div class="flex items-center justify-between pt-3 border-t border-gray-100">
@@ -267,7 +267,7 @@ $is_logged_in    = isset($_SESSION['user_id']);
                                             <div class="flex items-center gap-4 mb-5 text-sm text-gray-300 flex-wrap">
                                                 <span class="flex items-center gap-1.5 bg-white/10 backdrop-blur px-3 py-1.5 rounded-full">
                                                     <i class="fas fa-table-tennis text-green-400"></i>
-                                                    <?= $venue['total_courts'] ?> ເດີ່ນ
+                                                    <?= $venue['total_courts'] ?> ຄອດ
                                                 </span>
                                                 <span class="flex items-center gap-1.5 bg-white/10 backdrop-blur px-3 py-1.5 rounded-full">
                                                     <i class="fas fa-clock text-blue-400"></i>

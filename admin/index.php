@@ -150,7 +150,7 @@ $total_pending = $pending_venues + $pending_packages + $pending_ads;
                             </div>
                             <div>
                                 <p class="font-bold text-orange-800"><?= number_format($pending_packages) ?> ແພັກເກດລໍຖ້າ</p>
-                                <p class="text-xs text-orange-600">ກວດສອບໃບຮັບເງິນ →</p>
+                                <p class="text-xs text-orange-600">ກວດສອບຫຼັກຖານການໂອນ →</p>
                             </div>
                         </a>
                     <?php endif; ?>
@@ -162,7 +162,7 @@ $total_pending = $pending_venues + $pending_packages + $pending_ads;
                             </div>
                             <div>
                                 <p class="font-bold text-red-800"><?= number_format($pending_ads) ?> ໂຄສະນາລໍຖ້າ</p>
-                                <p class="text-xs text-red-600">ກວດສອບໃບຮັບເງິນ →</p>
+                                <p class="text-xs text-red-600">ກວດສອບຫຼັກຖານການໂອນ →</p>
                             </div>
                         </a>
                     <?php endif; ?>

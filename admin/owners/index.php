@@ -172,7 +172,7 @@ $counts = [
             <div class="grid grid-cols-3 gap-4 mb-6">
                 <?php foreach ([
                     ['label'=>'ທັງໝົດ',    'value'=>$counts['all'],   'color'=>'purple','icon'=>'fa-user-tie','filter'=>'all'],
-                    ['label'=>'ໃຊ້ງານໄດ້', 'value'=>$counts['active'],'color'=>'green', 'icon'=>'fa-check-circle','filter'=>'active'],
+                    ['label'=>'ກຳລັງໃຊ້ງານ', 'value'=>$counts['active'],'color'=>'green', 'icon'=>'fa-check-circle','filter'=>'active'],
                     ['label'=>'ຖືກລະງັບ', 'value'=>$counts['banned'],'color'=>'red',   'icon'=>'fa-ban','filter'=>'banned'],
                 ] as $sc): ?>
                     <a href="?filter=<?= $sc['filter'] ?>"
@@ -201,7 +201,7 @@ $counts = [
                     <?php endif; ?>
                 </form>
                 <div class="flex gap-2">
-                    <?php foreach (['all'=>'ທັງໝົດ','active'=>'ໃຊ້ງານໄດ້','banned'=>'ຖືກລະງັບ'] as $key => $label): ?>
+                    <?php foreach (['all'=>'ທັງໝົດ','active'=>'ກຳລັງໃຊ້ງານ','banned'=>'ຖືກລະງັບ'] as $key => $label): ?>
                         <a href="?filter=<?= $key ?><?= $search ? '&search='.urlencode($search) : '' ?>"
                            class="px-4 py-2.5 rounded-xl font-semibold text-sm transition <?= $filter===$key ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50' ?>">
                             <?= $label ?> <span class="ml-1 text-xs <?= $filter===$key ? 'text-blue-200' : 'text-gray-400' ?>">(<?= $counts[$key] ?>)</span>
@@ -229,7 +229,7 @@ $counts = [
                                         <div class="flex items-center gap-2 mb-1">
                                             <h3 class="font-bold text-gray-800"><?= htmlspecialchars($owner['Name']) ?></h3>
                                             <span class="<?= $status_cfg['badge_bg'] ?> <?= $status_cfg['badge_text'] ?> text-xs font-bold px-2 py-0.5 rounded-full">
-                                                <?= $is_banned ? '🚫 ຖືກລະງັບ' : '✓ ໃຊ້ງານໄດ້' ?>
+                                                <?= $is_banned ? '🚫 ຖືກລະງັບ' : '✓ ກຳລັງໃຊ້ງານ' ?>
                                             </span>
                                         </div>
                                         <p class="text-sm text-gray-500"><i class="fas fa-at mr-1 text-gray-400"></i><?= htmlspecialchars($owner['Username']) ?></p>
@@ -308,7 +308,7 @@ $counts = [
                     <h2 class="text-2xl font-extrabold"><?= htmlspecialchars($modal_owner['Name']) ?></h2>
                     <p class="text-purple-200 text-sm">@<?= htmlspecialchars($modal_owner['Username']) ?></p>
                     <span class="inline-block mt-1 bg-white bg-opacity-20 text-white text-xs font-bold px-3 py-0.5 rounded-full">
-                        <?= $modal_owner['Status']==='Banned' ? 'ຖືກລະງັບ' : 'ໃຊ້ງານໄດ້' ?>
+                        <?= $modal_owner['Status']==='Banned' ? 'ຖືກລະງັບ' : 'ກຳລັງໃຊ້ງານ' ?>
                     </span>
                 </div>
             </div>
@@ -354,7 +354,7 @@ $counts = [
                     <div class="space-y-2">
                         <?php foreach ($modal_packages as $pkg):
                             $pc = match($pkg['Status_Package']) { 'Active'=>'green','Pending'=>'yellow','Rejected'=>'red', default=>'gray' };
-                            $pl = match($pkg['Status_Package']) { 'Active'=>'ໃຊ້ງານໄດ້','Pending'=>'ລໍຖ້າ','Rejected'=>'ຖືກປະຕິເສດ', default=>$pkg['Status_Package'] };
+                            $pl = match($pkg['Status_Package']) { 'Active'=>'ກຳລັງໃຊ້ງານ','Pending'=>'ລໍຖ້າ','Rejected'=>'ຖືກປະຕິເສດ', default=>$pkg['Status_Package'] };
                         ?>
                             <div class="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 text-sm">
                                 <div class="flex items-center gap-3">
@@ -382,7 +382,7 @@ $counts = [
                     <div class="space-y-2">
                         <?php foreach ($modal_ads as $ad):
                             $ac = match($ad['Status_AD']) { 'Approved','Active'=>'blue','Pending'=>'yellow','Rejected'=>'red', default=>'gray' };
-                            $al = match($ad['Status_AD']) { 'Approved','Active'=>'ໃຊ້ງານໄດ້','Pending'=>'ລໍຖ້າ','Rejected'=>'ຖືກປະຕິເສດ', default=>$ad['Status_AD'] };
+                            $al = match($ad['Status_AD']) { 'Approved','Active'=>'ກຳລັງໃຊ້ງານ','Pending'=>'ລໍຖ້າ','Rejected'=>'ຖືກປະຕິເສດ', default=>$ad['Status_AD'] };
                         ?>
                             <div class="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 text-sm">
                                 <div class="flex items-center gap-3">

@@ -120,7 +120,7 @@ try {
             <div class="grid grid-cols-3 gap-4 mb-6">
                 <?php foreach ([
                     ['label'=>'ທັງໝົດ',    'value'=>$total_all,    'color'=>'blue',  'icon'=>'fa-users'],
-                    ['label'=>'ໃຊ້ງານໄດ້', 'value'=>$total_active, 'color'=>'green', 'icon'=>'fa-user-check'],
+                    ['label'=>'ກຳລັງໃຊ້ງານ', 'value'=>$total_active, 'color'=>'green', 'icon'=>'fa-user-check'],
                     ['label'=>'ຖືກແບນ',    'value'=>$total_banned, 'color'=>'red',   'icon'=>'fa-user-slash'],
                 ] as $s): ?>
                     <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
@@ -143,7 +143,7 @@ try {
                 <select name="filter" onchange="this.form.submit()"
                         class="border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-blue-400 transition">
                     <option value="all"    <?= $filter==='all'    ? 'selected' : '' ?>>ທັງໝົດ</option>
-                    <option value="active" <?= $filter==='active' ? 'selected' : '' ?>>ໃຊ້ງານໄດ້</option>
+                    <option value="active" <?= $filter==='active' ? 'selected' : '' ?>>ກຳລັງໃຊ້ງານ</option>
                     <option value="banned" <?= $filter==='banned' ? 'selected' : '' ?>>ຖືກແບນ</option>
                 </select>
                 <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition">
@@ -198,7 +198,7 @@ try {
                                         </td>
                                         <td class="py-3 px-4 text-center">
                                             <span class="px-2 py-1 rounded-full text-xs font-bold <?= $is_banned ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700' ?>">
-                                                <?= $is_banned ? 'ຖືກແບນ' : 'ໃຊ້ງານໄດ້' ?>
+                                                <?= $is_banned ? 'ຖືກແບນ' : 'ກຳລັງໃຊ້ງານ' ?>
                                             </span>
                                         </td>
                                         <td class="py-3 px-4 text-center">

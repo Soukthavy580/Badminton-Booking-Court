@@ -517,7 +517,7 @@ try {
                                 <?php if ($slip_url): ?>
                                     <button onclick="viewSlip('<?= htmlspecialchars($slip_url) ?>', <?= $ad['AD_ID'] ?>, '<?= htmlspecialchars($ad['Status_AD']) ?>')"
                                         class="bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-xl text-sm font-semibold transition">
-                                        <i class="fas fa-receipt mr-1"></i>ເບິ່ງໃບຮັບເງິນ
+                                        <i class="fas fa-receipt mr-1"></i>ເບິ່ງຫຼັກຖານການໂອນ
                                     </button>
                                 <?php else: ?>
                                     <span class="bg-gray-100 text-gray-400 px-3 py-2 rounded-xl text-sm">
@@ -577,7 +577,7 @@ try {
 <div class="slip-modal" id="slipModal">
     <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-lg w-full mx-4 relative">
         <button onclick="closeSlip()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-xl"><i class="fas fa-times"></i></button>
-        <h3 class="font-bold text-gray-800 text-lg mb-4"><i class="fas fa-receipt text-blue-500 mr-2"></i>ໃບຮັບເງິນ — ໂຄສະນາ #<span id="modalAdId"></span></h3>
+        <h3 class="font-bold text-gray-800 text-lg mb-4"><i class="fas fa-receipt text-blue-500 mr-2"></i>ຫຼັກຖານການໂອນ — ໂຄສະນາ #<span id="modalAdId"></span></h3>
         <img id="modalSlipImg" src="" alt="Payment Slip" class="w-full max-h-96 object-contain rounded-xl border border-gray-200 mb-4">
         <div class="flex gap-3" id="modalActions"></div>
     </div>

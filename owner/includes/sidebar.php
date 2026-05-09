@@ -10,7 +10,6 @@ if (isset($pdo) && isset($ca_id)) {
     } catch (PDOException $e) { $is_active = false; }
 }
 
-// Count distinct bookings (not courts) — 1 person booking 3 courts = 1 alert
 $pending_count = 0;
 if (isset($pdo) && isset($ca_id) && $is_active) {
     try {
@@ -29,7 +28,6 @@ if (isset($pdo) && isset($ca_id) && $is_active) {
     } catch (PDOException $e) { $pending_count = 0; }
 }
 
-// Package expiring within 3 days — only if no queued package
 $pkg_expiring = false;
 if (isset($pdo) && isset($ca_id) && $is_active) {
     try {
@@ -43,7 +41,6 @@ if (isset($pdo) && isset($ca_id) && $is_active) {
     } catch (PDOException $e) {}
 }
 
-// Ad expiring within 3 days — only if no queued ad
 $ad_expiring = false;
 if (isset($pdo) && isset($ca_id) && $is_active) {
     try {
@@ -66,7 +63,6 @@ if (isset($pdo) && isset($ca_id) && $is_active) {
     } catch (PDOException $e) {}
 }
 
-// Notification count — counts rejected items across all 3 tables (no owner_notification needed)
 $notif_count = 0;
 if (isset($pdo) && isset($ca_id)) {
     try {
@@ -96,7 +92,21 @@ function sidebar_class($path) {
         ? 'flex items-center gap-3 px-4 py-3 rounded-xl bg-green-50 text-green-700 font-semibold border-l-4 border-green-600'
         : 'flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-green-50 hover:text-green-700 font-medium transition';
 }
+
+function sidebar_locked($label) {
+    echo '<div title="ກະລຸນາຊື້ແພັກເກດກ່ອນ"
+               class="relative group flex items-center gap-3 px-4 py-3 rounded-xl text-gray-300 cursor-not-allowed select-none">
+            <i class="fas fa-lock w-5 text-xs"></i>
+            <span>' . $label . '</span>
+            <span class="pointer-events-none absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50
+                         whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white
+                         opacity-0 transition-opacity group-hover:opacity-100">
+                ຕ້ອງມີແພັກເກດ
+            </span>
+          </div>';
+}
 ?>
+
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     window.BBCAlert = window.BBCAlert || {};
@@ -115,26 +125,28 @@ function sidebar_class($path) {
     window.BBCAlert.confirm = function (opts) {
         if (typeof Swal === 'undefined') return Promise.resolve(window.confirm((opts && opts.text) ? opts.text : 'Confirm?'));
         return Swal.fire({
-            icon: (opts && opts.icon) ? opts.icon : 'question',
-            title: (opts && opts.title) ? opts.title : 'ຢືນຢັນ',
-            text: (opts && opts.text) ? opts.text : '',
-            showCancelButton: true,
+            icon:              (opts && opts.icon)              ? opts.icon              : 'question',
+            title:             (opts && opts.title)             ? opts.title             : 'ຢືນຢັນ',
+            text:              (opts && opts.text)              ? opts.text              : '',
+            showCancelButton:  true,
             confirmButtonText: (opts && opts.confirmButtonText) ? opts.confirmButtonText : 'ຕົກລົງ',
-            cancelButtonText: (opts && opts.cancelButtonText) ? opts.cancelButtonText : 'ຍົກເລີກ',
+            cancelButtonText:  (opts && opts.cancelButtonText)  ? opts.cancelButtonText  : 'ຍົກເລີກ',
             draggable: true
         }).then(r => !!r.isConfirmed);
     };
 </script>
+
 <?php if (empty($swal_flash_handled) && (!empty($error) || !empty($success))): ?>
-    <script>
-        (function () {
-            const errorMsg = <?= json_encode($error ?? '', JSON_UNESCAPED_UNICODE) ?>;
-            const successMsg = <?= json_encode($success ?? '', JSON_UNESCAPED_UNICODE) ?>;
-            if (errorMsg) return window.BBCAlert.toast('error', errorMsg);
-            if (successMsg) return window.BBCAlert.toast('success', successMsg);
-        })();
-    </script>
+<script>
+    (function () {
+        const errorMsg   = <?= json_encode($error   ?? '', JSON_UNESCAPED_UNICODE) ?>;
+        const successMsg = <?= json_encode($success ?? '', JSON_UNESCAPED_UNICODE) ?>;
+        if (errorMsg)   return window.BBCAlert.toast('error',   errorMsg);
+        if (successMsg) return window.BBCAlert.toast('success', successMsg);
+    })();
+</script>
 <?php endif; ?>
+
 <aside class="w-64 bg-white shadow-md flex-shrink-0 hidden md:flex flex-col sticky top-0 h-screen">
 
     <!-- Logo -->
@@ -160,11 +172,16 @@ function sidebar_class($path) {
         <div class="pt-3 pb-1">
             <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">ການຈັດການ</p>
         </div>
-        <a href="/Badminton_court_Booking/owner/" class="<?= sidebar_class('/owner/index') ?>">
-            <i class="fas fa-home w-5"></i>ໜ້າຫຼັກ
-        </a>
 
-        <!-- ── ແພັກເກດ ── -->
+        <?php if ($is_active): ?>
+            <a href="/Badminton_court_Booking/owner/" class="<?= sidebar_class('/owner/index') ?>">
+                <i class="fas fa-home w-5"></i>ໜ້າຫຼັກ
+            </a>
+        <?php else: ?>
+            <?php sidebar_locked('ໜ້າຫຼັກ'); ?>
+        <?php endif; ?>
+
+        <!-- ── ແພັກເກດ (always accessible) ── -->
         <div class="pt-3 pb-1">
             <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">ການສະໝັກການໃຊ້ງານ</p>
         </div>
@@ -186,7 +203,6 @@ function sidebar_class($path) {
             <a href="/Badminton_court_Booking/owner/manage_court/" class="<?= sidebar_class('/manage_court/') ?>">
                 <i class="fas fa-store w-5"></i>ສະຖານທີ່ ແລະ ຄອດ
             </a>
-            
             <a href="/Badminton_court_Booking/owner/booking_management/" class="<?= sidebar_class('/booking_management/') ?>">
                 <i class="fas fa-calendar-check w-5"></i>ການຈອງ
                 <?php if ($pending_count > 0): ?>
@@ -206,41 +222,27 @@ function sidebar_class($path) {
                 <i class="fas fa-users w-5"></i>ລູກຄ້າ
             </a>
         <?php else: ?>
-            <?php foreach ([
-                ['fa-store',          'ສະຖານທີ່ຂອງຂ້ອຍ'],            
-                ['fa-calendar-check', 'ການຈອງ'],
-                ['fa-concierge-bell', 'ສິ່ງອຳນວຍຄວາມສະດວກ'],
-                ['fa-bullhorn',       'ໂຄສະນາ'],
-                 ['fa-users',          'ລູກຄ້າ'],
-            ] as [$icon, $label]): ?>
-                <div class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-300 cursor-not-allowed select-none">
-                    <i class="fas fa-lock w-5 text-xs"></i><?= $label ?>
-                </div>
-            <?php endforeach; ?>
+            <?php sidebar_locked('ສະຖານທີ່ ແລະ ຄອດ'); ?>
+            <?php sidebar_locked('ການຈອງ'); ?>
+            <?php sidebar_locked('ສິ່ງອຳນວຍຄວາມສະດວກ'); ?>
+            <?php sidebar_locked('ໂຄສະນາ'); ?>
+            <?php sidebar_locked('ລູກຄ້າ'); ?>
         <?php endif; ?>
 
         <!-- ── ລາຍງານ ── -->
         <div class="pt-3 pb-1">
             <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">ລາຍງານ</p>
         </div>
-        <a href="/Badminton_court_Booking/owner/reports/" class="<?= sidebar_class('/reports/') ?>">
-            <i class="fas fa-chart-bar w-5"></i>ລາຍງານ
-        </a>
 
-        <!-- ── ການແຈ້ງເຕືອນ ── -->
-       <!-- <div class="pt-3 pb-1">
-            <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">ການແຈ້ງເຕືອນ</p>
-        </div>
-        <a href="/Badminton_court_Booking/owner/notification/" class="<?= sidebar_class('/notification/') ?>">
-            <i class="fas fa-bell w-5"></i>ການແຈ້ງເຕືອນ
-            <?php if ($notif_count > 0): ?>
-                <span class="ml-auto bg-red-500 text-white text-xs font-bold rounded-full px-2 py-0.5">
-                    <?= $notif_count ?>
-                </span>
-            <?php endif; ?>
-        </a> -->
+        <?php if ($is_active): ?>
+            <a href="/Badminton_court_Booking/owner/reports/" class="<?= sidebar_class('/reports/') ?>">
+                <i class="fas fa-chart-bar w-5"></i>ລາຍງານ
+            </a>
+        <?php else: ?>
+            <?php sidebar_locked('ລາຍງານ'); ?>
+        <?php endif; ?>
 
-        <!-- ── ບັນຊີ ── -->
+        <!-- ── ບັນຊີ (Profile always accessible) ── -->
         <div class="pt-3 pb-1">
             <p class="text-xs text-gray-400 font-bold uppercase tracking-wider px-4">ບັນຊີ</p>
         </div>

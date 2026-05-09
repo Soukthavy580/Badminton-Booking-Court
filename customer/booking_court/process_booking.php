@@ -36,7 +36,7 @@ if (!$slots || count($slots) === 0) {
     exit;
 }
 
-// Server-side deduplicate by court+start+end
+// Deduplicate
 $seen  = [];
 $slots = array_filter($slots, function ($slot) use (&$seen) {
     $key = ($slot['courtId'] ?? '') . '_' . ($slot['start'] ?? '') . '_' . ($slot['end'] ?? '');
@@ -46,85 +46,86 @@ $slots = array_filter($slots, function ($slot) use (&$seen) {
 });
 $slots = array_values($slots);
 
-if (count($slots) === 0) {
-    header('Location: /Badminton_court_Booking/customer/booking_court/venue_detail.php?id=' . $venue_id . '&date=' . $date);
-    exit;
-}
+// Validate slots are not already booked
+foreach ($slots as $slot) {
+    $start_datetime = $date . ' ' . $slot['start'] . ':00';
+    $end_datetime   = $date . ' ' . $slot['end']   . ':00';
+    $court_id       = intval($slot['courtId']);
 
-// Clean up: delete booking_detail rows for old Unpaid bookings, then cancel them
-// Unpaid = customer selected but never paid — safe to delete
-try {
-    $stmt = $pdo->prepare("SELECT Book_ID FROM booking WHERE C_ID = ? AND Status_booking = 'Unpaid'");
-    $stmt->execute([$customer_id]);
-    $old_ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
-    if (!empty($old_ids)) {
-        $ph = implode(',', array_fill(0, count($old_ids), '?'));
-        $pdo->prepare("DELETE FROM booking_detail WHERE Book_ID IN ($ph)")->execute($old_ids);
-        $pdo->prepare("DELETE FROM booking WHERE Book_ID IN ($ph)")->execute($old_ids);
+    if (strtotime($start_datetime) >= strtotime($end_datetime)) {
+        $_SESSION['booking_error'] = 'ເວລາເວລາບໍ່ຖືກຕ້ອງ.';
+        header('Location: /Badminton_court_Booking/customer/booking_court/venue_detail.php?id=' . $venue_id . '&date=' . $date);
+        exit;
     }
-} catch (PDOException $e) {
+
+    try {
+        $check = $pdo->prepare("
+            SELECT COUNT(*) FROM booking_detail bd
+            INNER JOIN booking b ON bd.Book_ID = b.Book_ID
+            WHERE bd.COURT_ID = ?
+            AND b.Status_booking IN ('Confirmed', 'Pending')
+            AND bd.Start_time < ? AND bd.End_time > ?
+        ");
+        $check->execute([$court_id, $end_datetime, $start_datetime]);
+        if ($check->fetchColumn() > 0) {
+            $_SESSION['booking_error'] = 'ເວລາທີ່ທ່ານເລືອກຖືກຈອງແລ້ວ. ກະລຸນາເລືອກເວລາໃໝ່.';
+            header('Location: /Badminton_court_Booking/customer/booking_court/venue_detail.php?id=' . $venue_id . '&date=' . $date);
+            exit;
+        }
+    } catch (PDOException $e) {
+        $_SESSION['booking_error'] = 'ການກວດສອບລົ້ມເຫລວ. ກະລຸນາລອງໃໝ່.';
+        header('Location: /Badminton_court_Booking/customer/booking_court/venue_detail.php?id=' . $venue_id . '&date=' . $date);
+        exit;
+    }
 }
 
+// ── NEW: Create a Pending booking in DB (no slip yet) ──
+// This locks the slots so other users see them as "ກຳລັງດຳເນີນການ"
+// while this customer is on the payment page. It gets deleted if:
+//   (a) 10-min timer fires without payment, or
+//   (b) customer cancels/leaves the payment page.
 try {
     $pdo->beginTransaction();
 
-    // Create booking as 'Unpaid' — will become 'Pending' only after slip is uploaded
     $stmt = $pdo->prepare("
         INSERT INTO booking (Booking_date, Slip_payment, Status_booking, C_ID)
-        VALUES (NOW(), '', 'Unpaid', ?)
+        VALUES (NOW(), NULL, 'Pending', ?)
     ");
     $stmt->execute([$customer_id]);
     $book_id = $pdo->lastInsertId();
 
-    $insert_stmt = $pdo->prepare("
+    $ins = $pdo->prepare("
         INSERT INTO booking_detail (Start_time, End_time, Book_ID, COURT_ID)
         VALUES (?, ?, ?, ?)
     ");
-
     foreach ($slots as $slot) {
-        $start_datetime = $date . ' ' . $slot['start'] . ':00';
-        $end_datetime   = $date . ' ' . $slot['end']   . ':00';
-        $court_id       = intval($slot['courtId']);
-
-        if (strtotime($start_datetime) >= strtotime($end_datetime)) {
-            $pdo->rollBack();
-            $_SESSION['booking_error'] = 'ເວລາສລັອດບໍ່ຖືກຕ້ອງ.';
-            header('Location: /Badminton_court_Booking/customer/booking_court/venue_detail.php?id=' . $venue_id . '&date=' . $date);
-            exit;
-        }
-
-        // Block only Confirmed or Pending slots
-        $check = $pdo->prepare("
-            SELECT COUNT(*) AS cnt
-            FROM booking_detail bd
-            INNER JOIN booking b ON bd.Book_ID = b.Book_ID
-            WHERE bd.COURT_ID = ?
-            AND b.Status_booking IN ('Confirmed', 'Pending')
-            AND bd.Start_time < ?
-            AND bd.End_time > ?
-        ");
-        $check->execute([$court_id, $end_datetime, $start_datetime]);
-        if ($check->fetch()['cnt'] > 0) {
-            $pdo->rollBack();
-            $_SESSION['booking_error'] = 'ສລັອດທີ່ທ່ານເລືອກຖືກຈອງແລ້ວ. ກະລຸນາເລືອກເວລາໃໝ່.';
-            header('Location: /Badminton_court_Booking/customer/booking_court/venue_detail.php?id=' . $venue_id . '&date=' . $date);
-            exit;
-        }
-
-        $insert_stmt->execute([$start_datetime, $end_datetime, $book_id, $court_id]);
+        $ins->execute([
+            $date . ' ' . $slot['start'] . ':00',
+            $date . ' ' . $slot['end']   . ':00',
+            $book_id,
+            intval($slot['courtId']),
+        ]);
     }
 
     $pdo->commit();
 
-    $_SESSION['current_booking_id'] = $book_id;
-    $_SESSION['current_booking_ts'] = time();
-
-    header('Location: /Badminton_court_Booking/customer/payment/index.php?booking_id=' . $book_id);
-    exit;
 } catch (PDOException $e) {
     $pdo->rollBack();
-    error_log("Booking error: " . $e->getMessage());
     $_SESSION['booking_error'] = 'ການຈອງລົ້ມເຫລວ. ກະລຸນາລອງໃໝ່.';
     header('Location: /Badminton_court_Booking/customer/booking_court/venue_detail.php?id=' . $venue_id . '&date=' . $date);
     exit;
 }
+
+// Store in session — includes book_id and 10-min expiry
+$_SESSION['pending_booking'] = [
+    'book_id'     => $book_id,       // NEW: needed to attach slip / clean up on timeout
+    'venue_id'    => $venue_id,
+    'date'        => $date,
+    'slots'       => $slots,
+    'customer_id' => $customer_id,
+    'ts'          => time(),
+    'expires_at'  => time() + 600,   // NEW: 10 minutes from now
+];
+
+header('Location: /Badminton_court_Booking/customer/payment/index.php');
+exit;

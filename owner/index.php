@@ -217,7 +217,7 @@ $days_left = $active_package ? ceil((strtotime($active_package['End_time']) - ti
                             </div>
                             <div>
                                 <h2 class="text-lg font-bold text-yellow-800 mb-1">ລໍຖ້າການອະນຸມັດ</h2>
-                                <p class="text-yellow-700 text-sm mb-2">ໃບຮັບເງິນຂອງທ່ານຖືກສົ່ງແລ້ວ. ແອດມິນຈະອະນຸມັດໃນໄວໆນີ້.</p>
+                                <p class="text-yellow-700 text-sm mb-2">ຫຼັກຖານການໂອນຂອງທ່ານຖືກສົ່ງແລ້ວ. ແອດມິນຈະອະນຸມັດໃນໄວໆນີ້.</p>
                                 <div class="bg-white border border-yellow-200 rounded-lg px-4 py-2 inline-block text-sm">
                                     <span class="text-gray-500">ແພັກເກດ:</span>
                                     <span class="font-bold text-gray-800 ml-1"><?= htmlspecialchars($pending_package['Package_duration']) ?></span>
@@ -234,7 +234,7 @@ $days_left = $active_package ? ceil((strtotime($active_package['End_time']) - ti
                             </div>
                             <div>
                                 <h2 class="text-lg font-bold text-red-800 mb-1">ການຊຳລະເງິນຖືກປະຕິເສດ</h2>
-                                <p class="text-red-600 text-sm mb-3">ກະລຸນາສົ່ງໃໝ່ດ້ວຍໃບຮັບເງິນທີ່ຖືກຕ້ອງ.</p>
+                                <p class="text-red-600 text-sm mb-3">ກະລຸນາສົ່ງໃໝ່ດ້ວຍຫຼັກຖານການໂອນທີ່ຖືກຕ້ອງ.</p>
                                 <a href="/Badminton_court_Booking/owner/package_rental/index.php"
                                    class="inline-block bg-red-600 hover:bg-red-700 text-white font-bold px-5 py-2 rounded-xl transition text-sm">
                                     <i class="fas fa-redo mr-1"></i>ສົ່ງໃໝ່
@@ -384,7 +384,7 @@ $days_left = $active_package ? ceil((strtotime($active_package['End_time']) - ti
                                                 </div>
                                                 <div>
                                                     <p class="font-semibold text-gray-800 text-sm"><?= htmlspecialchars($rb['customer_name']) ?></p>
-                                                    <p class="text-xs text-gray-500"><?= $play_date ?> · <?= count($rb['slots']) ?> ສລັອດ · #<?= $rb['Book_ID'] ?></p>
+                                                    <p class="text-xs text-gray-500"><?= $play_date ?> · <?= count($rb['slots']) ?> ເວລາ · #<?= $rb['Book_ID'] ?></p>
                                                 </div>
                                             </div>
                                             <div class="flex items-center gap-2">
